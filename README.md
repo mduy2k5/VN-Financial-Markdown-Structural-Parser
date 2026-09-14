@@ -1,78 +1,130 @@
-# Income Comparison Full v7
+# Financial Statement Parser
 
-## Mục tiêu
+Python tools for extracting financial-position, off-balance, and income-statement
+rows from Markdown financial reports. The project contains a legacy parser, a
+structural flow parser, a hybrid parser, and a dedicated income comparison pipeline.
 
-v7 sửa regression của v6 và bổ sung profile bảo hiểm vào cùng universal income pipeline.
+## Requirements
 
-### Thay đổi chính
-
-1. **Scope ranking chống chọn nhầm Notes**
-   - phát hiện mốc bắt đầu `THUYẾT MINH BÁO CÁO TÀI CHÍNH` / `B09-DN/HN`;
-   - candidate income nằm sau mốc notes bị penalty mạnh;
-   - block quá dài (>320 dòng) bị giảm điểm;
-   - tăng trọng số cho tập anchor của báo cáo chính thay vì số lượng numeric rows thuần túy.
-
-   Mục tiêu: giữ ACB/NAB quý đã hồi phục ở v6 nhưng không để BSR/VIC nhảy sang notes.
-
-2. **Insurance profile**
-   - `sector=insurance` không còn hard-stop `schema_sector_gap`;
-   - thêm `INCOME.INSURANCE.*` vào `UNIVERSAL_INCOME_STATEMENT_V1`;
-   - hỗ trợ các mã 31, 32, 33, 41, 42, 43, 43.1, 43.2, 44, 44.1, 44.2,
-     45, 46, 47, 48, 48.1, 48.2, 50, 51, 52, 60, 61, 62, 70;
-   - thêm formula validation cho insurance.
-
-3. Giữ nguyên các collector v6 đã ổn cho bank / enterprise / securities.
-
-## Chạy batch
+- Python 3.10 or newer
+- Install test dependencies when running the test suite:
 
 ```powershell
-Set-Location 'F:\Indexium\Flatten'
-
-python .\run_income_comparison.py .\output\md_reports `
-  --comparison-dir .\output\comparisons\comparison_legacy `
-  --output .\output\comparisons\comparison_v7 `
-  --current-year 2025 `
-  --previous-year 2024
+python -m pip install -r .\requirements.txt
 ```
 
-Nếu không cần merge comparison B02 cũ:
+The repository intentionally does not contain source reports or generated results.
+Keep those files under `output/`; that directory is ignored by Git.
+
+## Main parser
+
+`run.py` is the current unified entrypoint. It accepts one Markdown file or a folder.
 
 ```powershell
-python .\run_income_comparison.py .\output\md_reports --output .\output\comparisons\comparison_v7
+python .\run.py .\input --mode v05 --output .\output\v05
+python .\run.py .\input --mode flow --output .\output\flow
+python .\run.py .\input --mode hybrid --output .\output\hybrid
+python .\run.py .\input --mode compare --output .\output\compare
 ```
 
-## Kiểm tra regression
+The hybrid mode keeps the v0.5 canonical result authoritative and only fills missing
+slots from the structural flow. Compare mode writes `v05/`, `flow/`, `hybrid/`,
+`comparison/`, and a batch summary below the requested output directory.
 
-Ưu tiên kiểm tra:
+Useful options include:
 
-- ACB: không được tụt khỏi 22/22.
-- NAB quý: không được quay về 0 rows.
-- BSR: scope phải quay về báo cáo chính, không chọn vùng thuyết minh doanh thu/giá vốn.
-- VIC: sector phải quay về enterprise và có canonical.
-- BVH: sector insurance phải tạo canonical thay vì `schema_sector_gap:insurance`.
-- BSI/CTS: securities không được regress.
+```powershell
+python .\run.py .\input --mode compare --mapping-strategy regex --output .\output\compare_regex
+python .\run.py .\input --mode mapping-compare --output .\output\mapping_compare
+python .\run.py .\input --mode hybrid --no-hybrid-fill --output .\output\hybrid_no_fill
+```
 
-Trong summary, `collector_policy` phải là `income_multi_layout_v7`.
+Use `--fuzzy` or `--allow-unknown-structure` only when the input requires them.
+The active engine and mapping options are recorded in `run_manifest.json`.
 
-## v8 - batch discovery safety
+## Income comparison
 
-v8 keeps the v7 scope/insurance changes and fixes the silent-empty-batch failure mode.
+`run_income_comparison.py` extracts income statements, detects the sector, maps rows
+to the universal income schema, and merges the result into an existing comparison
+JSON when one is available.
 
-Input discovery now:
-
-1. validates that the input path exists;
-2. accepts a single `.md` file;
-3. scans `*.md` in the requested directory;
-4. falls back to recursive `**/*.md` discovery if the top level has none;
-5. prints `[DISCOVERY] ... md_found=N selected=M` before processing;
-6. exits non-zero instead of writing a misleading empty summary when no Markdown input is found.
-
-Recommended command from `F:\Indexium\Flatten`:
+Recommended v8 run:
 
 ```powershell
 python .\run_income_comparison.py .\output\md_reports `
   --comparison-dir .\output\comparisons\comparison_v6 `
-  --output .\output\comparisons\comparison_v8
+  --output .\output\comparisons\comparison_v8 `
+  --current-year 2025 `
+  --previous-year 2024
 ```
 
-If your Markdown is actually in `F:\Indexium\Flatten\md_reports`, using `.\md_reports` also works. v8 prints the resolved input path so this is immediately visible.
+The command prints input discovery before processing and fails when the input path
+does not exist or contains no Markdown files. It writes one canonical JSON per
+successful file plus `comparison_summary.json` and `comparison_summary.csv`.
+
+Supported automatic sector profiles are `bank`, `enterprise`, `securities`, and
+`insurance`. Use `--sector` to override detection for a controlled experiment.
+
+## Income row mapper
+
+Use `run_income_map.py` when the input is already a CSV/JSON row export rather than
+Markdown:
+
+```powershell
+python .\run_income_map.py .\rows `
+  --sector auto `
+  --output .\output\income_map `
+  --current-year 2025 `
+  --previous-year 2024
+```
+
+Runtime income schemas and aliases are in `resources/` and
+`income_schema/resources/`. Do not replace them with generated reports.
+
+## Integrated and legacy entrypoints
+
+These wrappers remain available for existing workflows:
+
+```powershell
+python .\run_ab.py .\input --compare-all --output .\output\ab_compare
+python .\run.py .\input --mode compare --output .\output\compare
+.\run_parser.ps1 -InputPath .\input -OutputPath .\output\parser
+.\run_integrated.ps1 -InputPath .\input -OutputPath .\output\integrated
+```
+
+Prefer `run.py` for new parser runs and `run_income_comparison.py` for the income
+pipeline. The PowerShell wrappers are retained for compatibility.
+
+## Tests
+
+Run the full suite from the repository root:
+
+```powershell
+python -m pytest -q
+```
+
+For a dependency-free syntax check:
+
+```powershell
+python -m compileall -q flat_parser income_schema scripts tests `
+  income_mapper.py income_observation_patch.py run_income_comparison.py
+```
+
+## Repository layout
+
+```text
+flat_parser/                 Parser engines and shared models
+income_schema/               Standalone income row mapper
+resources/                   Runtime schemas, aliases, and structural guides
+samples/                     Small safe fixtures
+scripts/                     Guide and coverage utilities
+tests/                       Regression tests and fixtures
+output/                      Local reports and generated results; ignored by Git
+```
+
+Design notes and detailed mode behavior are documented in:
+
+- `RUN_MODES.md`
+- `FEATURE_FLAGS.md`
+- `REGEX_FALLBACK_FLOW.md`
+- `STATEMENT_SCANNER_DESIGN.md`
