@@ -4,8 +4,6 @@ Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện
 
 Phiên bản hiện tại: **Release v22.2** — Đạt độ chính xác tuyệt đối **171 / 171 Báo cáo (100.0% Pass Rate)** trên toàn bộ tập dữ liệu 57 doanh nghiệp.
 
----
-
 ## 1. Tuân Thủ Chuẩn Mực Kế Toán Pháp Định
 
 Hệ thống được thiết kế hoàn toàn dựa trên các thông tư chuẩn hóa quốc gia của Bộ Tài chính và Ngân hàng Nhà nước Việt Nam, **tuyệt đối không áp dụng cơ chế hardcode/ghi đè riêng lẻ** cho từng tệp dữ liệu:
@@ -14,8 +12,6 @@ Hệ thống được thiết kế hoàn toàn dựa trên các thông tư chu�
 - **Thông tư 49/2014/TT-NHNN:** Dành cho Khối Ngân hàng thương mại và Tổ chức tín dụng (`bank`).
 - **Thông tư 334/2016/TT-BTC:** Dành cho Khối Công ty Chứng khoán (`securities`).
 - **Thông tư 199/2014/TT-BTC:** Dành cho Khối Doanh nghiệp / Tập đoàn Bảo hiểm (`insurance`).
-
----
 
 ## 2. Kết Quả Thực Nghiệm So Với Ground Truth (Release v22.2)
 
@@ -39,8 +35,6 @@ Hệ thống được kiểm định và đối soát chéo độc lập với 5
 
 > **100% (57 / 57 doanh nghiệp)** đều đạt xếp hạng **Xuất sắc ($\ge 98.0\%$)**.
 
----
-
 ## 3. Cài Đặt & Yêu Cầu Môi Trường
 
 - **Python 3.10 trở lên** (khuyến nghị Python 3.11 hoặc 3.12).
@@ -49,8 +43,6 @@ Hệ thống được kiểm định và đối soát chéo độc lập với 5
 ```powershell
 python -m pip install -r .\requirements.txt
 ```
-
----
 
 ## 4. Hướng Dẫn Sử Dụng (Pipeline Execution)
 
@@ -95,8 +87,6 @@ python .\run_income_map.py .\rows `
   --previous-year 2024
 ```
 
----
-
 ## 5. Cấu Trúc Mã Nguồn (Repository Layout)
 
 Kho mã nguồn đã được tinh giản và tái cấu trúc sạch sẽ:
@@ -136,8 +126,6 @@ Flatten/
 ├── VERSION.txt                # Phiên bản hiện tại (v22.2)
 └── README.md                  # Tài liệu hướng dẫn chính của dự án
 ```
-
----
 
 ## 6. Kiểm Thử & Xác Minh (Testing)
 
