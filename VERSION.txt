@@ -1,2 +1,1 @@
-v12-debug
-Three-statement debug build: source-observation canonical layer + Cash Flow previous-period recovery. No quality gate; evaluator metrics are diagnostic only.
+v13

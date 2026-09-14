@@ -19,6 +19,7 @@ from cashflow_observation_patch import extract_cashflow_fallback, detect_method 
 from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
 from financial_position_bridge import FinancialPositionIndex, integrate_financial_position
 from source_observation_layer import augment_from_rows
+from source_statement_recovery import extract_generic_statement_rows, augment_canonical_with_recovered_rows
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -323,7 +324,20 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
     mapped = mapper.map_rows(rows)
     canonical = mapper.canonical(mapped, source_name=md_path.name, current_year=current_year, previous_year=previous_year)
     canonical = augment_from_rows(canonical, mapped, "INCOME")
+    # v13: source-scope recovery is additive only. It preserves rows that the semantic extractor
+    # did not materialize, without changing mapping decisions for already-populated semantic nodes.
+    if ext.get("scope_start_line") and ext.get("scope_end_line"):
+        recovered_rows = extract_generic_statement_rows(
+            text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "INCOME")
+        canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "INCOME")
     metrics = build_metrics(canonical, mapped, ext, sector, sector_method)
+    sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
+    (metrics.get("parser") or {}).update({
+        "source_recovery": "v13", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery_added_nodes": sr.get("added_nodes", 0),
+        "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
+        "source_recovery_conflicts": sr.get("conflicts", 0),
+    })
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector}
 
 
@@ -407,7 +421,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
             "method": method, "method_method": method_method,
             "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
-            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v3",
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v4_source_recovery",
             "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
         },
         "quality": {
@@ -457,7 +471,20 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
     mapped = mapper.map_rows(rows)
     canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year)
     canonical = augment_from_rows(canonical, mapped, "CASHFLOW")
+    # v13: raw source recovery covers mixed inline-year/date layouts (e.g. current value followed
+    # by `(Năm 2024: ...)`, or `(31.12.2025); (31.12.2024)`) that can hydrate only one period in v12.
+    if ext.get("scope_start_line") and ext.get("scope_end_line"):
+        recovered_rows = extract_generic_statement_rows(
+            text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "CASHFLOW")
+        canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "CASHFLOW")
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
+    sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
+    (metrics.get("parser") or {}).update({
+        "source_recovery": "v13", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery_added_nodes": sr.get("added_nodes", 0),
+        "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
+        "source_recovery_conflicts": sr.get("conflicts", 0),
+    })
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
 
@@ -485,7 +512,10 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         existing = {}
 
     # Integrate the completed Financial Position pipeline/output before writing the unified comparison.
-    fp = integrate_financial_position(base, output_dir, fp_index, existing)
+    source_text = md_path.read_text(encoding="utf-8", errors="ignore")
+    fp = integrate_financial_position(
+        base, output_dir, fp_index, existing, source_text=source_text,
+        current_year=current_year, previous_year=previous_year)
 
     merged = deepcopy(existing)
     merged.setdefault("source_name", md_path.name)
@@ -538,6 +568,10 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "financial_position_value_nodes": fp["metrics"].get("value_nodes", 0),
         "financial_position_current_nodes": fp["metrics"].get("current_value_nodes", 0),
         "financial_position_previous_nodes": fp["metrics"].get("previous_value_nodes", 0),
+        "financial_position_recovered_rows": (fp["metrics"].get("parser") or {}).get("recovered_rows", 0),
+        "income_source_recovered_rows": (im.get("parser") or {}).get("source_recovered_rows", 0),
+        "cashflow_source_recovered_rows": (cm.get("parser") or {}).get("source_recovered_rows", 0),
+        "cashflow_source_recovery_filled_nodes": (cm.get("parser") or {}).get("source_recovery_filled_nodes", 0),
         "financial_position_canonical_file": fp["canonical_file"],
         "financial_position_preserved": fp["canonical"] is not None or fp.get("preserved_legacy", False),
         "income_statement_preserved_or_written": "income_statement" in merged,
@@ -613,7 +647,9 @@ def main():
         "cashflow_value_nodes","cashflow_current_nodes","cashflow_previous_nodes","cashflow_formula_evaluated",
         "cashflow_formula_passed","cashflow_formula_failed","cashflow_formula_pass_rate",
         "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
-        "financial_position_previous_nodes","financial_position_canonical_file","financial_position_preserved",
+        "financial_position_previous_nodes","financial_position_recovered_rows",
+        "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
+        "financial_position_canonical_file","financial_position_preserved",
         "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from source_observation_layer import augment_financial_position
+from source_statement_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
 
 
 GENERIC_CANONICAL_SUFFIX = ".canonical.json"
@@ -172,7 +173,9 @@ def summarize_canonical(canonical: dict, source_path: Optional[Path] = None, leg
 
 
 def integrate_financial_position(base: str, output_dir: Path, index: FinancialPositionIndex,
-                                 existing_comparison: Optional[dict] = None) -> dict:
+                                 existing_comparison: Optional[dict] = None,
+                                 source_text: Optional[str] = None,
+                                 current_year: int = 2025, previous_year: int = 2024) -> dict:
     src = index.find(base)
     existing_comparison = existing_comparison or {}
     legacy_fp = existing_comparison.get("financial_position") if isinstance(existing_comparison, dict) else None
@@ -207,11 +210,27 @@ def integrate_financial_position(base: str, output_dir: Path, index: FinancialPo
 
     canonical = read_json(src, {})
     canonical = augment_financial_position(canonical)
+    recovered = {"rows": [], "scope_start_line": None, "scope_end_line": None, "scope_score": 0}
+    if source_text:
+        recovered = extract_financial_position_source_rows(source_text, current_year=current_year, previous_year=previous_year)
+        canonical = augment_canonical_with_recovered_rows(canonical, recovered.get("rows") or [], "FINANCIAL_POSITION")
     out_path = output_dir / f"{base}.financial_position.canonical.json"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # v12 keeps the historical semantic canonical and adds a lossless source-observation layer.
+    # v13 keeps the historical semantic canonical and adds a lossless source-observation layer.
     out_path.write_text(json.dumps(canonical, ensure_ascii=False, indent=2), encoding="utf-8")
     metrics = summarize_canonical(canonical, src, legacy_metrics=legacy_v05)
+    parser = dict(metrics.get("parser") or {})
+    parser.update({
+        "source_recovery": "v13",
+        "recovery_scope_start": recovered.get("scope_start_line"),
+        "recovery_scope_end": recovered.get("scope_end_line"),
+        "recovery_scope_score": recovered.get("scope_score"),
+        "recovered_rows": len(recovered.get("rows") or []),
+        "source_recovery_added_nodes": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("added_nodes", 0),
+        "source_recovery_filled_nodes": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("filled_existing_nodes", 0),
+        "source_recovery_conflicts": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("conflicts", 0),
+    })
+    metrics["parser"] = parser
     return {
         "canonical": canonical,
         "canonical_file": out_path.name,

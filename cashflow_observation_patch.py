@@ -231,27 +231,61 @@ def detect_sector(scope_text: str) -> tuple[str, str]:
 
 
 def _extract_inline_periods(text: str, current_year: int, previous_year: int):
-    # Supports `label: **1.234** (Năm 2025) | **(2.345)** (Năm 2024)` and comma-separated variants.
+    """Extract current/previous values from common LLM inline layouts.
+
+    v13 adds:
+    - `current (Năm 2025) | previous (Năm 2024)`;
+    - `current (31.12.2025); previous (31.12.2024)`;
+    - `current ... (Năm 2024: previous ...)`, where current has no explicit year marker.
+    """
     clean = strip_md(text)
     vals = {}
-    # capture a value before a year marker
-    pat = re.compile(r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*(?:triệu\s*VND|VND|VNĐ|đồng)?\s*\(\s*Năm\s*(?P<year>20\d{2})\s*\)", re.I)
-    for m in pat.finditer(clean):
+
+    # Value immediately before a year/date marker.
+    marker_pat = re.compile(
+        r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
+        r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*"
+        r"\(\s*(?:Năm\s*)?(?:31[./-]12[./-])?(?P<year>20\d{2})\s*\)", re.I)
+    for m in marker_pat.finditer(clean):
         vals[int(m.group("year"))] = parse_number(m.group("val"))
+
+    # Previous/current value written inside the year annotation itself: `(Năm 2024: 123 triệu đồng)`.
+    anno_pat = re.compile(
+        r"\(\s*Năm\s*(?P<year>20\d{2})\s*:\s*"
+        r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
+        r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*\)", re.I)
+    anno_matches = list(anno_pat.finditer(clean))
+    for m in anno_matches:
+        vals[int(m.group("year"))] = parse_number(m.group("val"))
+
+    # TCB-like layout: `Label: CURRENT triệu đồng (Năm 2024: PREVIOUS triệu đồng)`.
+    # If the previous period is explicit but the current period is not, take the last numeric token
+    # between the first label colon and the annotation as current.
+    if previous_year in vals and current_year not in vals and anno_matches:
+        prefix = clean[:anno_matches[0].start()]
+        mc = re.search(
+            r":\s*(\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
+            r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*$", prefix, re.I)
+        if mc:
+            vals[current_year] = parse_number(mc.group(1))
+
     if vals:
         return vals.get(current_year), vals.get(previous_year)
-    # Value before `(Năm nay)` / `(Năm trước)` -- common in LLM Markdown.
-    role_pat = re.compile(r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*(?:triệu\s*đồng|triệu\s*VND|VND|VNĐ|đồng)?\s*\(\s*Năm\s*(?P<role>nay|trước)\s*\)", re.I)
+
+    # Value before `(Năm nay)` / `(Năm trước)`.
+    role_pat = re.compile(
+        r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
+        r"(?:triệu\s*đồng|triệu\s*VND|VND|VNĐ|đồng)?\s*\(\s*Năm\s*(?P<role>nay|trước)\s*\)", re.I)
     role_vals = {}
     for m in role_pat.finditer(clean):
         role_vals[fold(m.group("role"))] = parse_number(m.group("val"))
     if role_vals:
         return role_vals.get("nay"), role_vals.get("truoc")
+
     # `Năm nay: x | Năm trước: y`
     mn = re.search(r"(?i)Năm\s*nay\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
     mp = re.search(r"(?i)Năm\s*trước\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
     return (parse_number(mn.group(1)) if mn else None, parse_number(mp.group(1)) if mp else None)
-
 
 def _emit(rows, label, current, previous, section, method, code, note, line_no, pattern):
     label = strip_md(label)
