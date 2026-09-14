@@ -1,8 +1,8 @@
-﻿# Restructure Financial Statement LLM Result — Financial Statement Parser
+# VN-Financial-Markdown-Structural-Parser
 
 Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
 
-Phiên bản phát hành: **Release v22.2** — Đạt độ chính xác tuyệt đối **171 / 171 Báo cáo (100.0% Pass Rate)** trên toàn bộ tập dữ liệu 57 doanh nghiệp lớn thuộc 4 khối ngành tài chính.
+Phiên bản phát hành: **Release v22.2** — **171 / 171 statements đạt tiêu chí release**, với row-level matching accuracy tổng thể **99.79%** trên toàn bộ tập dữ liệu 57 doanh nghiệp lớn thuộc 4 khối ngành tài chính.
 
 ## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
 
