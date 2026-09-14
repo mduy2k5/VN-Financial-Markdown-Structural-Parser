@@ -513,6 +513,6 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
     canonical.setdefault("diagnostics", {})["source_statement_recovery"] = {
         "statement": statement, "rows_recovered": len(rows), "added_nodes": added,
         "filled_existing_nodes": filled, "conflicts": conflicts,
-        "policy": "source_scope_structural_recovery_v14",
+        "policy": "source_scope_structural_recovery_v15",
     }
     return canonical

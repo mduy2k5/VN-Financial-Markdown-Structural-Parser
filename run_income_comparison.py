@@ -335,7 +335,7 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
     metrics = build_metrics(canonical, mapped, ext, sector, sector_method)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
-        "source_recovery": "v14", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery": "v15", "source_recovered_rows": sr.get("rows_recovered", 0),
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
@@ -423,7 +423,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
             "method": method, "method_method": method_method,
             "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
-            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v5_reconciliation",
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v6_non_destructive_reconciliation",
             "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
         },
         "quality": {
@@ -483,7 +483,7 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
-        "source_recovery": "v14", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery": "v15", "source_recovered_rows": sr.get("rows_recovered", 0),
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
