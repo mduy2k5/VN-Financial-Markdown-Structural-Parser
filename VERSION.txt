@@ -1,2 +1,2 @@
-10.0.0
-Cash Flow collector v2 + securities profile + coverage gate; Income stays v8.
+11.0.0
+Integrated 3-statement flow: completed Financial Position canonical reuse + Income v8 + Cash Flow v2. Acceptance target: >=90% matched rows, target >=95%.

@@ -17,6 +17,7 @@ from income_observation_patch import extract_income_fallback, strip_md
 from income_mapper import IncomeMapper, adapt_row, auto_sector
 from cashflow_observation_patch import extract_cashflow_fallback, detect_method as detect_cf_method
 from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
+from financial_position_bridge import FinancialPositionIndex, integrate_financial_position
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -457,7 +458,7 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
 
-def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str):
+def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str, fp_index: FinancialPositionIndex):
     base = stem_base(md_path)
     inc = run_income(md_path, current_year, previous_year, sector)
     cf = run_cashflow(md_path, current_year, previous_year)
@@ -479,9 +480,17 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     existing = read_json(existing_path, {}) if existing_path else {}
     if not isinstance(existing, dict):
         existing = {}
+
+    # Integrate the completed Financial Position pipeline/output before writing the unified comparison.
+    fp = integrate_financial_position(base, output_dir, fp_index, existing)
+
     merged = deepcopy(existing)
     merged.setdefault("source_name", md_path.name)
     merged.setdefault("mapping_strategy", "legacy")
+    merged["financial_position"] = {
+        "v05": fp["metrics"],
+        "canonical_file": fp["canonical_file"],
+    }
     merged["income_statement"] = {
         "v05": inc["metrics"],
         "canonical_file": income_path.name if inc["canonical"] is not None else None,
@@ -522,7 +531,12 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "cashflow_formula_passed": (cm.get("quality") or {}).get("formula_passed", 0),
         "cashflow_formula_failed": (cm.get("quality") or {}).get("formula_failed", 0),
         "cashflow_formula_pass_rate": (cm.get("quality") or {}).get("formula_pass_rate"),
-        "financial_position_preserved": bool(existing.get("financial_position")),
+        "financial_position_status": fp["metrics"].get("status"),
+        "financial_position_value_nodes": fp["metrics"].get("value_nodes", 0),
+        "financial_position_current_nodes": fp["metrics"].get("current_value_nodes", 0),
+        "financial_position_previous_nodes": fp["metrics"].get("previous_value_nodes", 0),
+        "financial_position_canonical_file": fp["canonical_file"],
+        "financial_position_preserved": fp["canonical"] is not None or fp.get("preserved_legacy", False),
         "income_statement_preserved_or_written": "income_statement" in merged,
         "comparison_file": merged_path.name,
         "canonical_file": income_path.name if inc["canonical"] is not None else None,
@@ -531,9 +545,10 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Integrated financial-statement mapper: preserves existing comparison and writes Income + Cash Flow.")
+    ap = argparse.ArgumentParser(description="Integrated 3-statement mapper: Financial Position + Income + Cash Flow.")
     ap.add_argument("input", help="Markdown file or folder")
-    ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json (e.g. comparison_v8)")
+    ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json")
+    ap.add_argument("--financial-position-dir", help="Folder containing completed <base>.canonical.json Financial Position outputs. If omitted, nearby workspace folders are auto-scanned.")
     ap.add_argument("--output", default="comparison_v9")
     ap.add_argument("--current-year", type=int, default=2025)
     ap.add_argument("--previous-year", type=int, default=2024)
@@ -550,13 +565,29 @@ def main():
         print(f"[FATAL] {e}", file=sys.stderr)
         raise SystemExit(2)
 
+    # Build one reusable index instead of recursively searching for every file.
+    fp_roots = []
+    if args.financial_position_dir:
+        fp_roots.append(Path(args.financial_position_dir))
+    # Auto-discovery keeps the one-command workflow compatible with the completed older B02 pipeline.
+    for root in (input_path if input_path.is_dir() else input_path.parent,
+                 input_path.parent if input_path.is_dir() else input_path.parent.parent,
+                 comparison_dir,
+                 comparison_dir.parent if comparison_dir else None,
+                 output_dir.parent):
+        if root is not None:
+            fp_roots.append(Path(root))
+    fp_index = FinancialPositionIndex.build(fp_roots)
+    print(f"[FINANCIAL_POSITION] canonical_sources={len(fp_index.by_base)} scanned={fp_index.scanned_files}")
+
     rows = []
     for p in md_files:
         try:
-            r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector)
+            r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector, fp_index)
             rows.append(r)
             print(
-                f"[OK] {p.name}: income={r['status']} {r['mapped_rows']}/{r['input_rows']} "
+                f"[OK] {p.name}: fp={r['financial_position_status']} nodes={r['financial_position_value_nodes']} "
+                f"| income={r['status']} {r['mapped_rows']}/{r['input_rows']} "
                 f"| cashflow={r['cashflow_status']} {r['cashflow_mapped_rows']}/{r['cashflow_input_rows']} "
                 f"sector={r['cashflow_sector']} method={r['cashflow_method']}"
             )
@@ -578,7 +609,9 @@ def main():
         "cashflow_patterns","cashflow_input_rows","cashflow_mapped_rows","cashflow_unmapped_rows","cashflow_mapping_rate",
         "cashflow_value_nodes","cashflow_current_nodes","cashflow_previous_nodes","cashflow_formula_evaluated",
         "cashflow_formula_passed","cashflow_formula_failed","cashflow_formula_pass_rate",
-        "financial_position_preserved","income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file","error"
+        "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
+        "financial_position_previous_nodes","financial_position_canonical_file","financial_position_preserved",
+        "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")

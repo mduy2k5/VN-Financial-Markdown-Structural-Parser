@@ -1,5 +1,6 @@
 # Local generated outputs and source datasets
 output/
+ground_truth/
 comparison_*/
 comparison_full/
 md_reports/
