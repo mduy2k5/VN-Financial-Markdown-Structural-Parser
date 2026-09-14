@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SRC = ROOT / "src"
+for _p in (str(ROOT), str(SRC)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from income_observation_patch import extract_income_fallback, strip_md
 from income_mapper import IncomeMapper, adapt_row, auto_sector

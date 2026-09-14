@@ -109,18 +109,19 @@ Flatten/
 ├── samples/                   # Mẫu dữ liệu test an toàn
 ├── scripts/                   # Script tiện ích xây dựng guide và báo cáo độ phủ
 ├── tests/                     # Bộ kiểm thử đơn vị hồi quy (20 test suites)
-├── run_income_comparison.py   # Entry point chính chạy hợp nhất cả 3 BCTC
-├── income_mapper.py           # Engine ánh xạ Kết quả Hoạt động Kinh doanh
-├── income_observation_patch.py# Bộ trích xuất & làm sạch fallback Kết quả KD
-├── cashflow_mapper.py         # Engine ánh xạ Lưu chuyển Tiền tệ
-├── cashflow_observation_patch.py # Bộ trích xuất & nhận diện phương pháp LCTT (Trực tiếp / Gián tiếp)
-├── financial_position_bridge.py # Cầu nối tích hợp dữ liệu Bảng CĐKT
-├── period_identity_repair.py  # Sửa lỗi nhận diện niên độ và cột thời gian
-├── source_observation_layer.py# Tầng quan sát dữ liệu gốc
-├── source_reconciliation.py   # Cơ chế đối soát và bảo toàn giá trị gốc
-├── source_statement_recovery.py # Khôi phục dòng chỉ tiêu bị sót từ bảng biểu
+├── src/                       # [Core Business Logic] Thư mục chứa các module con & tiện ích
+│   ├── income_mapper.py           # Engine ánh xạ Kết quả Hoạt động Kinh doanh
+│   ├── income_observation_patch.py# Bộ trích xuất & làm sạch fallback Kết quả KD
+│   ├── cashflow_mapper.py         # Engine ánh xạ Lưu chuyển Tiền tệ
+│   ├── cashflow_observation_patch.py # Bộ trích xuất & nhận diện phương pháp LCTT (Trực tiếp / Gián tiếp)
+│   ├── financial_position_bridge.py # Cầu nối tích hợp dữ liệu Bảng CĐKT
+│   ├── period_identity_repair.py  # Sửa lỗi nhận diện niên độ và cột thời gian
+│   ├── source_observation_layer.py# Tầng quan sát dữ liệu gốc
+│   ├── source_reconciliation.py   # Cơ chế đối soát và bảo toàn giá trị gốc
+│   ├── source_statement_recovery.py # Khôi phục dòng chỉ tiêu bị sót từ bảng biểu
+│   └── analyze_income_summary.py  # Công cụ phân tích phân loại lỗi từ summary
+├── run_income_comparison.py   # [Main Runner] Entry point chính chạy hợp nhất cả 3 BCTC
 ├── run_income_map.py          # Standalone runner cho mapper KQKD
-├── analyze_income_summary.py  # Công cụ phân tích phân loại lỗi từ summary
 ├── run.py & run_ab.py         # Shortcut CLI cho flat_parser
 ├── run_parser.ps1 & run_integrated.ps1 # PowerShell runners tiện ích
 ├── VERSION.txt                # Phiên bản hiện tại (v22.2)

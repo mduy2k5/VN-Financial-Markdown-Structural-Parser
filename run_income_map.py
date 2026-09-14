@@ -3,7 +3,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+for _p in (str(ROOT), str(SRC)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from income_mapper import (
     IncomeMapper, auto_sector, load_rows, save_debug_rows,

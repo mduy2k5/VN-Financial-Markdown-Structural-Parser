@@ -8,7 +8,8 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Optional
 
-ROOT = Path(__file__).resolve().parent
+_parent = Path(__file__).resolve().parent
+ROOT = _parent if (_parent / "resources").exists() else _parent.parent
 DEFAULT_SCHEMA = ROOT / "resources" / "cash_flow_schema.json"
 DEFAULT_ALIASES = ROOT / "resources" / "cash_flow_aliases.json"
 

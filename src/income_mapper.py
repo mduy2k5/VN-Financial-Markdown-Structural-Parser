@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-ROOT = Path(__file__).resolve().parent
+_parent = Path(__file__).resolve().parent
+ROOT = _parent if (_parent / "resources").exists() else _parent.parent
 DEFAULT_SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 DEFAULT_ALIASES = ROOT / "resources" / "income_statement_aliases.json"
 
