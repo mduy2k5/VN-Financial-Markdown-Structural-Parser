@@ -1,1 +1,2 @@
-v9
+10.0.0
+Cash Flow collector v2 + securities profile + coverage gate; Income stays v8.

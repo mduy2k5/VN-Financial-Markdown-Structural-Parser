@@ -48,12 +48,12 @@ The active engine and mapping options are recorded in `run_manifest.json`.
 detects their profiles, maps rows to the universal schemas, and merges the result
 into an existing comparison JSON when one is available.
 
-Recommended v9 run:
+Recommended v10 run:
 
 ```powershell
 python .\run_income_comparison.py .\output\md_reports `
   --comparison-dir .\output\comparisons\comparison_v8 `
-  --output .\output\comparisons\comparison_v9 `
+  --output .\output\comparisons\comparison_v10 `
   --current-year 2025 `
   --previous-year 2024
 ```
@@ -67,8 +67,11 @@ Supported automatic sector profiles are `bank`, `enterprise`, `securities`, and
 `insurance` for income. Cash Flow v1 currently maps enterprise and bank direct or
 indirect profiles; unsupported special profiles remain diagnostic-only.
 
-Cash Flow identity is based on method, section, and normalized label. Form codes
-are supporting evidence because bank forms reuse codes across sections.
+Cash Flow v2 adds broader row discovery, securities diagnostics, and a coverage gate.
+Identity is based on method, section, and normalized label. Form codes are supporting
+evidence because bank forms reuse codes across sections. A `partial_mapping` or
+`partial_source_coverage` status can therefore be more informative than the v9
+`ok` status when v10 discovers additional source rows.
 
 ## Income row mapper
 

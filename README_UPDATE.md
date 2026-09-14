@@ -1,146 +1,58 @@
-# Integrated Financial Statement Mapper v9
+# README_UPDATE — Integrated Cash Flow v2 / package v10
 
-Bản v9 lấy trực tiếp v8 làm nền và tích hợp **Cash Flow v1** vào cùng runner hiện tại.
+Bản cập nhật này tích hợp Cash Flow vào runner hiện tại. `README.md` của dự án không bị thay thế.
 
-## Luồng chạy
+## Thay đổi chính so với v9
 
-```text
-Markdown
-  ├─ Income v8
-  └─ Cash Flow v1
-       ├─ scope detection
-       ├─ sector detection
-       ├─ direct / indirect detection
-       ├─ section-aware extraction
-       ├─ UNIVERSAL_CASH_FLOW_V1 mapping
-       └─ formula validation
-             ↓
-merge comparison JSON hiện có
-```
+- Cash Flow collector policy: `cashflow_multi_layout_v2`.
+- Bổ sung các layout không yêu cầu `Mã số` hoặc `Thuyết minh`:
+  - `CF_PERIOD_CHILDREN` với `Năm 2025/Năm 2024`;
+  - `CF_YEAR_SECTIONS` cho layout period-major;
+  - `CF_PLAIN_TEXT_CODE`;
+  - `CF_HEADING_VALUE`;
+  - giữ `CF_PIPE_TABLE`, `CF_INLINE_PERIODS`.
+- `code` và `note` vẫn là optional; identity chính là method + section + label.
+- Bổ sung `securities_indirect` vào `UNIVERSAL_CASH_FLOW_V1`.
+- BSI/CTS không còn hard-stop `schema_sector_gap:securities`.
+- Bổ sung source-coverage gate: một file chỉ có 1–vài dòng không còn được báo `ok` giả.
+- Method có fallback từ các row đã extract nếu heading/OCR không đủ rõ.
+- Lọc metadata/page noise khỏi Cash Flow observations.
+- Runner tiếp tục merge `cash_flow_statement` vào comparison hiện có, không chủ động xóa `financial_position`/`income_statement`.
 
-Output comparison giữ nguyên các key đang có và bổ sung:
+## Regression trên nhóm v9 no_structural_rows
 
-```json
-{
-  "financial_position": {},
-  "income_statement": {},
-  "cash_flow_statement": {
-    "v01": {},
-    "canonical_file": "...cashflow.canonical.json"
-  }
-}
-```
+17 file v9 `no_structural_rows` được test lại trên source Markdown hiện có:
 
-## Nguyên tắc Cash Flow v1
+- phục hồi structural rows: 14/17;
+- còn `no_structural_rows`: 3;
+- BAB: 12/14 mapped;
+- BMP: 34/40 mapped;
+- BVB: 26/28 mapped;
+- CTG: 21/21 mapped, được quality gate thành `partial_source_coverage` do thiếu core anchors;
+- MSB: 29/45 mapped sau fallback method;
+- NVB: 21/21 mapped;
+- TCB: 24/30 mapped;
+- VIB: 23/32 mapped;
+- VPB: 26/32 mapped.
 
-`Mã số` và `Thuyết minh` **không bắt buộc**.
+Securities regression:
 
-Identity chính:
-
-```text
-method + section + normalized label
-```
-
-`code` chỉ là supporting evidence. Đặc biệt với bank, cùng code `01`, `02`, ... được tái sử dụng ở operating / investing / financing nên không map bằng code đơn độc.
-
-Profiles v1:
-
-- `enterprise_direct`
-- `enterprise_indirect`
-- `bank_direct`
-- `bank_indirect`
-
-Securities / insurance cash flow được nhận diện và giữ diagnostic, chưa ép vào enterprise/bank profile nếu form đặc thù.
+- BSI: 42/72 mapped, 40 value nodes;
+- CTS: 33/67 mapped, 33 value nodes.
 
 ## Chạy
 
-Giữ nguyên workflow hiện tại:
-
 ```powershell
 Set-Location 'F:\Indexium\Flatten'
-
 python .\run_income_comparison.py .\output\md_reports `
-  --comparison-dir .\comparison_v8 `
-  --output .\comparison_v9 `
+  --comparison-dir .\comparison_v9 `
+  --output .\comparison_v10 `
   --current-year 2025 `
   --previous-year 2024
 ```
 
-Nếu Markdown ở `md_reports` trực tiếp:
+Có thể dùng `comparison_v8` làm base nếu đó là comparison đầy đủ nhất đang có.
 
-```powershell
-python .\run_income_comparison.py .\md_reports `
-  --comparison-dir .\comparison_v8 `
-  --output .\comparison_v9
-```
+## Lưu ý merge financial_position
 
-## File sinh ra
-
-Cho mỗi source:
-
-```text
-*.comparison.json
-*.income.canonical.json
-*.cashflow.canonical.json   # khi Cash Flow đủ profile để map
-```
-
-Batch:
-
-```text
-comparison_summary.json
-comparison_summary.csv
-```
-
-Summary giữ các cột income cũ và bổ sung:
-
-```text
-cashflow_sector
-cashflow_method
-cashflow_status
-cashflow_scope_start
-cashflow_scope_end
-cashflow_input_rows
-cashflow_mapped_rows
-cashflow_mapping_rate
-cashflow_value_nodes
-cashflow_current_nodes
-cashflow_previous_nodes
-cashflow_formula_pass_rate
-cashflow_canonical_file
-```
-
-## Regression đại diện đã chạy
-
-```text
-ACB: cashflow bank/direct       36/36 mapped
-ABB: cashflow bank/direct       26/26 mapped
-ANV: cashflow enterprise/indirect 37/37 mapped
-BSR: cashflow enterprise/indirect 31/31 mapped
-HPG: cashflow enterprise/indirect 31/31 mapped
-```
-
-Các layout hiện hỗ trợ:
-
-- label + child `Mã số / Thuyết minh / Năm nay / Năm trước`
-- inline `value (Năm 2025) | value (Năm 2024)`
-- inline `value (Năm nay), value (Năm trước)`
-- Markdown pipe table
-- thiếu code / thiếu note
-- repeated heading trên trang `tiếp theo`
-
-## Resources
-
-```text
-resources/
-  income_statement_schema.json
-  income_statement_aliases.json
-  cash_flow_schema.json
-  cash_flow_aliases.json
-```
-
-Cash Flow schema id:
-
-```text
-UNIVERSAL_CASH_FLOW_V1
-schema_version = 1.0.0
-```
+Runner chỉ có thể preserve `financial_position` nếu comparison base truyền qua `--comparison-dir` thực sự có key này. Nếu comparison base đã mất B02 từ phiên bản trước thì v10 không tự tái tạo B02 từ Markdown; cần trỏ `--comparison-dir` tới folder comparison đầy đủ hơn.

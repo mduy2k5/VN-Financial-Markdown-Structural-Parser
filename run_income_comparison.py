@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 
 from income_observation_patch import extract_income_fallback, strip_md
 from income_mapper import IncomeMapper, adapt_row, auto_sector
-from cashflow_observation_patch import extract_cashflow_fallback
+from cashflow_observation_patch import extract_cashflow_fallback, detect_method as detect_cf_method
 from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
@@ -348,6 +348,45 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
         status = canonical_status
     else:
         status = "ok"
+
+    # Source-coverage gate: 100% of a tiny fragment is not a complete cash-flow statement.
+    # Use semantic core anchors rather than requiring form codes/notes, because LLM Markdown can omit both.
+    valued_ids = {n.get("node_id") for n in valued}
+    if sector == "enterprise":
+        core = {
+            "CASHFLOW.ENTERPRISE.OPERATING.NET_CASH",
+            "CASHFLOW.ENTERPRISE.INVESTING.NET_CASH",
+            "CASHFLOW.ENTERPRISE.FINANCING.NET_CASH",
+            "CASHFLOW.ENTERPRISE.NET_CHANGE_IN_CASH",
+            "CASHFLOW.ENTERPRISE.CASH_BEGINNING",
+            "CASHFLOW.ENTERPRISE.CASH_ENDING",
+        }
+        min_nodes = 10
+    elif sector == "bank":
+        core = {
+            "CASHFLOW.BANK.OPERATING.NET_CASH",
+            "CASHFLOW.BANK.INVESTING.NET_CASH",
+            "CASHFLOW.BANK.FINANCING.NET_CASH",
+            "CASHFLOW.BANK.NET_CHANGE_IN_CASH",
+            "CASHFLOW.BANK.CASH_BEGINNING",
+            "CASHFLOW.BANK.CASH_ENDING",
+        }
+        min_nodes = 10
+    elif sector == "securities":
+        core = {
+            "CASHFLOW.SECURITIES.INDIRECT.NET_OPERATING_CASH",
+            "CASHFLOW.SECURITIES.INDIRECT.NET_INVESTING_CASH",
+            "CASHFLOW.SECURITIES.INDIRECT.NET_FINANCING_CASH",
+            "CASHFLOW.SECURITIES.INDIRECT.NET_CHANGE_IN_CASH",
+            "CASHFLOW.SECURITIES.INDIRECT.CASH_BEGINNING",
+        }
+        min_nodes = 12
+    else:
+        core, min_nodes = set(), 0
+    core_hits = len(core & valued_ids)
+    core_total = len(core)
+    if canonical and status == "ok" and (len(valued) < min_nodes or (core_total and core_hits < 2)):
+        status = "partial_source_coverage"
     return {
         "status": status,
         "value_nodes": len(valued),
@@ -365,13 +404,15 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
             "method": method, "method_method": method_method,
             "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
-            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v1",
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v2",
             "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
         },
         "quality": {
             "canonical_status": canonical_status if canonical else status,
             "formula_evaluated": fs.get("evaluated", 0), "formula_passed": fs.get("passed", 0),
             "formula_failed": fs.get("failed", 0), "formula_pass_rate": fs.get("pass_rate"),
+            "core_anchor_hits": core_hits, "core_anchor_total": core_total,
+            "core_anchor_ratio": round(core_hits/core_total, 6) if core_total else None,
         },
         "unmapped_examples": [
             {"label": r.label, "section": r.section, "current": r.current, "previous": r.previous,
@@ -394,12 +435,19 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
     method = ext.get("method") or "unknown"
     sector_method = ext.get("sector_method") or "unknown"
     method_method = ext.get("method_method") or "unknown"
+    if method == "unknown" and rows:
+        labels_text = "\n".join(r.label for r in rows if getattr(r, "label", None))
+        recovered_method, recovered_method_method = detect_cf_method(labels_text)
+        if recovered_method in {"direct", "indirect"}:
+            method, method_method = recovered_method, "rows_" + recovered_method_method
+            for r in rows:
+                r.method = method
     if not rows:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     # v1 intentionally supports only statutory profiles researched from TT200 and B04/TCTD.
     # Securities/insurance are detected, not force-routed into a wrong schema.
-    if sector not in {"enterprise", "bank"} or method not in {"direct", "indirect"}:
+    if sector not in {"enterprise", "bank", "securities"} or method not in {"direct", "indirect"}:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
