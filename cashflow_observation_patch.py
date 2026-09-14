@@ -9,7 +9,15 @@ from typing import Any, Optional
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")
 METHOD_DIRECT_RE = re.compile(r"(?i)ph[ươu]ơng\s+ph[áa]p\s+tr[ựu]c\s+ti[ếe]p")
 METHOD_INDIRECT_RE = re.compile(r"(?i)ph[ươu]ơng\s+ph[áa]p\s+gi[áa]n\s+ti[ếe]p")
-NOTES_RE = re.compile(r"(?i)^(?:(?:B[ẢA]N\s+)?THUY[ẾE]T\s+MINH\s+B[ÁA]O\s+C[ÁA]O\s+T[ÀA]I\s+CH[ÍI]NH|B0?5\s*/\s*TCTD|B0?9\s*[-–]?\s*DN)(?:\b|$)")
+NOTES_RE = re.compile(
+    r"(?i)^(?:(?:B[ẢA]N\s+)?THUY[ẾE]T\s+MINH\s+B[ÁA]O\s+C[ÁA]O\s+T[ÀA]I\s+CH[ÍI]NH|"
+    r"B0?5\s*/\s*TCTD|B0?9\s*[-–]?\s*DN|B0?4\s*[-–]?\s*CTCK|"
+    r"B[ÁA]O\s+C[ÁA]O\s+(?:T[ÌI]NH\s+H[ÌI]NH\s+)?(?:BI[ẾEÊ]N\s+[ĐD][ỘO]NG|THAY\s+[ĐD][ỔO]I)\s+V[ỐO]N|"
+    r"(?:PH[ẦAÂ]N\s+)?L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N(?:\s+T[ỆE])?\s+(?:HO[ẠA]T\s+[ĐD][ỘO]NG\s+M[ÔO]I\s+GI[ỚO]I|C[ỦU]A\s+KH[ÁA]CH\s+H[ÀA]NG)|"
+    r"CAM\s+K[ẾE]T\s+NGO[ẠA]I\s+B[ẢA]NG|C[ÁA]C\s+CAM\s+K[ẾE]T\s+NGO[ẠA]I\s+B[ẢA]NG|"
+    r"NGH[ĨI]A\s+V[ỤU]\s+N[ỢO]\s+TI[ỀE]M\s+[ẨA]N|CAM\s+K[ẾE]T\s+B[ẢA]O\s+L[ÃA]NH|B[ẢA]O\s+L[ÃA]NH\s+VAY\s+V[ỐO]N)"
+    r"(?:\b|$)"
+)
 
 SECTION_PATTERNS = {
     "operating": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+kinh\s+doanh"),
@@ -61,11 +69,22 @@ def parse_number(v: Any):
     s = strip_md(v).strip()
     if not s:
         return None
+    # Strip trailing unit words like "triệu đồng", "triệu VND", "nghìn đồng", "tỷ đồng", "đồng", "VND", etc.
+    while True:
+        ns = re.sub(r"(?i)\s*(?:tri[eệ]u|ngh[iì]n|t[yỷ]|vnd|vnđ|đ[oồ]ng)\b", "", s).strip()
+        if ns == s:
+            break
+        s = ns
+    s = s.strip()
     if s in {"-", "–", "—", "..."}:
         return 0
-    neg = s.startswith("(") and s.endswith(")")
-    s = s.strip("() ").replace(" ", "")
-    s = re.sub(r"(?i)(?:tri[eệ]u|ngh[iì]n|vnd|vnđ|đ[oồ]ng)$", "", s).strip()
+    m_paren = re.match(r"^\((\d[\d.,]*)\)$", s)
+    if m_paren:
+        neg = True
+        s = m_paren.group(1)
+    else:
+        neg = (s.startswith("(") and s.endswith(")")) or s.startswith("-") or s.startswith("−")
+        s = s.strip("()−- ").replace(" ", "")
     s = s.replace("−", "-")
     try:
         if re.fullmatch(r"-?\d{1,3}(?:\.\d{3})+", s):
@@ -95,13 +114,50 @@ def _clean_bullet(raw: str) -> str:
 
 
 def _looks_metadata_line(text: str) -> bool:
-    f = fold(text)
+    s = strip_md(text)
+    if not s:
+        return True
+    # Pure numbers like "01", "02", "3.715.900"
+    if parse_number(s) is not None:
+        return True
+    # Pure formulas without text like "(50 = 20 + 30 + 40)"
+    if re.fullmatch(r"\(\s*\d+\s*=\s*[\d\s+–-]+\s*\)", s):
+        return True
+    f = fold(s)
+    if not f:
+        return True
+    if f in {
+        "chi tieu", "ma so", "thuyet minh", "nam nay", "nam truoc", "ky nay", "ky truoc",
+        "content", "ma", "tong cong", "stt", "don vi", "vnd", "dong", "thuyet minh ma so",
+        "ma thuyet so minh", "chi tieu ma so thuyet minh", "ma so thuyet minh", "dien giai",
+        "m s", "m s d n", "so", "so thuyet minh", "ngay",
+        "nhung thay doi ve tai san hoat dong", "nhung thay doi ve cong no hoat dong",
+        "tong cong nhung thay doi ve tai san hoat dong", "tong cong nhung thay doi ve cong no hoat dong",
+    }:
+        return True
+    # Period headings
+    if re.match(r"^(?:nam|ky|quy)?\s*20\d{2}(?:\s|$)", f):
+        return True
+    if re.match(r"^(?:quy\s+[ivxlcdm\d]+|luy ke(?:\s+tu\s+dau\s+nam)?)(?:\s|$)", f):
+        return True
+    if re.match(r"^nam\s+(?:ket\s+thuc|tai\s+chinh|bao\s+cao)\b", f):
+        return True
+    if re.match(r"^nam\s+ket\s+thuc\s+\d{1,2}[\s/]+\d{1,2}[\s/]+20\d{2}\b", f):
+        return True
+    if re.fullmatch(r"\(?-?[\d.,]+\)?\s*\(\s*nam\s*20\d{2}\s*\)\s*;?", s, re.I):
+        return True
+    # City / location / sign-off lines
+    if any(loc in f for loc in (
+        "thanh pho ho chi minh", "thanh pho ha noi", "q binh thanh", "chu tich",
+        "tong giam doc", "ke toan truong", "nguoi lap bieu", "ha noi ngay",
+        "quan ly hoat dong", "pho giam doc", "nguoi lap", "nguoi kiem soat", "nguoi phe duyet"
+    )):
+        return True
     return (
         f.startswith("ma so") or f.startswith("thuyet minh") or
         f.startswith("nam nay") or f.startswith("nam truoc") or
         f.startswith("ky nay") or f.startswith("ky truoc") or
-        bool(re.match(r"^nam 20\d{2}(?:\s|$)", f)) or
-        f in {"chi tieu", "ma so", "thuyet minh", "nam nay", "nam truoc"}
+        f.startswith("mau so") or f.startswith("ban hanh theo")
     )
 
 
@@ -163,9 +219,25 @@ def _candidate_scope(lines: list[str], start: int, next_candidate: Optional[int]
     return start, end, score
 
 
+def _is_valid_heading_candidate(line: str) -> bool:
+    clean = strip_md(line)
+    if not HEADING_RE.search(clean):
+        return False
+    if len(clean) > 120:
+        return False
+    f = fold(clean)
+    if any(narr in f for narr in ("chung toi da kiem toan", "theo y kien", "trach nhiem cua", "kiem toan vien")):
+        return False
+    if re.search(r"trang\s*\d+", f):
+        return False
+    return True
+
+
 def choose_cashflow_scope(text: str):
     lines = text.splitlines()
-    candidates = [i for i, line in enumerate(lines) if HEADING_RE.search(strip_md(line))]
+    candidates = [i for i, line in enumerate(lines) if _is_valid_heading_candidate(line)]
+    if not candidates:
+        candidates = [i for i, line in enumerate(lines) if HEADING_RE.search(strip_md(line))]
     if not candidates:
         return {"scope_start_line": None, "scope_end_line": None, "scope_score": 0, "candidate_count": 0}
     scored = []
@@ -249,9 +321,9 @@ def _extract_inline_periods(text: str, current_year: int, previous_year: int):
     for m in marker_pat.finditer(clean):
         vals[int(m.group("year"))] = parse_number(m.group("val"))
 
-    # Previous/current value written inside the year annotation itself: `(Năm 2024: 123 triệu đồng)`.
+    # Previous/current value written inside the year annotation itself: `(Năm 2024: 123 triệu đồng)` or `(Thuyết minh: 30; Năm 2024: 123 triệu đồng)`.
     anno_pat = re.compile(
-        r"\(\s*Năm\s*(?P<year>20\d{2})\s*:\s*"
+        r"(?:\(|;)\s*Năm\s*(?P<year>20\d{2})\s*:\s*"
         r"(?P<val>\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
         r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*\)", re.I)
     anno_matches = list(anno_pat.finditer(clean))
@@ -265,7 +337,7 @@ def _extract_inline_periods(text: str, current_year: int, previous_year: int):
         prefix = clean[:anno_matches[0].start()]
         mc = re.search(
             r":\s*(\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)\s*"
-            r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*$", prefix, re.I)
+            r"(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*(?:\([^)]*)?$", prefix, re.I)
         if mc:
             vals[current_year] = parse_number(mc.group(1))
 
@@ -314,6 +386,31 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
     s = scope["scope_start_line"] - 1
     e = scope["scope_end_line"]
     scoped_lines = lines[s:e]
+    # Preprocess scoped_lines to merge wrapped text lines that belong together (e.g. OCR table cells wrapped across lines)
+    processed_scoped_lines = []
+    for raw in scoped_lines:
+        s_raw = raw.strip()
+        if (processed_scoped_lines
+            and not s_raw.startswith(("#", "|", "*", "-", "+", ">"))
+            and not re.match(r"^\d+[.)]", s_raw)
+            and ":" not in s_raw
+            and "|" not in s_raw
+            and re.search(r"[A-Za-zÀ-ỹ]", s_raw)
+            and parse_number(s_raw) is None
+            and not _looks_metadata_line(s_raw)):
+            prev = processed_scoped_lines[-1].strip()
+            if (not prev.startswith(("#", "|", "*", "-", "+", ">"))
+                and not re.match(r"^\d+[.)]", prev)
+                and ":" not in prev
+                and "|" not in prev
+                and re.search(r"[A-Za-zÀ-ỹ]", prev)
+                and parse_number(prev) is None
+                and not _looks_metadata_line(prev)):
+                processed_scoped_lines[-1] = processed_scoped_lines[-1] + " " + s_raw
+                continue
+        processed_scoped_lines.append(raw)
+    scoped_lines = processed_scoped_lines
+
     scoped_text = "\n".join(scoped_lines)
     method, method_method = detect_method(scoped_text)
     sector, sector_method = detect_sector(scoped_text)
@@ -324,7 +421,7 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
 
     def emit(label, current=None, previous=None, sec=None, code=None, note=None, line_no=None, pattern=None):
         label = strip_md(label)
-        label = re.sub(r"(?i)^Chỉ\s*tiêu\s*:\s*", "", label).strip()
+        label = re.sub(r"(?i)^(?:Chỉ\s*tiêu|Chi\s*tiết)\s*:\s*", "", label).strip()
         if not label or _looks_metadata_line(label):
             return
         fl = fold(label)
@@ -358,39 +455,40 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         # Section header without a numeric payload.
         if matched_section and parse_number(re.sub(r".*?:", "", clean)) is None and not re.search(r"(?i)(?:20\d{2}|Năm\s+(?:nay|trước))\s*:", clean):
             # Totals are semantic rows; pure headers are section switches.
-            if "thuan" not in f and "thuần" not in clean.casefold():
+            if "thuan" not in f and "thuần" not in clean.casefold() and not re.match(r"^(?:[IVXLC]+|\d+)[.)]", clean):
                 flush_pending(); section = matched_section; continue
             section = matched_section
 
-        # Explicit `Chỉ tiêu:` label generated by LLM.
-        m = re.match(r"(?i)^Chỉ\s*tiêu\s*:\s*(.+)$", clean)
+        # Child metadata/value lines, including explicit years because LLM often omits Năm nay/Năm trước.
+        m = re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*([^|]+)$", clean)
         if m:
-            flush_pending()
-            pending = {"label": strip_md(m.group(1)), "code": None, "note": None,
-                       "current": None, "previous": None, "section": _section_from_label(m.group(1), section),
-                       "line": abs_line, "pattern": "CF_PERIOD_CHILDREN", "indent": _line_indent(raw)}
+            code_val = strip_md(m.group(1))
+            if pending and (pending.get("current") is not None or pending.get("previous") is not None):
+                flush_pending()
+                pending = {"label": "", "code": code_val, "note": None, "current": None, "previous": None,
+                           "section": section, "line": abs_line, "pattern": "CF_PERIOD_CHILDREN", "indent": _line_indent(raw)}
+            elif pending:
+                pending["code"] = code_val
             continue
 
-        # Child metadata/value lines, including explicit years because LLM often omits Năm nay/Năm trước.
-        m = re.match(r"(?i)^Mã\s*số\s*:\s*([^|]+)$", clean)
+        m = re.match(r"(?i)^Chi\s*tiết\s*:\s*(.+)$", clean)
         if m and pending:
-            pending["code"] = strip_md(m.group(1)); continue
+            pending["label"] = strip_md(m.group(1))
+            continue
+
         m = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
         if m and pending:
             pending["note"] = strip_md(m.group(1)); continue
+
         m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
             pending["current"] = parse_number(m.group(1)); continue
+
         m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
             pending["previous"] = parse_number(m.group(1)); continue
-        m = re.match(r"(?i)^(20\d{2})\s*:\s*(.+)$", clean)
-        if m and pending:
-            yr, val = int(m.group(1)), parse_number(m.group(2))
-            if yr == current_year: pending["current"] = val
-            elif yr == previous_year: pending["previous"] = val
-            continue
-        m = re.match(r"(?i)^Năm\s*(20\d{2})\s*:\s*(.+)$", clean)
+
+        m = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
         if m and pending:
             yr, val = int(m.group(1)), parse_number(m.group(2))
             if yr == current_year: pending["current"] = val
@@ -398,22 +496,30 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
             continue
 
         # Pipe table row: label | code? | note? | current | previous.
-        if raw.count("|") >= 3:
+        if raw.count("|") >= 2:
             cells = [strip_md(x) for x in raw.strip().strip("|").split("|")]
-            if len(cells) >= 4 and not any(fold(x) in {"chi tieu", "nam nay", "nam truoc"} for x in cells[:2]):
+            if len(cells) >= 3 and not any(fold(x) in {"chi tieu", "nam nay", "nam truoc", "stt chi tieu"} for x in cells[:2]):
                 nums = [(idx, parse_number(c)) for idx, c in enumerate(cells)]
                 numeric = [(idx, val) for idx, val in nums if val is not None]
                 if len(numeric) >= 2:
                     code = next((c for c in cells[:-2] if re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+", c, re.I)), None)
                     text_cells = [c for c in cells[:-2] if re.search(r"[A-Za-zÀ-ỹ]", c) and not _looks_metadata_line(c)]
                     label = max(text_cells, key=len) if text_cells else cells[0]
+                    mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
+                    if mc and not code:
+                        code, label = mc.group(1), mc.group(2)
                     flush_pending(); emit(label, numeric[-2][1], numeric[-1][1], section, code, None, abs_line, "CF_PIPE_TABLE"); continue
 
         # Inline year values on one line.
         cur, prev = _extract_inline_periods(clean, current_year, previous_year)
         if cur is not None or prev is not None:
+            clean_without_numbers = re.sub(r"(?i)\b20\d{2}\b|\(?-?[\d.,]+\)?|\b(nam|ky|trieu|vnd|dong)\b|[;:.,()\-]", "", fold(clean)).strip()
+            if pending and not clean_without_numbers:
+                pending["current"] = cur
+                pending["previous"] = prev
+                continue
             flush_pending()
-            label = re.split(r"(?i):\s*(?:\*\*)?\(?-?\d|\s+(?:\(?-?\d{1,3}[.,]\d{3})", clean, maxsplit=1)[0]
+            label = re.split(r"(?i):\s*(?:\*\*)?(?:[–—-]|(?:\(?-?\d))|\s+(?:\(?-?\d{1,3}[.,]\d{3})", clean, maxsplit=1)[0]
             code = None
             mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
             if mc: code, label = mc.group(1), mc.group(2)
@@ -427,7 +533,7 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
             emit(label, val, None, section, code, None, abs_line, "CF_PLAIN_TEXT_CODE"); continue
 
         # Heading/label with inline single value, e.g. `LƯU CHUYỂN ...: 57.639.048`.
-        mh = re.match(r"^(.+?)\s*:\s*(\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)(?:\s|$)", clean)
+        mh = re.match(r"^(.+?)\s*:\s*(\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)(?:\s*(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng))?(?:\s|$)", clean)
         if mh and re.search(r"[A-Za-zÀ-ỹ]", mh.group(1)):
             flush_pending(); emit(mh.group(1), parse_number(mh.group(2)), None, section, None, None, abs_line, "CF_HEADING_VALUE"); continue
 
@@ -435,10 +541,15 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
             continue
         if any(k in f for k in ("bao cao tai chinh hop nhat", "cho nam tai chinh ket thuc", "don vi tinh", "nguoi lap", "ke toan truong", "tong giam doc", "metadata", "s3 key", "page ocr")):
             continue
+        if re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*[^|]+$", clean):
+            continue
+        if re.match(r"(?i)^(?:Năm\s*)?20\d{2}\b", clean):
+            continue
 
         # New semantic row candidate.
         flush_pending()
         code = None; label = clean
+        label = re.sub(r"(?i)^Chỉ\s*tiêu\s*:\s*", "", label).strip()
         mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
         if mc: code, label = mc.group(1), mc.group(2)
         pending = {"label": label, "code": code, "note": None, "current": None, "previous": None,
@@ -497,9 +608,16 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         f = fold(clean)
         if _looks_metadata_line(clean):
             continue
-        if re.match(r"(?i)^(?:Năm\s*)?20\d{2}(?:\s*\([^)]*\))?\s*:?$", clean):
+        if re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*[^|]+$", clean):
+            continue
+        if re.match(r"(?i)^(?:Năm\s*)?20\d{2}\b", clean):
             continue
         if re.fullmatch(r"\(?-?[\d.,]+\)?|-", clean):
+            continue
+        cur, prev = _extract_inline_periods(clean, current_year, previous_year)
+        if cur is not None or prev is not None:
+            continue
+        if re.search(r":\s*\(?-?\d{1,3}(?:[.,]\d{3})*", clean):
             continue
         if not re.search(r"[A-Za-zÀ-ỹ]", clean):
             continue
@@ -528,8 +646,15 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
                 continue
             if re.match(r"^#\s*Page\b|^---$", child_raw.strip(), re.I):
                 break
+            cm = re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*([^|]+)$", child)
+            if cm:
+                code = strip_md(cm.group(1))
+                continue
+            if code is None and re.fullmatch(r"\b\d{1,2}\b", child.strip()):
+                code = child.strip()
+                continue
             # `Năm 2025 (triệu đồng): 123` / `Năm 2024: 456` children.
-            ym = re.match(r"(?i)^Năm\s*(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)$", child)
+            ym = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", child)
             if ym:
                 year_vals[int(ym.group(1))] = parse_number(ym.group(2))
                 if current_year in year_vals and previous_year in year_vals:

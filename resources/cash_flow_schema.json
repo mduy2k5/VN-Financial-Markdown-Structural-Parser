@@ -1273,6 +1273,30 @@
       "method": "indirect",
       "section": "reconciliation",
       "form_code": "101.2"
+    },
+    {
+      "node_id": "CASHFLOW.SECURITIES.INDIRECT.PURCHASE_PPE",
+      "canonical_name": "Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác",
+      "sector": "securities",
+      "method": "indirect",
+      "section": "investing",
+      "form_code": "61"
+    },
+    {
+      "node_id": "CASHFLOW.SECURITIES.INDIRECT.EQUITY_ISSUANCE",
+      "canonical_name": "Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu",
+      "sector": "securities",
+      "method": "indirect",
+      "section": "financing",
+      "form_code": "71"
+    },
+    {
+      "node_id": "CASHFLOW.SECURITIES.INDIRECT.BORROWINGS_REPAID",
+      "canonical_name": "Tiền chi trả nợ gốc vay",
+      "sector": "securities",
+      "method": "indirect",
+      "section": "financing",
+      "form_code": "74"
     }
   ],
   "formulas": {

@@ -10,7 +10,8 @@
     },
     "INCOME.ENTERPRISE.REVENUE_DEDUCTIONS": {
       "exact": [
-        "Các khoản giảm trừ doanh thu"
+        "Các khoản giảm trừ doanh thu",
+        "Giảm trừ doanh thu"
       ]
     },
     "INCOME.ENTERPRISE.REVENUE_NET": {
@@ -32,7 +33,8 @@
       "exact": [
         "Lợi nhuận gộp về bán hàng và cung cấp dịch vụ",
         "Lợi nhuận gộp bán hàng và cung cấp dịch vụ",
-        "Lợi nhuận (lỗ) gộp về bán hàng và cung cấp dịch vụ"
+        "Lợi nhuận (lỗ) gộp về bán hàng và cung cấp dịch vụ",
+        "Lợi nhuận gộp"
       ]
     },
     "INCOME.ENTERPRISE.FINANCIAL_INCOME": {
@@ -123,7 +125,8 @@
         "Lợi ích thuế thu nhập doanh nghiệp hoãn lại",
         "Thu nhập thuế TNDN hoãn lại",
         "(Chi phí)/thu nhập thuế TNDN hoãn lại",
-        "(Lợi ích)/chi phí thuế TNDN hoãn lại"
+        "(Lợi ích)/chi phí thuế TNDN hoãn lại",
+        "Thu nhập (chi phí) thuế TNDN hoãn lại"
       ]
     },
     "INCOME.ENTERPRISE.PROFIT_AFTER_TAX": {
@@ -242,7 +245,9 @@
       "exact": [
         "Lãi/lỗ thuần từ hoạt động khác",
         "Lãi thuần từ hoạt động khác",
-        "Lỗ thuần từ hoạt động khác"
+        "Lỗ thuần từ hoạt động khác",
+        "(Lỗ)/lãi thuần từ hoạt động khác",
+        "Lỗ/lãi thuần từ hoạt động khác"
       ]
     },
     "INCOME.BANK.DIVIDEND_EQUITY_INCOME": {
@@ -286,7 +291,8 @@
         "Chi phí thuế thu nhập doanh nghiệp hiện hành",
         "Thuế TNDN hiện hành",
         "Chi phí thuế thu nhập doanh nghiệp (\"TNDN\") - hiện hành",
-        "Chi phí thuế TNDN - hiện hành"
+        "Chi phí thuế TNDN - hiện hành",
+        "Chi phí thuế thu nhập doanh nghiệp hiện hành (24.1)"
       ]
     },
     "INCOME.BANK.DEFERRED_TAX_EXPENSE": {
@@ -298,7 +304,9 @@
         "Thu nhập thuế thu nhập doanh nghiệp hoãn lại",
         "Lợi ích thuế thu nhập doanh nghiệp hoãn lại",
         "(Chi phí)/lợi ích thuế thu nhập hoãn lại",
-        "(Chi phí)/lợi ích thuế TNDN hoãn lại"
+        "(Chi phí)/lợi ích thuế TNDN hoãn lại",
+        "(Chi phí)/thu nhập thuế thu nhập doanh nghiệp hoãn lại",
+        "Thu nhập (chi phí) thuế TNDN hoãn lại"
       ]
     },
     "INCOME.BANK.TAX_EXPENSE": {
@@ -321,6 +329,7 @@
       "exact": [
         "Lợi ích của cổ đông thiểu số",
         "Lợi ích của cổ đông không kiểm soát",
+        "Lợi ích cổ đông không kiểm soát",
         "Lợi nhuận sau thuế của cổ đông không kiểm soát"
       ]
     },
@@ -338,7 +347,10 @@
         "Cổ đông của Ngân hàng mẹ",
         "Cổ đông Ngân hàng mẹ",
         "Lợi nhuận sau thuế thuộc về Ngân hàng mẹ",
-        "Lợi nhuận thuần trong kỳ phân bổ cho cổ đông của Ngân hàng"
+        "Lợi nhuận thuần trong kỳ phân bổ cho cổ đông của Ngân hàng",
+        "Lợi nhuận thuần của cổ đông của Ngân hàng",
+        "Lợi nhuận thuần của cổ đông ngân hàng",
+        "Lợi nhuận thuần của chủ sở hữu"
       ]
     },
     "INCOME.BANK.TOTAL_OPERATING_INCOME": {
@@ -601,7 +613,9 @@
       "exact": [
         "Tổng kết quả hoạt động khác",
         "Cộng kết quả hoạt động khác",
-        "TỔNG KẾT QUẢ HOẠT ĐỘNG KHÁC"
+        "TỔNG KẾT QUẢ HOẠT ĐỘNG KHÁC",
+        "THU NHẬP KHÁC VÀ CHI PHÍ KHÁC",
+        "Thu nhập khác và chi phí khác"
       ]
     },
     "INCOME.SECURITIES.PROFIT_BEFORE_TAX": {
@@ -757,7 +771,12 @@
     "INCOME.INSURANCE.RESERVE_CHANGE": {
       "exact": [
         "Tăng giảm dự phòng nghiệp vụ bảo hiểm",
-        "Tăng/giảm dự phòng nghiệp vụ bảo hiểm"
+        "Tăng/giảm dự phòng nghiệp vụ bảo hiểm",
+        "Tăng dự phòng nghiệp vụ bảo hiểm gốc (22 = 23 + 24 + 25 + 26)",
+        "Tăng dự phòng nghiệp vụ bảo hiểm gốc",
+        "Tăng dự phòng bồi thường bảo hiểm gốc và nhận tái bảo hiểm",
+        "Giảm/(Tăng) dự phòng dao động lớn",
+        "(Tăng)/Giảm dự phòng dao động lớn"
       ]
     },
     "INCOME.INSURANCE.LIFE_RESERVE_CHANGE": {
@@ -766,5 +785,55 @@
         "Tăng/giảm dự phòng nghiệp vụ bảo hiểm nhân thọ"
       ]
     }
-  }
+  },
+  "INCOME.ENTERPRISE.GROSS_PROFIT": [
+    "Lợi nhuận gộp về bán và dịch vụ",
+    "Lợi nhuận gộp",
+    "Lãi gộp"
+  ],
+  "INCOME.INSURANCE.NET_PREMIUM_REVENUE": [
+    "Doanh thu phí bảo hiểm",
+    "Doanh thu thuần từ hoạt động kinh doanh bảo hiểm",
+    "Doanh thu thuần hoạt động kinh doanh bảo hiểm"
+  ],
+  "INCOME.INSURANCE.DIRECT_PREMIUM_REVENUE": [
+    "Phí bảo hiểm gốc"
+  ],
+  "INCOME.INSURANCE.REINSURANCE_CEDED_PREMIUM": [
+    "Tổng phí nhượng tài bảo hiểm",
+    "Tổng phí nhượng tái bảo hiểm",
+    "Phí nhượng tái bảo hiểm"
+  ],
+  "INCOME.INSURANCE.DIRECT_CLAIMS_EXPENSE": [
+    "Chi bồi thường bảo hiểm gốc và chi trả đáo hạn",
+    "Chi bồi thường bảo hiểm gốc"
+  ],
+  "INCOME.INSURANCE.REINSURANCE_RECOVERY": [
+    "Chỉ bồi thường nhận tái bảo hiểm",
+    "Chi bồi thường nhận tái bảo hiểm",
+    "Thu bồi thường nhượng tái bảo hiểm"
+  ],
+  "INCOME.INSURANCE.RESERVE_CHANGE": [
+    "Tăng dự phòng phí chưa được hưởng của bảo hiểm gốc và nhận tái bảo hiểm",
+    "Tăng (Giảm) dự phòng phí nhượng tái bảo hiểm",
+    "(Giảm)/Tăng dự phòng bồi thường nhượng tái bảo hiểm",
+    "Tăng giảm dự phòng phí chưa được hưởng của bảo hiểm gốc và nhận tái bảo hiểm"
+  ],
+  "INCOME.INSURANCE.LIFE_RESERVE_CHANGE": [
+    "Tăng dự phòng toán học",
+    "Giảm/(Tăng) dự phòng lãi cam kết đầu tư tối thiểu",
+    "Tăng dự phòng chia lãi",
+    "Tăng dự phòng đảm bảo cân đối"
+  ],
+  "INCOME.INSURANCE.OTHER_INSURANCE_BUSINESS_EXPENSE": [
+    "Hoa hồng nhượng tái bảo hiểm và doanh thu khác hoạt động kinh doanh bảo hiểm",
+    "Các khoản giảm trừ chi phí"
+  ],
+  "INCOME.INSURANCE.OTHER_OPERATING_REVENUE": [
+    "Thu đòi người thứ ba",
+    "Thu xử lý hàng bồi thường 100%"
+  ],
+  "INCOME.INSURANCE.TOTAL_DIRECT_INSURANCE_EXPENSE": [
+    "Tổng chi bồi thường và trả tiền bảo hiểm"
+  ]
 }

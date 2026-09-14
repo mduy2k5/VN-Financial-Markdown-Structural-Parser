@@ -20,13 +20,28 @@ def strip_md(s: Any) -> str:
     return s.strip(" |:")
 
 
+def clean_trailing_parens(s: str) -> str:
+    while True:
+        sub = re.sub(r"(?<=[A-Za-zÀ-ỹ0-9])\s*\([^)]*\)\s*$", "", s)
+        if sub == s:
+            break
+        s = sub
+    return s.strip()
+
+
 def fold(s: Any) -> str:
     s = strip_md(s)
+    s = clean_trailing_parens(s)
+    s = re.sub(r"^\s*Chỉ\s*tiêu\s*\d+\s*:\s*", "", s, flags=re.I)
+    s = re.sub(r"\s*\((?:Mã\s*số|Thuyết\s*minh|TM|Đơn\s*vị\s*:[^)]*)\b.*$", "", s, flags=re.I)
+    s = re.sub(r"\s*\(\d+(?:[a-z])?\)\s*$", "", s, flags=re.I)
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = s.replace("đ", "d").replace("Đ", "D").lower()
-    s = re.sub(r"\([^)]*(?:=|ma so|thuyet minh)[^)]*\)", " ", s)
+    s = re.sub(r"\([^)]*(?:=|ma so|thuyet minh|don vi)[^)]*\)", " ", s)
+    s = re.sub(r"\(\s*\d+\s*=\s*[\d\s+–-]+\s*\)", " ", s)
     s = re.sub(r"^\s*(?:\d+|[ivxlcdm]+)\s*[.)-]\s*", "", s, flags=re.I)
+    s = re.sub(r"[\"“”'«»]", "", s)
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
 
@@ -74,7 +89,11 @@ class CashFlowMapper:
 
     def _compatible(self, node, row: CFRow):
         sec = node.get("section")
-        return not row.section or not sec or row.section == sec
+        if not row.section or not sec or row.section == sec:
+            return True
+        if sec == "reconciliation" and row.section == "financing":
+            return True
+        return False
 
     def map_one(self, row: CFRow):
         flabel = fold(row.label)
@@ -151,21 +170,29 @@ class CashFlowMapper:
         }
         mapped = sum(1 for r in rows if r.mapping_status == "mapped")
         valued = sum(1 for n in nodes_out if n["value"]["current"] is not None or n["value"]["previous"] is not None)
+        rate = (mapped / len(rows)) if rows else 0.0
+        validation_status = "ok" if formula_summary["failed"] == 0 else "formula_warning"
         status = "ok"
-        if mapped < len(rows): status = "partial_mapping"
-        if formula_summary["failed"] > 0: status = "value_semantic_conflict" if mapped == len(rows) else "partial_mapping"
+        if not rows:
+            status = "source_rows_missing"
+        elif valued == 0:
+            status = "source_values_missing"
+        elif mapped == 0:
+            status = "mapping_failed"
+        elif rate < 0.95:
+            status = "partial_mapping"
         return {
             "schema_id": self.schema["schema_id"], "schema_version": self.schema["schema_version"],
             "statement_type": "CASH_FLOW_STATEMENT", "sector": self.sector, "method": self.method,
             "source_name": source_name, "periods": {"current": current_year, "previous": previous_year},
-            "status": status, "nodes": nodes_out, "conflicts": conflicts,
-            "mapping_summary": {"rows_total": len(rows), "mapped": mapped, "unmapped": len(rows)-mapped, "valued_nodes": valued},
+            "status": status, "validation_status": validation_status, "nodes": nodes_out, "conflicts": conflicts,
+            "mapping_summary": {"rows_total": len(rows), "mapped": mapped, "unmapped": len(rows)-mapped, "valued_nodes": valued, "mapping_rate": round(rate, 6)},
             "diagnostics": {
                 "unmapped_rows": [
                     {"source_line": r.source_line, "label": r.label, "section": r.section, "code": r.code,
                      "current": r.current, "previous": r.previous} for r in rows if r.mapping_status != "mapped"
                 ],
-                "formula_checks": checks, "formula_summary": formula_summary,
+                "formula_checks": checks, "formula_summary": formula_summary, "validation_status": validation_status,
             }
         }
 

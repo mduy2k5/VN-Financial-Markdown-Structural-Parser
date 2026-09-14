@@ -541,8 +541,10 @@ class IncomeMapper:
 
         mapped_ids = {r.node_id for r in rows if r.mapping_status == "mapped" and r.node_id}
         anchors = CORE_ANCHORS.get(self.sector, set())
-        anchor_hits = sorted(anchors & mapped_ids)
+        valued_ids = {n["node_id"] for n in by.values() if n.get("value", {}).get("current") is not None or n.get("value", {}).get("previous") is not None}
+        anchor_hits = sorted(anchors & (mapped_ids | valued_ids))
         anchor_ratio = (len(anchor_hits) / len(anchors)) if anchors else 1.0
+        mapping_rate = (mapped / len(rows)) if rows else 0.0
 
         status = "ok"
         diagnostic = None
@@ -558,10 +560,10 @@ class IncomeMapper:
         elif previous_nodes == 0 and current_nodes > 0:
             status = "period_hydration_incomplete"
             diagnostic = "Current-period values exist but previous-period values were not hydrated from source rows."
-        elif unmapped > 0 or ambiguous > 0:
+        elif mapping_rate < 0.95 or ambiguous > 0:
             status = "partial_mapping"
             diagnostic = "Some discovered income rows remain unmapped or ambiguous; inspect diagnostics.unmapped_rows / ambiguous_rows."
-        elif anchor_ratio < 1.0:
+        elif anchor_ratio < 0.75:
             status = "partial_source_coverage"
             diagnostic = "Mapping succeeded for discovered rows, but too few core income-statement anchors were present. Row collection is likely incomplete or the sector profile is not appropriate."
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any, Optional
 
 HEADING_RE = re.compile(
@@ -21,7 +22,7 @@ NUM_RE = re.compile(
     r"^\(?-?[\d][\d.,]*\)?(?:\s*(?:triệu\s*(?:đồng|vnd)|nghìn\s*(?:đồng|vnd)|đồng|vnd|đồng/cổ\s*phiếu|vnd/cổ\s*phiếu))?$",
     re.I,
 )
-NOTE_LIKE_RE = re.compile(r"^(?:\d{1,3}(?:\.\d{1,3})?|[IVXLC]+(?:\.\d+)?)$", re.I)
+NOTE_LIKE_RE = re.compile(r"^(?:(?:\d{1,3}|[IVXLC]+)(?:\.\d{1,3})+|\d{1,3}|[IVXLC]+)$", re.I)
 FORM_CODE_RE = re.compile(r"(?i)\b(?:B\s*0?2\s*[-–]?\s*DN(?:/HN)?|B\s*0?3a?\s*/\s*TCTD(?:-HN)?|B\s*0?2\s*[-–]?\s*CTCK)\b")
 TOC_HINT_RE = re.compile(r"(?i)(?:\(Trang\s*\d|\bTrang\s*\d|\|\s*\d+(?:-\d+)?\s*$|:\s*\d+(?:-\d+)?\s*$)")
 
@@ -35,6 +36,51 @@ def strip_md(s: Any) -> str:
     s = s.replace("**", "").replace("__", "").replace("`", "")
     s = re.sub(r"\s+", " ", s).strip()
     return s.rstrip(":").strip()
+
+
+def fold(s: Any) -> str:
+    s = strip_md(s)
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = s.replace("đ", "d").replace("Đ", "D").lower()
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return " ".join(s.split())
+
+
+def is_non_item_header_or_noise(label: Any) -> bool:
+    s = strip_md(label)
+    if not s:
+        return True
+    f = fold(s)
+    if not f:
+        return True
+    # Table headers & field prompts
+    if f in {
+        "chi tieu", "stt", "ma so", "thuyet minh", "thuyet minh ma so",
+        "ma so thuyet minh", "ma so chi tieu", "chi tieu ma so",
+        "cac khoan muc", "cac chi tieu tai chinh", "tong doanh thu va chi phi",
+        "chi tiet doanh thu va chi phi", "nam tai chinh", "dien giai",
+        "trong do", "noi dung", "content", "ma", "tong cong",
+    }:
+        return True
+    # Form codes e.g. B02-DN, B03/TCTD-HN, B 02 - DN/HN, B02-CTCK
+    if re.match(r"(?i)^(?:b\s*0?2|b\s*0?3|b\s*0?4|b\s*0?5|b\s*0?9)[a-z]?(?:[-–/]\s*[a-z0-9]+)*$", s):
+        return True
+    # Footnote references e.g. VI.13, VI.14, V.18.2, 12.1
+    if re.match(r"(?i)^[vixlcdm\d]+(?:\.\d+)+$", s):
+        return True
+    # Footers / disclaimers
+    if f.startswith("cac thuyet minh") or f.startswith("thuyet minh bao cao") or f.startswith("dien giai bao cao"):
+        return True
+    # Sub-period column headings
+    if re.match(r"^(?:quy\s+[ivxlcdm\d]+|luy ke(?:\s+tu\s+dau\s+nam)?)(?:\s|$)", f):
+        return True
+    # Annual period headings e.g. "Nam 2025", "Nam ket thuc ngay 31 thang 12 nam 2025"
+    if re.match(r"^nam\s+(?:ket\s+thuc|bao\s+cao|tai\s+chinh|20\d{2})\b", f):
+        return True
+    if re.match(r"^(?:nam nay|nam truoc|ky nay|ky truoc)$", f):
+        return True
+    return False
 
 
 def clean_value(s: Any) -> Optional[str]:
@@ -387,36 +433,49 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
     child_label = None
     j = i + 1
     while j < end:
-        bj = _bullet_info(lines[j])
+        line = lines[j]
+        bj = _bullet_info(line)
         if bj:
             ind2, txt = bj
             if ind2 <= indent:
                 break
-            raw.append(lines[j])
-
-            # Keyed row layout: Mã số -> Chỉ tiêu -> values.
-            mm = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", txt)
-            if mm:
-                code = strip_md(mm.group(1)); j += 1; continue
-            ms = re.match(r"(?i)^STT\s*:\s*(.+)$", txt)
-            if ms and not code:
-                code = strip_md(ms.group(1)); j += 1; continue
-            mc = re.match(r"(?i)^(?:CHỈ\s*TIÊU|Chỉ\s*tiêu|Diễn\s*giải)\s*:\s*(.+)$", txt)
-            if mc:
-                child_label = strip_md(mc.group(1)); j += 1; continue
-            mn = re.match(r"(?i)^(?:Số\s*liệu\s*)?Thuyết\s*minh\s*:\s*(.*)$", txt)
-            if mn:
-                v = strip_md(mn.group(1))
-                if v: note = v
+        else:
+            ind2 = len(line) - len(line.lstrip())
+            txt = strip_md(line)
+            if not txt:
                 j += 1; continue
+            if ind2 <= indent:
+                break
+        raw.append(line)
 
-            pp = parse_period_line(txt, current_year, previous_year)
-            if pp:
-                role, prio, value = pp
-                if role == "current" and (cur_indent is None or ind2 < cur_indent or (ind2 == cur_indent and prio >= cur_prio)):
-                    current, cur_prio, cur_indent = value, prio, ind2
-                elif role == "previous" and (prev_indent is None or ind2 < prev_indent or (ind2 == prev_indent and prio >= prev_prio)):
-                    previous, prev_prio, prev_indent = value, prio, ind2
+        # Keyed row layout: Mã số -> Chỉ tiêu -> values.
+        mm = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", txt)
+        if mm:
+            code = strip_md(mm.group(1)); j += 1; continue
+        ms = re.match(r"(?i)^STT\s*:\s*(.+)$", txt)
+        if ms and not code:
+            code = strip_md(ms.group(1)); j += 1; continue
+        mc = re.match(r"(?i)^(?:CHỈ\s*TIÊU|Chỉ\s*tiêu|Diễn\s*giải)\s*:\s*(.+)$", txt)
+        if mc:
+            child_label = strip_md(mc.group(1)); j += 1; continue
+        mn = re.match(r"(?i)^(?:Số\s*liệu\s*)?Thuyết\s*minh\s*:\s*(.*)$", txt)
+        if mn:
+            v = strip_md(mn.group(1))
+            if v: note = v
+            j += 1; continue
+
+        pp = parse_period_line(txt, current_year, previous_year)
+        if pp:
+            role, prio, value = pp
+            if role == "current" and (cur_indent is None or ind2 < cur_indent or (ind2 == cur_indent and prio >= cur_prio)):
+                current, cur_prio, cur_indent = value, prio, ind2
+            elif role == "previous" and (prev_indent is None or ind2 < prev_indent or (ind2 == prev_indent and prio >= prev_prio)):
+                previous, prev_prio, prev_indent = value, prio, ind2
+            j += 1; continue
+
+        if not bj and clean_value(txt) is None and len(txt) >= 4 and not is_non_item_header_or_noise(txt):
+            if child_label is None:
+                child_label = txt
         j += 1
 
     # Parent itself may be a keyed field rather than semantic label.
@@ -450,7 +509,7 @@ def extract_period_children(lines, start, end, current_year=2025, previous_year=
         label = strip_md(label)
         if not label or clean_value(label) is not None:
             continue
-        if re.match(r"(?i)^(năm nay|năm trước|năm \d{4}|giá trị \d{4}|mã số|thuyết minh|stt|chỉ tiêu)$", label):
+        if is_non_item_header_or_noise(label):
             continue
         if re.match(r"(?i)^tổng cộng(?:\s*\([^)]*\))?$", label):
             continue
@@ -470,7 +529,7 @@ def extract_positional_children(lines, start, end):
         label, code = _strip_leading_index(raw_label)
         if not label or clean_value(label) is not None:
             continue
-        if label.casefold() in {"stt", "chỉ tiêu", "thuyết minh", "năm 2025", "năm 2024", "năm nay", "năm trước"}:
+        if is_non_item_header_or_noise(label):
             continue
         children = []
         j = i + 1
@@ -481,22 +540,50 @@ def extract_positional_children(lines, start, end):
             ind2, txt = bj
             if ind2 <= indent:
                 break
+            # If child is a new top-level Roman numeral section label, break early
+            if clean_value(txt) is None and not (NOTE_LIKE_RE.match(txt) and len(txt) <= 12):
+                if re.match(r"(?i)^[IVXLCDM]+[.)\s]", txt):
+                    break
             children.append((ind2, txt, lines[j])); j += 1
-        if not children:
-            continue
-        min_indent = min(x[0] for x in children)
-        direct = [x for x in children if x[0] == min_indent]
-        vals, note = [], None
-        for _, txt, _raw in direct:
+        if children:
+            min_indent = min(x[0] for x in children)
+            direct = [x for x in children if x[0] == min_indent]
+            vals, note = [], None
+            for _, txt, _raw in direct:
+                v = clean_value(txt)
+                if v is not None:
+                    vals.append(v)
+                elif note is None and NOTE_LIKE_RE.match(txt) and len(txt) <= 12:
+                    note = txt
+            if len(vals) >= 2:
+                out.append(_row(label, vals[-2], vals[-1], code=code, note=note,
+                                pattern_id="SP_POSITIONAL_VALUE_CHILDREN", line_no=i+1,
+                                raw_lines=[lines[i]] + [x[2] for x in direct]))
+                continue
+        # Fallback: check if subsequent lines at the same indent are values (as in NVB OCR)
+        same_indent_vals = []
+        j = i + 1
+        note = None
+        while j < min(end, i + 5):
+            bj = _bullet_info(lines[j])
+            if not bj:
+                j += 1; continue
+            ind2, txt = bj
+            if ind2 != indent:
+                break
             v = clean_value(txt)
             if v is not None:
-                vals.append(v)
+                same_indent_vals.append((v, lines[j]))
             elif note is None and NOTE_LIKE_RE.match(txt) and len(txt) <= 12:
                 note = txt
-        if len(vals) >= 2:
+            else:
+                break
+            j += 1
+        if len(same_indent_vals) >= 2:
+            vals = [x[0] for x in same_indent_vals]
             out.append(_row(label, vals[-2], vals[-1], code=code, note=note,
                             pattern_id="SP_POSITIONAL_VALUE_CHILDREN", line_no=i+1,
-                            raw_lines=[lines[i]] + [x[2] for x in direct]))
+                            raw_lines=[lines[i]] + [x[1] for x in same_indent_vals]))
     return out
 
 
@@ -534,6 +621,8 @@ def extract_heading_attribute_rows(lines, start, end, current_year=2025, previou
         label = strip_md(lines[i])
         if not label or len(label) < 4 or HEADING_RE.search(label) or STOP_RE.search(label):
             continue
+        if is_non_item_header_or_noise(label):
+            continue
         if any(x in label.casefold() for x in ("mẫu b", "ban hành theo", "đơn vị", "cho năm", "phân bổ cho")):
             continue
         current = previous = code = note = None
@@ -559,8 +648,9 @@ def extract_heading_attribute_rows(lines, start, end, current_year=2025, previou
                 if role=="previous" and prio>=prev_prio: previous,prev_prio=value,prio
         if saw_attr and (current is not None or previous is not None):
             label2, implicit = _strip_leading_index(label)
-            out.append(_row(label2, current, previous, code=code or implicit, note=note,
-                            pattern_id="SP_INCOME_HEADING_ATTRIBUTES", line_no=i+1, raw_lines=raw))
+            if not is_non_item_header_or_noise(label2):
+                out.append(_row(label2, current, previous, code=code or implicit, note=note,
+                                pattern_id="SP_INCOME_HEADING_ATTRIBUTES", line_no=i+1, raw_lines=raw))
     return out
 
 
@@ -655,51 +745,69 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=2025, previous_y
       2024 (đồng): 291...
       Các khoản giảm trừ doanh thu
     """
-    out=[]
-    code_re=re.compile(r"(?i)^Mã\s*số\s*:?\s*([0-9]{1,3}|[IVXLC]+)\s*$")
-    i=start
-    while i<end:
-        t=strip_md(lines[i])
-        m=code_re.match(t)
+    out = []
+    code_re = re.compile(r"(?i)^Mã\s*số\s*:?\s*([0-9]{1,3}|[IVXLC]+)\s*$")
+    i = start
+    while i < end:
+        t = strip_md(lines[i])
+        m = code_re.match(t)
         if not m:
-            i+=1; continue
-        code=m.group(1); cur=prev=note=None; curp=prevp=-1; candidates=[]; raw=[lines[i]]
-        j=i+1
-        while j<min(end,i+18):
-            tj=strip_md(lines[j])
+            i += 1; continue
+        code = m.group(1); cur = prev = note = None; curp = prevp = -1; candidates = []; raw = [lines[i]]
+
+        # Check if there is a leading label immediately before line i
+        leading_label = None
+        for back_idx in (i - 1, i - 2):
+            if back_idx >= start:
+                bt = strip_md(lines[back_idx])
+                if bt and not code_re.match(bt) and clean_value(bt) is None and not parse_period_line(bt, current_year, previous_year):
+                    if not is_non_item_header_or_noise(bt) and len(bt) >= 4 and not bt.startswith('#'):
+                        leading_label = bt
+                        break
+
+        j = i + 1
+        while j < min(end, i + 18):
+            tj = strip_md(lines[j])
             if code_re.match(tj): break
+            # If line j is a label followed immediately by another Mã số, break so it belongs to next code
+            if j + 1 < end and code_re.match(strip_md(lines[j+1])):
+                break
+            if j + 2 < end and not strip_md(lines[j+1]) and code_re.match(strip_md(lines[j+2])):
+                break
             if tj:
                 raw.append(lines[j])
-                mn=re.match(r"(?i)^Thuyết\s*minh\s*:?\s*(.*)$",tj)
+                mn = re.match(r"(?i)^Thuyết\s*minh\s*:?\s*(.*)$", tj)
                 if mn:
-                    nv=strip_md(mn.group(1)); note=nv or note; j+=1; continue
-                pp=parse_period_line(tj,current_year,previous_year)
+                    nv = strip_md(mn.group(1)); note = nv or note; j += 1; continue
+                pp = parse_period_line(tj, current_year, previous_year)
                 if pp:
-                    role,prio,val=pp
-                    if role=='current' and prio>=curp: cur,curp=val,prio
-                    if role=='previous' and prio>=prevp: prev,prevp=val,prio
-                    j+=1; continue
-                md=re.match(r"(?i)^Diễn\s*giải\s*:?\s*(.+)$",tj)
+                    role, prio, val = pp
+                    if role == 'current' and prio >= curp: cur, curp = val, prio
+                    if role == 'previous' and prio >= prevp: prev, prevp = val, prio
+                    j += 1; continue
+                md = re.match(r"(?i)^Diễn\s*giải\s*:?\s*(.+)$", tj)
                 if md:
-                    candidates.append(strip_md(md.group(1))); j+=1; continue
-                if not re.match(r"(?i)^(chỉ tiêu|stt|đơn vị|mẫu b|ban hành theo|năm báo cáo|năm nay|năm trước|giá trị\s+20\d{2})",tj) and clean_value(tj) is None:
+                    candidates.append(strip_md(md.group(1))); j += 1; continue
+                if not is_non_item_header_or_noise(tj) and clean_value(tj) is None:
                     # Ignore page metadata / separators / document metadata fields.
                     if (not tj.startswith('#')
                         and not re.match(r"(?i)^(page|metadata|content|category|created_at|updated_at|file_name|search_folder|s3_key|status|symbol|year|period)\s*:?", tj)
                         and not HEADING_RE.search(tj)
                         and not STOP_RE.search(tj)):
                         candidates.append(tj)
-            j+=1
+            j += 1
         if cur is not None or prev is not None:
             # Last semantic-looking candidate is usually the row label in this serialization.
-            label=''
+            label = ''
             for cand in reversed(candidates):
-                c=strip_md(cand)
-                if len(c)>=4 and not re.match(r"(?i)^(mã số|thuyết minh|20\d{2})",c):
-                    label=c; break
-            if label:
-                out.append(_row(label,cur,prev,code=code,note=note,pattern_id='SP_INCOME_CODE_LED_MIXED',line_no=i+1,raw_lines=raw,confidence=0.97))
-        i=max(i+1,j if j>i+1 else i+1)
+                c = strip_md(cand)
+                if len(c) >= 4 and not re.match(r"(?i)^(mã số|thuyết minh|20\d{2})", c) and not is_non_item_header_or_noise(c):
+                    label = c; break
+            if not label and leading_label:
+                label = leading_label
+            if label and not is_non_item_header_or_noise(label):
+                out.append(_row(label, cur, prev, code=code, note=note, pattern_id='SP_INCOME_CODE_LED_MIXED', line_no=i+1, raw_lines=raw, confidence=0.97))
+        i = max(i + 1, j if j > i + 1 else i + 1)
     return out
 
 
@@ -734,27 +842,30 @@ def extract_year_section_rows(lines, start, end, current_year=2025, previous_yea
             # Ignore field bullets.
             if re.match(r"(?i)^(mã số|thuyết minh|số liệu)\s*:", label):
                 continue
-            code = implicit; note = None; value = None; raw=[lines[i]]
-            j=i+1
+            code = implicit; note = None; value = None; raw = [lines[i]]
+            j = i + 1
             while j < he:
-                bj=_bullet_info(lines[j])
-                if not bj: j+=1; continue
-                ind2,txt=bj
+                bj = _bullet_info(lines[j])
+                if not bj: j += 1; continue
+                ind2, txt = bj
                 if ind2 <= indent: break
+                # If we already have a value and encounter another child label, stop scanning
+                if value is not None and not re.match(r"(?i)^(?:mã\s*số|thuyết\s*minh|số\s*liệu)\s*:", txt):
+                    break
                 raw.append(lines[j])
-                mm=re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$",txt)
-                if mm: code=strip_md(mm.group(1))
-                mn=re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.*)$",txt)
-                if mn:
-                    nv=strip_md(mn.group(1)); note=nv or note
-                mv=re.match(r"(?i)^Số\s*liệu\s*:\s*(.+)$",txt)
-                if mv:
-                    vv=clean_value(mv.group(1))
-                    if vv is not None: value=vv
-                j+=1
-            if value is not None:
-                sec_rows.append({"label":label,"code":code,"note":note,"value":value,"line":i+1,"raw":raw})
-        sections[year]=sec_rows
+                mm = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", txt)
+                if mm and code is None: code = strip_md(mm.group(1))
+                mn = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.*)$", txt)
+                if mn and note is None:
+                    nv = strip_md(mn.group(1)); note = nv or note
+                mv = re.match(r"(?i)^Số\s*liệu\s*:\s*(.+)$", txt)
+                if mv and value is None:
+                    vv = clean_value(mv.group(1))
+                    if vv is not None: value = vv
+                j += 1
+            if value is not None and not is_non_item_header_or_noise(label):
+                sec_rows.append({"label": label, "code": code, "note": note, "value": value, "line": i+1, "raw": raw})
+        sections[year] = sec_rows
     if current_year not in sections and previous_year not in sections:
         return []
     merged={}
