@@ -42,28 +42,33 @@ python .\run.py .\input --mode hybrid --no-hybrid-fill --output .\output\hybrid_
 Use `--fuzzy` or `--allow-unknown-structure` only when the input requires them.
 The active engine and mapping options are recorded in `run_manifest.json`.
 
-## Income comparison
+## Income and cash-flow comparison
 
-`run_income_comparison.py` extracts income statements, detects the sector, maps rows
-to the universal income schema, and merges the result into an existing comparison
-JSON when one is available.
+`run_income_comparison.py` extracts income statements and cash-flow statements,
+detects their profiles, maps rows to the universal schemas, and merges the result
+into an existing comparison JSON when one is available.
 
-Recommended v8 run:
+Recommended v9 run:
 
 ```powershell
 python .\run_income_comparison.py .\output\md_reports `
-  --comparison-dir .\output\comparisons\comparison_v6 `
-  --output .\output\comparisons\comparison_v8 `
+  --comparison-dir .\output\comparisons\comparison_v8 `
+  --output .\output\comparisons\comparison_v9 `
   --current-year 2025 `
   --previous-year 2024
 ```
 
 The command prints input discovery before processing and fails when the input path
 does not exist or contains no Markdown files. It writes one canonical JSON per
-successful file plus `comparison_summary.json` and `comparison_summary.csv`.
+successful income or cash-flow profile plus `comparison_summary.json` and
+`comparison_summary.csv`.
 
 Supported automatic sector profiles are `bank`, `enterprise`, `securities`, and
-`insurance`. Use `--sector` to override detection for a controlled experiment.
+`insurance` for income. Cash Flow v1 currently maps enterprise and bank direct or
+indirect profiles; unsupported special profiles remain diagnostic-only.
+
+Cash Flow identity is based on method, section, and normalized label. Form codes
+are supporting evidence because bank forms reuse codes across sections.
 
 ## Income row mapper
 

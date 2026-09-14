@@ -15,9 +15,13 @@ if str(ROOT) not in sys.path:
 
 from income_observation_patch import extract_income_fallback, strip_md
 from income_mapper import IncomeMapper, adapt_row, auto_sector
+from cashflow_observation_patch import extract_cashflow_fallback
+from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
+CF_SCHEMA = ROOT / "resources" / "cash_flow_schema.json"
+CF_ALIASES = ROOT / "resources" / "cash_flow_aliases.json"
 
 
 def read_json(path: Path, default=None):
@@ -320,18 +324,108 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector}
 
 
+
+def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector_method: str, method: str, method_method: str):
+    nodes = canonical.get("nodes", []) if canonical else []
+    valued = [n for n in nodes if (n.get("value") or {}).get("current") is not None or (n.get("value") or {}).get("previous") is not None]
+    cur = [n for n in valued if (n.get("value") or {}).get("current") is not None]
+    prev = [n for n in valued if (n.get("value") or {}).get("previous") is not None]
+    mapped = [r for r in rows if getattr(r, "mapping_status", None) == "mapped"]
+    unmapped = [r for r in rows if getattr(r, "mapping_status", None) != "mapped"]
+    rate = len(mapped) / len(rows) if rows else 0.0
+    diagnostics = (canonical or {}).get("diagnostics") or {}
+    fs = diagnostics.get("formula_summary") or {}
+    canonical_status = (canonical or {}).get("status") or "ok"
+    if not rows:
+        status = "no_structural_rows"
+    elif not canonical:
+        status = "schema_sector_gap:" + sector if sector in {"securities", "insurance"} else "unknown_sector"
+    elif len(valued) == 0:
+        status = "no_cashflow_values"
+    elif rate < 0.95:
+        status = "partial_mapping"
+    elif canonical_status != "ok":
+        status = canonical_status
+    else:
+        status = "ok"
+    return {
+        "status": status,
+        "value_nodes": len(valued),
+        "current_value_nodes": len(cur),
+        "previous_value_nodes": len(prev),
+        "mapping": {
+            "input_rows": len(rows), "mapped_rows": len(mapped), "unmapped_rows": len(unmapped),
+            "mapping_rate": round(rate, 6) if rows else 0.0,
+            "canonical_value_nodes": len(valued),
+            "current_value_nodes": len(cur), "previous_value_nodes": len(prev),
+            "current_coverage": round(len(cur)/len(valued), 6) if valued else 0.0,
+            "previous_coverage": round(len(prev)/len(valued), 6) if valued else 0.0,
+        },
+        "parser": {
+            "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
+            "method": method, "method_method": method_method,
+            "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v1",
+            "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
+        },
+        "quality": {
+            "canonical_status": canonical_status if canonical else status,
+            "formula_evaluated": fs.get("evaluated", 0), "formula_passed": fs.get("passed", 0),
+            "formula_failed": fs.get("failed", 0), "formula_pass_rate": fs.get("pass_rate"),
+        },
+        "unmapped_examples": [
+            {"label": r.label, "section": r.section, "current": r.current, "previous": r.previous,
+             "code": r.code, "note": r.note, "pattern": r.pattern}
+            for r in unmapped[:40]
+        ],
+    }
+
+
+def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
+    text = md_path.read_text(encoding="utf-8", errors="ignore")
+    ext = extract_cashflow_fallback(text, current_year, previous_year)
+    rows = []
+    for raw in ext.get("rows", []):
+        try:
+            rows.append(adapt_cashflow_row(raw))
+        except Exception:
+            continue
+    sector = ext.get("sector") or "unknown"
+    method = ext.get("method") or "unknown"
+    sector_method = ext.get("sector_method") or "unknown"
+    method_method = ext.get("method_method") or "unknown"
+    if not rows:
+        metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
+        return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
+    # v1 intentionally supports only statutory profiles researched from TT200 and B04/TCTD.
+    # Securities/insurance are detected, not force-routed into a wrong schema.
+    if sector not in {"enterprise", "bank"} or method not in {"direct", "indirect"}:
+        metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
+        return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
+    mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
+    mapped = mapper.map_rows(rows)
+    canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year)
+    metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
+    return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
+
+
 def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str):
     base = stem_base(md_path)
     inc = run_income(md_path, current_year, previous_year, sector)
+    cf = run_cashflow(md_path, current_year, previous_year)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    canonical_path = output_dir / f"{base}.income.canonical.json"
+    income_path = output_dir / f"{base}.income.canonical.json"
     if inc["canonical"] is not None:
-        write_json(canonical_path, inc["canonical"])
-    elif canonical_path.exists():
-        # Deterministic output: never leave an old/empty canonical beside a current
-        # diagnostic saying no canonical was produced.
-        canonical_path.unlink()
+        write_json(income_path, inc["canonical"])
+    elif income_path.exists():
+        income_path.unlink()
+
+    cashflow_path = output_dir / f"{base}.cashflow.canonical.json"
+    if cf["canonical"] is not None:
+        write_json(cashflow_path, cf["canonical"])
+    elif cashflow_path.exists():
+        cashflow_path.unlink()
 
     existing_path = find_existing_comparison(base, comparison_dir, output_dir, md_path.parent)
     existing = read_json(existing_path, {}) if existing_path else {}
@@ -342,50 +436,61 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     merged.setdefault("mapping_strategy", "legacy")
     merged["income_statement"] = {
         "v05": inc["metrics"],
-        "canonical_file": canonical_path.name if inc["canonical"] is not None else None,
+        "canonical_file": income_path.name if inc["canonical"] is not None else None,
+    }
+    merged["cash_flow_statement"] = {
+        "v01": cf["metrics"],
+        "canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
     }
     merged_path = output_dir / f"{base}.comparison.json"
     write_json(merged_path, merged)
 
-    m = inc["metrics"]
-    mp = m.get("mapping", {})
+    im = inc["metrics"]; imp = im.get("mapping", {})
+    cm = cf["metrics"]; cmp = cm.get("mapping", {})
     return {
         "source_name": md_path.name,
-        "sector": inc["sector"],
-        "status": m.get("status"),
-        "scope_start": (m.get("parser") or {}).get("scope_start"),
-        "scope_end": (m.get("parser") or {}).get("scope_end"),
-        "scope_score": (m.get("parser") or {}).get("scope_score"),
-        "sector_method": (m.get("parser") or {}).get("sector_method"),
-        "patterns": ";".join((m.get("parser") or {}).get("patterns", [])),
-        "input_rows": mp.get("input_rows", 0),
-        "mapped_rows": mp.get("mapped_rows", 0),
-        "unmapped_rows": mp.get("unmapped_rows", 0),
-        "mapping_rate": mp.get("mapping_rate", 0.0),
-        "income_value_nodes": m.get("value_nodes", 0),
-        "income_current_nodes": m.get("current_value_nodes", 0),
-        "income_previous_nodes": m.get("previous_value_nodes", 0),
-        "current_coverage": mp.get("current_coverage", 0.0),
-        "previous_coverage": mp.get("previous_coverage", 0.0),
-        "formula_evaluated": (m.get("quality") or {}).get("formula_evaluated", 0),
-        "formula_passed": (m.get("quality") or {}).get("formula_passed", 0),
-        "formula_failed": (m.get("quality") or {}).get("formula_failed", 0),
-        "formula_pass_rate": (m.get("quality") or {}).get("formula_pass_rate"),
-        "sign_normalizations": (m.get("quality") or {}).get("sign_normalizations", 0),
+        "sector": inc["sector"], "status": im.get("status"),
+        "scope_start": (im.get("parser") or {}).get("scope_start"), "scope_end": (im.get("parser") or {}).get("scope_end"),
+        "scope_score": (im.get("parser") or {}).get("scope_score"), "sector_method": (im.get("parser") or {}).get("sector_method"),
+        "patterns": ";".join((im.get("parser") or {}).get("patterns", [])),
+        "input_rows": imp.get("input_rows", 0), "mapped_rows": imp.get("mapped_rows", 0), "unmapped_rows": imp.get("unmapped_rows", 0),
+        "mapping_rate": imp.get("mapping_rate", 0.0), "income_value_nodes": im.get("value_nodes", 0),
+        "income_current_nodes": im.get("current_value_nodes", 0), "income_previous_nodes": im.get("previous_value_nodes", 0),
+        "current_coverage": imp.get("current_coverage", 0.0), "previous_coverage": imp.get("previous_coverage", 0.0),
+        "formula_evaluated": (im.get("quality") or {}).get("formula_evaluated", 0),
+        "formula_passed": (im.get("quality") or {}).get("formula_passed", 0),
+        "formula_failed": (im.get("quality") or {}).get("formula_failed", 0),
+        "formula_pass_rate": (im.get("quality") or {}).get("formula_pass_rate"),
+        "sign_normalizations": (im.get("quality") or {}).get("sign_normalizations", 0),
+        "cashflow_sector": cf["sector"], "cashflow_method": cf["method"], "cashflow_status": cm.get("status"),
+        "cashflow_scope_start": (cm.get("parser") or {}).get("scope_start"), "cashflow_scope_end": (cm.get("parser") or {}).get("scope_end"),
+        "cashflow_scope_score": (cm.get("parser") or {}).get("scope_score"),
+        "cashflow_patterns": ";".join((cm.get("parser") or {}).get("patterns", [])),
+        "cashflow_input_rows": cmp.get("input_rows", 0), "cashflow_mapped_rows": cmp.get("mapped_rows", 0),
+        "cashflow_unmapped_rows": cmp.get("unmapped_rows", 0), "cashflow_mapping_rate": cmp.get("mapping_rate", 0.0),
+        "cashflow_value_nodes": cm.get("value_nodes", 0), "cashflow_current_nodes": cm.get("current_value_nodes", 0),
+        "cashflow_previous_nodes": cm.get("previous_value_nodes", 0),
+        "cashflow_formula_evaluated": (cm.get("quality") or {}).get("formula_evaluated", 0),
+        "cashflow_formula_passed": (cm.get("quality") or {}).get("formula_passed", 0),
+        "cashflow_formula_failed": (cm.get("quality") or {}).get("formula_failed", 0),
+        "cashflow_formula_pass_rate": (cm.get("quality") or {}).get("formula_pass_rate"),
         "financial_position_preserved": bool(existing.get("financial_position")),
+        "income_statement_preserved_or_written": "income_statement" in merged,
         "comparison_file": merged_path.name,
-        "canonical_file": canonical_path.name if inc["canonical"] is not None else None,
+        "canonical_file": income_path.name if inc["canonical"] is not None else None,
+        "cashflow_canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
     }
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Add robust Income Statement results to existing financial-position comparison JSONs.")
+    ap = argparse.ArgumentParser(description="Integrated financial-statement mapper: preserves existing comparison and writes Income + Cash Flow.")
     ap.add_argument("input", help="Markdown file or folder")
-    ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json from financial-position runner")
-    ap.add_argument("--output", default="comparison_v8")
+    ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json (e.g. comparison_v8)")
+    ap.add_argument("--output", default="comparison_v9")
     ap.add_argument("--current-year", type=int, default=2025)
     ap.add_argument("--previous-year", type=int, default=2024)
-    ap.add_argument("--sector", choices=["auto", "bank", "enterprise", "securities", "insurance"], default="auto")
+    ap.add_argument("--sector", choices=["auto", "bank", "enterprise", "securities", "insurance"], default="auto",
+                    help="Income override only; Cash Flow sector is independently detected from its own scope.")
     args = ap.parse_args()
 
     input_path = Path(args.input)
@@ -402,13 +507,16 @@ def main():
         try:
             r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector)
             rows.append(r)
-            print(f"[OK] {p.name}: status={r['status']} income={r['income_value_nodes']} mapped={r['mapped_rows']}/{r['input_rows']} sector={r['sector']}")
+            print(
+                f"[OK] {p.name}: income={r['status']} {r['mapped_rows']}/{r['input_rows']} "
+                f"| cashflow={r['cashflow_status']} {r['cashflow_mapped_rows']}/{r['cashflow_input_rows']} "
+                f"sector={r['cashflow_sector']} method={r['cashflow_method']}"
+            )
         except Exception as e:
-            rows.append({"source_name": p.name, "status": "error", "error": repr(e)})
+            rows.append({"source_name": p.name, "status": "error", "cashflow_status": "error", "error": repr(e)})
             print(f"[ERROR] {p.name}: {e}", file=sys.stderr)
 
     if not rows:
-        # Defensive invariant: a successful batch may never produce an empty summary.
         print("[FATAL] Internal invariant failed: discovered Markdown files but produced zero summary rows.", file=sys.stderr)
         raise SystemExit(3)
 
@@ -417,8 +525,12 @@ def main():
         "source_name","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
         "input_rows","mapped_rows","unmapped_rows","mapping_rate","income_value_nodes","income_current_nodes",
         "income_previous_nodes","current_coverage","previous_coverage","formula_evaluated","formula_passed",
-        "formula_failed","formula_pass_rate","sign_normalizations","financial_position_preserved",
-        "comparison_file","canonical_file","error"
+        "formula_failed","formula_pass_rate","sign_normalizations",
+        "cashflow_sector","cashflow_method","cashflow_status","cashflow_scope_start","cashflow_scope_end","cashflow_scope_score",
+        "cashflow_patterns","cashflow_input_rows","cashflow_mapped_rows","cashflow_unmapped_rows","cashflow_mapping_rate",
+        "cashflow_value_nodes","cashflow_current_nodes","cashflow_previous_nodes","cashflow_formula_evaluated",
+        "cashflow_formula_passed","cashflow_formula_failed","cashflow_formula_pass_rate",
+        "financial_position_preserved","income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")

@@ -1,0 +1,120 @@
+{
+  "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION": [
+    "Khấu hao tài sản cố định và bất động sản đầu tư",
+    "Khấu hao TSCĐ, BĐSĐT"
+  ],
+  "CASHFLOW.ENTERPRISE.NET_CHANGE_IN_CASH": [
+    "Lưu chuyển tiền thuần trong năm"
+  ],
+  "CASHFLOW.ENTERPRISE.CASH_BEGINNING": [
+    "Tiền và các khoản tương đương tiền đầu kỳ",
+    "Tiền và các khoản tương đương tiền tại thời điểm đầu kỳ"
+  ],
+  "CASHFLOW.ENTERPRISE.CASH_ENDING": [
+    "Tiền và các khoản tương đương tiền cuối kỳ",
+    "Tiền và các khoản tương đương tiền tại thời điểm cuối kỳ"
+  ],
+  "CASHFLOW.ENTERPRISE.FX_EFFECT": [
+    "Điều chỉnh ảnh hưởng của thay đổi tỷ giá",
+    "Ảnh hưởng của thay đổi tỷ giá"
+  ],
+  "CASHFLOW.BANK.DIRECT.OTHER_INCOME_CASH": [
+    "Chi phí khác",
+    "Thu nhập khác/Chi phí khác",
+    "Thu nhập khác thuần",
+    "Thu nhập (chi phí) khác"
+  ],
+  "CASHFLOW.BANK.DIRECT.EMPLOYEE_ADMIN_PAYMENTS": [
+    "Tiền chi trả cho nhân viên và hoạt động quản lý"
+  ],
+  "CASHFLOW.BANK.DIRECT.INCOME_TAX_PAID": [
+    "Tiền thuế thu nhập doanh nghiệp thực nộp trong năm",
+    "Thuế thu nhập doanh nghiệp đã nộp"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_INTERBANK_PLACEMENTS": [
+    "Tăng các khoản tiền gửi và cho vay các tổ chức tín dụng khác",
+    "Giảm các khoản tiền gửi và cho vay các tổ chức tín dụng khác",
+    "Giảm/(tăng) các khoản tiền gửi tại và cho vay các TCTD khác"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_SECURITIES": [
+    "Tăng các khoản về kinh doanh chứng khoán",
+    "Giảm các khoản về kinh doanh chứng khoán"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_DERIVATIVE_ASSETS": [
+    "Tăng các công cụ tài chính phái sinh và các tài sản tài chính khác",
+    "Giảm các công cụ tài chính phái sinh và các tài sản tài chính khác"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_CUSTOMER_LOANS": [
+    "Tăng các khoản cho vay khách hàng",
+    "Giảm các khoản cho vay khách hàng"
+  ],
+  "CASHFLOW.BANK.OPERATING.PROVISIONS_USED": [
+    "Giảm nguồn dự phòng để xử lý rủi ro, xử lý, bù đắp tổn thất các khoản",
+    "Giảm nguồn dự phòng để xử lý rủi ro, xử lý, bù đắp tổn thất các khoản (tín dụng, chứng khoán, đầu tư dài hạn)"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_OTHER_ASSETS": [
+    "Tăng khác về tài sản hoạt động",
+    "Giảm khác về tài sản hoạt động"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_GOVERNMENT_CENTRAL_BANK_LIABILITIES": [
+    "Tăng các khoản nợ Chính phủ và Ngân hàng Nhà nước",
+    "Giảm các khoản nợ Chính phủ và Ngân hàng Nhà nước"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_INTERBANK_FUNDING": [
+    "Tăng các khoản tiền gửi và vay các tổ chức tín dụng khác",
+    "Giảm các khoản tiền gửi và vay các tổ chức tín dụng khác",
+    "(Giảm)/tăng các khoản tiền gửi, tiền vay các TCTD"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_CUSTOMER_DEPOSITS": [
+    "Tăng tiền gửi của khách hàng",
+    "Giảm tiền gửi của khách hàng"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_DEBT_SECURITIES": [
+    "Tăng phát hành giấy tờ có giá",
+    "Giảm phát hành giấy tờ có giá"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_TRUST_FUNDS": [
+    "Tăng vốn tài trợ, ủy thác đầu tư, cho vay mà tổ chức tín dụng chịu rủi ro",
+    "Giảm vốn tài trợ, ủy thác đầu tư, cho vay mà tổ chức tín dụng chịu rủi ro"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_DERIVATIVE_LIABILITIES": [
+    "Tăng các công cụ tài chính phái sinh và các khoản nợ tài chính khác",
+    "Giảm các công cụ tài chính phái sinh và các khoản nợ tài chính khác"
+  ],
+  "CASHFLOW.BANK.OPERATING.CHANGE_OTHER_LIABILITIES": [
+    "Tăng khác về công nợ hoạt động",
+    "Giảm khác về công nợ hoạt động",
+    "Tăng khác về nợ phải trả hoạt động",
+    "Giảm khác về nợ phải trả hoạt động"
+  ],
+  "CASHFLOW.BANK.OPERATING.FUND_PAYMENTS": [
+    "Chi từ các quỹ của tổ chức tín dụng"
+  ],
+  "CASHFLOW.BANK.NET_CHANGE_IN_CASH": [
+    "Lưu chuyển tiền thuần trong năm"
+  ],
+  "CASHFLOW.BANK.CASH_BEGINNING": [
+    "Tiền và các khoản tương đương tiền tại thời điểm đầu năm",
+    "Tiền và tương đương tiền đầu kỳ"
+  ],
+  "CASHFLOW.BANK.CASH_ENDING": [
+    "Tiền và các khoản tương đương tiền tại thời điểm cuối năm",
+    "Tiền và tương đương tiền cuối kỳ"
+  ],
+  "CASHFLOW.BANK.FX_EFFECT": [
+    "Ảnh hưởng của thay đổi tỷ giá"
+  ],
+  "CASHFLOW.ENTERPRISE.FINANCING.EQUITY_ISSUANCE": [
+    "Tiền thu từ nhận vốn góp của cổ đông không kiểm soát"
+  ],
+  "CASHFLOW.BANK.DIRECT.TRADING_NET_CASH": [
+    "Chênh lệch số tiền thực thu từ hoạt động kinh doanh chứng khoán, vàng bạc, ngoại tệ"
+  ],
+  "CASHFLOW.BANK.OPERATING.NET_CASH": [
+    "Tiền thuần từ hoạt động kinh doanh"
+  ],
+  "CASHFLOW.BANK.INVESTING.NET_CASH": [
+    "Tiền thuần từ/ sử dụng vào hoạt động đầu tư",
+    "Tiền thuần từ hoạt động đầu tư"
+  ]
+}
