@@ -1,4 +1,4 @@
-﻿# Restructure Financial Statement LLM Result — Financial Statement Parser
+# Restructure Financial Statement LLM Result — Financial Statement Parser
 
 Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
 
@@ -8,7 +8,7 @@ Phiên bản phát hành: **Release v22.2** — Đạt độ chính xác tuyệt
 
 ### 1.1. Nguồn Gốc & Bối Cảnh Đầu Vào (Input Origin)
 
-Trong các hệ thống phân tích tài chính hiện đại (FinTech, RAG Pipeline, Quantitative Modeling), việc số hóa hàng triệu trang tài liệu Báo cáo Tài chính (BCTC) kiểm toán định dạng PDF là bước khởi đầu bắt buộc. Dữ liệu đầu vào của dự án (`output/md_reports/*.md`) xuất phát từ quy trình:
+Trong các hệ thống phân tích tài chính hiện đại (FinTech, RAG Pipeline, Quantitative Modeling), việc số hóa hàng triệu trang tài liệu Báo cáo Tài chính (BCTC) kiểm toán định dạng PDF là bước khởi đầu bắt buộc. Dữ liệu đầu vào của dự án (`md_reports/*.md`) xuất phát từ quy trình:
 
 ```text
 [BCTC PDF Gốc (Scan/Vector)]
@@ -125,8 +125,8 @@ Flatten/
 │   └── analyze_income_summary.py      # Tiện ích phân tích và phân loại các điểm sai lệch
 ├── flat_parser/                       # Engine trích xuất cấu trúc Bảng CĐKT (v0.5, flow, hybrid)
 ├── ground_truth/                      # Bộ 57 tệp baseline Ground Truth đối soát độc lập
-├── output/                            # Thư mục chứa dữ liệu đầu vào và kết quả chạy
-│   ├── md_reports/                    # 57 tệp BCTC gốc định dạng Markdown do LLM quét
+├── md_reports/                        # [Input Data] 57 tệp BCTC gốc định dạng Markdown do LLM quét
+├── output/                            # Thư mục chứa kết quả xuất ra và đối soát
 │   └── comparisons/
 │       ├── comparison_v11/            # Bridge dữ liệu cho Financial Position
 │       └── comparison_v22_2/          # Kết quả chuẩn hóa và đối soát mới nhất
@@ -166,7 +166,7 @@ python -m pip install -r .\requirements.txt
 Sử dụng script chính `run_income_comparison.py` để tự động phân loại ngành (`auto-detect sector`), áp dụng quy chuẩn Thông tư phù hợp, trích xuất dữ liệu thô, sửa lỗi ngắt dòng và đối soát Ground Truth:
 
 ```powershell
-python .\run_income_comparison.py .\output\md_reports `
+python .\run_income_comparison.py .\md_reports `
   --financial-position-dir .\output\comparisons\comparison_v11 `
   --comparison-dir .\output\comparisons\comparison_v22_2 `
   --output .\output\comparisons\comparison_v22_2 `
@@ -187,10 +187,10 @@ Kết quả xuất ra tại thư mục đích gồm:
 Sử dụng `run.py` để trích xuất Báo cáo Tình hình Tài chính:
 
 ```powershell
-python .\run.py .\output\md_reports --mode v05 --output .\output\v05
-python .\run.py .\output\md_reports --mode flow --output .\output\flow
-python .\run.py .\output\md_reports --mode hybrid --output .\output\hybrid
-python .\run.py .\output\md_reports --mode compare --output .\output\compare
+python .\run.py .\md_reports --mode v05 --output .\output\v05
+python .\run.py .\md_reports --mode flow --output .\output\flow
+python .\run.py .\md_reports --mode hybrid --output .\output\hybrid
+python .\run.py .\md_reports --mode compare --output .\output\compare
 ```
 
 ### 6.3. Chạy Độc Lập Bộ Ánh Xạ Kết Quả Kinh Doanh (Standalone Income Mapper)
