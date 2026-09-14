@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "dataset": "BVB_BCTC_2025_hop_nhat_kiem_toan.md",
+  "primary_signal": "bullet_indentation",
+  "supported_bullet_markers": [
+    "*",
+    "-"
+  ],
+  "observed_indent_behavior": "Chủ yếu 0/4/8/12 spaces; có các mức bất thường do LLM/OCR nên phải dùng nearest-less-indented thay vì cố định level.",
+  "rules": [
+    {
+      "id": "H001",
+      "name": "nearest_less_indented_parent",
+      "description": "Parent là structural bullet gần nhất phía trước có indentation nhỏ hơn lớn nhất."
+    },
+    {
+      "id": "H002",
+      "name": "period_container_propagation",
+      "description": "P002 truyền period/unit context cho descendants, trừ khi descendant có period/unit explicit."
+    },
+    {
+      "id": "H003",
+      "name": "attribute_attachment",
+      "description": "P003/P007 attach vào nearest parent theo indentation; P003 bổ sung values[], P007 Thuyết minh bổ sung note."
+    },
+    {
+      "id": "H004",
+      "name": "qualifier_scope",
+      "description": "P010 áp qualifier trong subtree."
+    },
+    {
+      "id": "H005",
+      "name": "pipe_row_self_contained",
+      "description": "P008 tự chứa column-role pairing, không phụ thuộc sibling ordering."
+    },
+    {
+      "id": "H006",
+      "name": "markdown_table_scope",
+      "description": "P006 dùng table header/schema riêng; không nhập table cell hierarchy vào bullet tree."
+    }
+  ],
+  "conflict_resolution": [
+    "Markdown table row thắng generic line parsing.",
+    "Pipe-delimited inline row thắng generic label:value.",
+    "Period-container thắng value-only interpretation.",
+    "Multi-period inline thắng generic label:value.",
+    "Named attribute thắng generic label:value.",
+    "Period-value attribute thắng generic label:value.",
+    "Indentation thắng suy luận nghiệp vụ."
+  ],
+  "noise_rules": [
+    "Root bullet chỉ chứa số trang như 50, 61, 70 được loại.",
+    "OCR footer/logo fragments ngoài bullet/table tree không được ép vào hierarchy."
+  ],
+  "examples": [
+    {
+      "input": [
+        "* **Tiền mặt**",
+        "    * Thuyết minh: 5",
+        "    * Số cuối năm: 607.814 Triệu đồng",
+        "    * Số đầu năm: 610.881 Triệu đồng"
+      ],
+      "result": "Parent 'Tiền mặt' có note=5 và hai values."
+    },
+    {
+      "input": [
+        "* **Số cuối năm**",
+        "    * **Triệu đồng**",
+        "        * Bán buôn ...: 25.643.441 (33,01%)"
+      ],
+      "result": "Period-container truyền current-period context xuống child; unit có thể đến từ nested unit header."
+    }
+  ]
+}

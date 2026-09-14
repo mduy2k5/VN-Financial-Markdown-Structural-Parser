@@ -1,0 +1,25 @@
+{
+  "scope_id":"OFF_BALANCE_SCOPE_V1",
+  "version":"1.0.0",
+  "statement":"OFF_BALANCE",
+  "start_headings":[
+    "CÁC CHỈ TIÊU NGOÀI BÁO CÁO TÌNH HÌNH TÀI CHÍNH",
+    "CÁC CHỈ TIÊU NGOÀI BÁO CÁO TÌNH HÌNH TÀI CHÍNH HỢP NHẤT",
+    "CÁC CHỈ TIÊU NGOÀI BẢNG CÂN ĐỐI KẾ TOÁN",
+    "CÁC CHỈ TIÊU NGOÀI BẢNG"
+  ],
+  "end_headings":[
+    "BÁO CÁO KẾT QUẢ HOẠT ĐỘNG",
+    "BÁO CÁO KẾT QUẢ HOẠT ĐỘNG HỢP NHẤT",
+    "BÁO CÁO LƯU CHUYỂN TIỀN TỆ",
+    "BÁO CÁO LƯU CHUYỂN TIỀN TỆ HỢP NHẤT",
+    "THUYẾT MINH BÁO CÁO TÀI CHÍNH",
+    "THUYẾT MINH BÁO CÁO TÀI CHÍNH HỢP NHẤT"
+  ],
+  "guards": {
+    "require_financial_position_context": true,
+    "reject_table_of_contents_occurrence": true,
+    "reject_narrative_commitment_mentions_outside_scope": true,
+    "max_blank_or_metadata_tail_lines": 40
+  }
+}

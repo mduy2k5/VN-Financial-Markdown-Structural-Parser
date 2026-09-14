@@ -1,0 +1,77 @@
+{
+  "version": "1.0",
+  "dataset": "ACB_BCTC_2025_hop_nhat_kiem_toan.md",
+  "primary_signal": "bullet_indentation",
+  "observed_indents": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20
+  ],
+  "rules": [
+    {
+      "id": "H001",
+      "name": "nearest_less_indented_parent",
+      "description": "Parent của bullet là bullet gần nhất phía trước có indentation nhỏ hơn lớn nhất."
+    },
+    {
+      "id": "H002",
+      "name": "period_container_propagation",
+      "description": "P002 period-container áp period cho descendants trong subtree, trừ descendant có period explicit riêng."
+    },
+    {
+      "id": "H003",
+      "name": "attribute_attachment",
+      "description": "P003 và P007 attach vào nearest parent theo indentation. P003 bổ sung values[]; P007 key=Thuyết minh bổ sung note."
+    },
+    {
+      "id": "H004",
+      "name": "qualifier_propagation",
+      "description": "P010 áp qualifier cho descendants trong subtree cho tới khi thoát indentation scope."
+    },
+    {
+      "id": "H005",
+      "name": "heading_context",
+      "description": "Markdown heading tạo section/document context nhưng không thay thế bullet parent-child."
+    },
+    {
+      "id": "H006",
+      "name": "inline_pair_self_contained",
+      "description": "P005 tự chứa pairing value-period; không dùng sibling ordering để đảo hoặc bổ sung period."
+    }
+  ],
+  "conflict_resolution": [
+    "Period-container thắng value-only numeric interpretation.",
+    "Multi-period explicit thắng generic label:value.",
+    "Named attribute thắng generic label:value.",
+    "Period-value attribute thắng generic label:value.",
+    "Indentation thắng suy luận nghiệp vụ.",
+    "Khi indentation/layout hỏng và không có explicit context, giữ UNKNOWN thay vì đoán parent/period."
+  ],
+  "noise_rules": [
+    "Bullet indent=0 chỉ chứa số trang như '**18**', '**58**', '**73**' được loại là document footer noise.",
+    "Plain OCR fragments ngoài bullet/heading không tự được đưa vào hierarchy nếu không có bằng chứng cấu trúc."
+  ],
+  "examples": [
+    {
+      "input": [
+        "* **I. Tiền mặt, vàng bạc, đá quý**",
+        "    * Thuyết minh: 4",
+        "    * Tại ngày 31.12.2025: 8.624.548 triệu VND",
+        "    * Tại ngày 31.12.2024: 5.696.449 triệu VND"
+      ],
+      "result": "Một parent label có note=4 và hai values theo hai period."
+    },
+    {
+      "input": [
+        "* **14.3. Tài sản Có khác**",
+        "    * **31.12.2025**",
+        "        * Chi phí chờ phân bổ: 1.330.233 triệu VND",
+        "        * Tổng cộng: 1.414.349 triệu VND"
+      ],
+      "result": "31.12.2025 là period-container; các child value kế thừa period này."
+    }
+  ]
+}

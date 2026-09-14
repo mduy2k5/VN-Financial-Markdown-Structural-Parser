@@ -1,0 +1,38 @@
+# Local generated outputs and source datasets
+output/
+comparison_*/
+comparison_full/
+md_reports/
+data/
+reports/
+
+# Generated diagnostics and batch result exports
+*.comparison.json
+*.income.canonical.json
+*_summary.json
+*.debug.json
+abc_comparison_12files.csv
+sample_four_patterns.csv
+resources/*validation*.json
+resources/*validation*.csv
+resources/integration_report*.json
+resources/review_decisions*.json
+resources/v046_real_validation.json
+resources/guides/*/coverage_report.json
+income_schema/example_rows.json
+
+# Python and editor artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Local OS files
+Thumbs.db
+.DS_Store

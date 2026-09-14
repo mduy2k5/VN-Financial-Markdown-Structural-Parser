@@ -1,0 +1,1092 @@
+{
+  "version": "0.4.13.1",
+  "design": {
+    "semantic_pattern_ids": true,
+    "dataset_pattern_ids_are_provenance_only": true,
+    "alias_first": true,
+    "structure_second": true,
+    "first_value_per_period_wins": true
+  },
+  "patterns": [
+    {
+      "id": "SP_MARKDOWN_TABLE_ROW",
+      "name": "markdown_table_row",
+      "priority": 160,
+      "observed_in": [
+        "A2_ABB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P006",
+          "source_name": "markdown_table_row",
+          "source_priority": 130
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P006",
+          "source_name": "markdown_table_row",
+          "source_priority": 145
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P006",
+          "source_name": "markdown_table_row",
+          "source_priority": 145
+        }
+      ],
+      "examples": [
+        "**Thu nhập lãi thuần** | **5.088.792** | **3.035.257**",
+        "| 1. Nợ đủ tiêu chuẩn | ... | 0% |",
+        "| 110 | I. Tiền và các khoản tương đương tiền | 5 | 4.194.682.648.364 | 1.464.088.127.113 |"
+      ]
+    },
+    {
+      "id": "SP_QUALIFIER_CONTAINER",
+      "name": "qualifier_container",
+      "priority": 155,
+      "observed_in": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P007",
+          "source_name": "qualifier_node",
+          "source_priority": 92
+        },
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P010",
+          "source_name": "qualifier_container",
+          "source_priority": 140
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P010",
+          "source_name": "qualifier_container",
+          "source_priority": 140
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P010",
+          "source_name": "qualifier_container",
+          "source_priority": 150
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P010",
+          "source_name": "qualifier_container",
+          "source_priority": 150
+        }
+      ],
+      "examples": [
+        "Trong đó:\\n  * Chi lương và phụ cấp: 1.160.504",
+        "**Trong đó: chiết khấu, tái chiết khấu**: 508.551 triệu đồng (31/12/2025), 3.119.095 triệu đồng (31/12/2024)",
+        "Trong đó:"
+      ]
+    },
+    {
+      "id": "SP_PIPE_DELIMITED_INLINE_ROW",
+      "name": "pipe_delimited_inline_row",
+      "priority": 150,
+      "observed_in": [
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P008",
+          "source_name": "pipe_delimited_inline_row",
+          "source_priority": 140
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P008",
+          "source_name": "pipe_delimited_inline_row",
+          "source_priority": 140
+        }
+      ],
+      "examples": [
+        "Tiền mặt: 39.926 (USD) | 13 (EUR) | 398 (Các ngoại tệ khác) | 40.337 (Tổng cộng)"
+      ]
+    },
+    {
+      "id": "SP_PERIOD_CONTAINER",
+      "name": "period_container",
+      "priority": 145,
+      "observed_in": [
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P002",
+          "source_name": "period_container",
+          "source_priority": 135
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P002",
+          "source_name": "period_container",
+          "source_priority": 135
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P002",
+          "source_name": "period_container",
+          "source_priority": 135
+        }
+      ],
+      "examples": [
+        "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2025",
+        "Ngày 31 tháng 12 năm 2025 (VND)"
+      ]
+    },
+    {
+      "id": "SP_MULTI_PERIOD_INLINE",
+      "name": "label_multi_period_inline",
+      "priority": 140,
+      "observed_in": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P001",
+          "source_name": "label_multi_period_inline",
+          "source_priority": 100
+        },
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P005",
+          "source_name": "label_multi_period_inline",
+          "source_priority": 120
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P005",
+          "source_name": "label_multi_period_inline",
+          "source_priority": 130
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P005",
+          "source_name": "label_multi_period_inline",
+          "source_priority": 130
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P005",
+          "source_name": "label_multi_period_inline",
+          "source_priority": 130
+        }
+      ],
+      "examples": [
+        "**III. Tiền gửi của khách hàng**: 127.023.635 triệu đồng (31/12/2025); 122.549.687 triệu đồng (31/12/2024)",
+        "**Tiền mặt bằng VND**: 539.418 triệu đồng (31/12/2025), 522.970 triệu đồng (31/12/2024)",
+        "Thu nhập lãi ...: 12.919.243 triệu đồng (Năm nay), 9.453.794 triệu đồng (Năm trước)",
+        "Vốn điều lệ ... 10.350.368 triệu đồng (Ngày 31 tháng 12 năm 2024: 10.350.368 triệu đồng)",
+        "Tiền gửi của khách hàng: 585.180.175 triệu đồng (năm 31.12.2025), 537.304.578 triệu đồng (năm 31.12.2024)",
+        "01. Thu nhập lãi ...: 56.890.567 (Năm 2025) | 50.231.051 (Năm 2024)",
+        "Vay Ngân hàng Nhà nước Việt Nam (15): 7.140.623 triệu đồng (Cuối năm); 1.557.819 triệu đồng (Đầu năm)"
+      ]
+    },
+    {
+      "id": "SP_NAMED_ATTRIBUTE",
+      "name": "named_attribute",
+      "priority": 135,
+      "observed_in": [
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P007",
+          "source_name": "named_attribute",
+          "source_priority": 110
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P007",
+          "source_name": "named_attribute",
+          "source_priority": 120
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P007",
+          "source_name": "named_attribute",
+          "source_priority": 120
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P007",
+          "source_name": "named_attribute",
+          "source_priority": 120
+        }
+      ],
+      "examples": [
+        "Thuyết minh: 39",
+        "Chức vụ: Tổng Giám đốc",
+        "Tỷ lệ sở hữu %: 100%",
+        "Mã số: 210",
+        "Thuyết minh: 6.2",
+        "Số tiền: 2.705.805.497.909"
+      ]
+    },
+    {
+      "id": "SP_PERIOD_VALUE_ATTRIBUTE",
+      "name": "period_value_attribute",
+      "priority": 130,
+      "observed_in": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P004",
+          "source_name": "period_value_attribute",
+          "source_priority": 85
+        },
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P003",
+          "source_name": "period_value_attribute",
+          "source_priority": 100
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P003",
+          "source_name": "period_value_attribute",
+          "source_priority": 110
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P003",
+          "source_name": "period_value_attribute",
+          "source_priority": 110
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P003",
+          "source_name": "period_value_attribute",
+          "source_priority": 110
+        }
+      ],
+      "examples": [
+        "Ngày 31/12/2025: 1.725.776 triệu đồng",
+        "**Năm 2025:** 10.026.255 triệu đồng",
+        "Số cuối năm (Triệu đồng): 6.741.277",
+        "Số đầu năm: (1.705.890) triệu đồng",
+        "Năm nay (Triệu đồng): 2.024.645",
+        "Số cuối năm: 607.814 Triệu đồng",
+        "Năm nay (Triệu đồng): 8.192.172",
+        "Cuối năm: 552.247 (triệu đồng)",
+        "Ngày 31 tháng 12 năm 2025: 141.442.600.516.098",
+        "Năm tài chính kết thúc ngày 31 tháng 12 năm 2024: 2.663.171.477.296"
+      ]
+    },
+    {
+      "id": "SP_PERIOD_CHILDREN",
+      "name": "label_with_period_children",
+      "priority": 125,
+      "observed_in": [
+        "A1_BAB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P002",
+          "source_name": "label_with_period_bearing_children",
+          "source_priority": 95
+        }
+      ],
+      "examples": [
+        "**Chỉ tiêu:** Thu nhập lãi và các khoản thu nhập tương tự nhận được\\n  - **Năm 2025:** 10.026.255 triệu đồng\\n  - **Năm 2024:** 9.370.662 triệu đồng",
+        "**1. Bảo lãnh vay vốn:**\\n  * Ngày 31/12/2025: 1.725.776 triệu đồng\\n  * Ngày 31/12/2024: 1.188.176 triệu đồng"
+      ]
+    },
+    {
+      "id": "SP_KEYED_ATTRIBUTE_CHILDREN",
+      "name": "label_with_keyed_attribute_children",
+      "priority": 120,
+      "observed_in": [
+        "A1_BAB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P008",
+          "source_name": "label_with_keyed_attribute_children",
+          "source_priority": 75
+        }
+      ],
+      "examples": [
+        "**I. Tiền mặt, vàng bạc, đá quý:**\\n  * Không bị ảnh hưởng do định lại lãi suất: 585.389\\n  * Tổng: 585.389",
+        "**Tổng:** 182.511.398\\n  * **Theo kỳ hạn:** ...\\n  * **Phân loại theo nguồn:** ..."
+      ]
+    },
+    {
+      "id": "SP_POSITIONAL_VALUE_CHILDREN",
+      "name": "label_with_positional_value_children",
+      "priority": 115,
+      "observed_in": [
+        "A1_BAB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P003",
+          "source_name": "label_with_positional_value_children",
+          "source_priority": 90
+        }
+      ],
+      "examples": [
+        "**VI. Cho vay khách hàng**\\n  * 124.840.777\\n  * 108.228.371",
+        "**Tổng tài sản Có**:\\n  * 195.820.302 (Triệu VND)\\n  * 165.486.693 (Triệu VND)"
+      ]
+    },
+    {
+      "id": "SP_LABEL_VALUE_INLINE",
+      "name": "label_value_inline",
+      "priority": 100,
+      "observed_in": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P005",
+          "source_name": "label_single_value_inline",
+          "source_priority": 80
+        },
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P004",
+          "source_name": "label_value_inline",
+          "source_priority": 70
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P004",
+          "source_name": "label_value_inline",
+          "source_priority": 70
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P004",
+          "source_name": "label_value_inline",
+          "source_priority": 70
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P004",
+          "source_name": "label_value_inline",
+          "source_priority": 70
+        }
+      ],
+      "examples": [
+        "**Chi lương và phụ cấp:** 1.160.504",
+        "5.1: 585.389",
+        "Tỷ lệ phần trăm của lợi nhuận sau thuế: 10% lợi nhuận sau thuế",
+        "Tổng cộng: 113.891.373 triệu đồng",
+        "Bằng VND: 443.339 triệu đồng"
+      ]
+    },
+    {
+      "id": "SP_VALUE_ONLY_POSITIONAL",
+      "name": "value_only_positional",
+      "priority": 90,
+      "observed_in": [
+        "A1_BAB",
+        "A2_ABB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P006",
+          "source_name": "bare_value_positional",
+          "source_priority": 70
+        },
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P009",
+          "source_name": "value_only_positional",
+          "source_priority": 60
+        }
+      ],
+      "examples": [
+        "124.840.777",
+        "(12.077)",
+        "(1.546)",
+        "245.756"
+      ]
+    },
+    {
+      "id": "SP_CONTEXT_CARRIER",
+      "name": "context_carrier",
+      "priority": 80,
+      "observed_in": [
+        "A1_BAB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P010",
+          "source_name": "context_header_or_unit_carrier",
+          "source_priority": 60
+        }
+      ],
+      "examples": [
+        "**31/12/2025** (Triệu VND)",
+        "Triệu đồng"
+      ]
+    },
+    {
+      "id": "SP_STRUCTURAL_CONTAINER",
+      "name": "structural_container",
+      "priority": 40,
+      "observed_in": [
+        "A1_BAB"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A1_BAB",
+          "source_id": "P009",
+          "source_name": "structural_container",
+          "source_priority": 50
+        }
+      ],
+      "examples": [
+        "**Chi tiết tăng/giảm dự phòng rủi ro tín dụng:** ...",
+        "**Chứng khoán đầu tư sẵn sàng để bán:** ..."
+      ]
+    },
+    {
+      "id": "SP_LABEL_CONTAINER",
+      "name": "label_container",
+      "priority": 30,
+      "observed_in": [
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ],
+      "source_patterns": [
+        {
+          "guide_id": "A2_ABB",
+          "source_id": "P001",
+          "source_name": "label_or_container",
+          "source_priority": 20
+        },
+        {
+          "guide_id": "A3_ACB",
+          "source_id": "P001",
+          "source_name": "label_or_container",
+          "source_priority": 20
+        },
+        {
+          "guide_id": "A4_BVB",
+          "source_id": "P001",
+          "source_name": "label_or_container",
+          "source_priority": 20
+        },
+        {
+          "guide_id": "A5_BVH",
+          "source_id": "P001",
+          "source_name": "label_or_container",
+          "source_priority": 20
+        }
+      ],
+      "examples": [
+        "**Cho vay khách hàng**",
+        "**Tài sản cố định**",
+        "**Những thay đổi về tài sản hoạt động**"
+      ]
+    },
+    {
+      "id": "SP_CODE_NOTE_PERIOD_INLINE_ROW",
+      "name": "code_note_period_inline_row",
+      "priority": 148,
+      "observed_in": [
+        "GEE-family"
+      ],
+      "source_patterns": [],
+      "examples": [
+        "Các khoản phải thu ngắn hạn 130 4.260.806.610.198 2.252.910.212.253",
+        "Chi phí trả trước ngắn hạn 151 13 32.309.453.139 24.815.192.830"
+      ]
+    }
+  ],
+  "field_patterns": {
+    "value": {
+      "observed_forms": [
+        "1.219.788",
+        "(1.564.458)",
+        "245",
+        "-",
+        "1.141",
+        "10.032.190.520.000",
+        "493.695",
+        "(1.200.078)",
+        "0,00",
+        "5,30-10,00",
+        "2.714",
+        "8.624.548",
+        "(7.624.729)",
+        "0,75",
+        "5.136.656.599",
+        "207.905",
+        "607.814",
+        "(1.086.853)",
+        "3,00",
+        "5,20 - 9,60",
+        "100,00",
+        "4.194.682.648.364",
+        "(169.920.276.247)",
+        "3.821",
+        "65,00"
+      ],
+      "patterns": [
+        {
+          "name": "parenthesized_or_plain_numeric",
+          "regex": "(?<![\\\\w/])(?:\\\\(?-?\\\\d{1,3}(?:[\\\\.,]\\\\d{3})*(?:[\\\\.,]\\\\d+)?\\\\)?)(?![\\\\w/])",
+          "rule": "Không normalize dấu . , hoặc dấu ngoặc; loại spans đã được nhận diện là date/year/note."
+        },
+        {
+          "name": "dash_missing_value",
+          "regex": "(?<!\\\\S)-(?!\\\\S)",
+          "rule": "Giữ raw_value=\"-\"; semantic missing/null chỉ ở tầng sau."
+        },
+        {
+          "name": "dot_grouped_integer",
+          "regex": "^\\(?\\d{1,3}(?:\\.\\d{3})+\\)?$"
+        },
+        {
+          "name": "plain_integer",
+          "regex": "^\\(?\\d+\\)?$"
+        },
+        {
+          "name": "decimal_comma",
+          "regex": "^\\(?\\d+(?:,\\d+)\\)?$"
+        },
+        {
+          "name": "range_decimal_comma",
+          "regex": "^\\d+(?:,\\d+)?\\s*-\\s*\\d+(?:,\\d+)?$"
+        },
+        {
+          "name": "missing_dash",
+          "regex": "^-$"
+        },
+        {
+          "name": "decimal_range",
+          "regex": "^\\d+(?:,\\d+)?\\s*-\\s*\\d+(?:,\\d+)?$"
+        },
+        {
+          "name": "decimal_comma",
+          "regex": "^\\(?\\d+(?:,\\d+)?\\)?$"
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "period": {
+      "observed_forms": [
+        "31/12/2025",
+        "31/12/2024",
+        "Ngày 31/12/2025",
+        "Tại ngày 31/12/2025",
+        "Số dư tại ngày 31/12/2024",
+        "Năm 2025",
+        "Năm 2024",
+        "Năm nay",
+        "Năm trước",
+        "Số cuối năm",
+        "Số đầu năm",
+        "Cuối năm",
+        "Đầu năm",
+        "Ngày 31 tháng 12 năm 2025",
+        "năm 2025",
+        "Tại ngày 31.12.2025",
+        "Tại ngày 31.12.2024",
+        "31.12.2025",
+        "31.12.2024",
+        "năm 31.12.2025",
+        "năm 31.12.2024",
+        "Dư nợ cuối năm",
+        "Dư nợ đầu năm",
+        "Ngày 1 tháng 1 năm 2025",
+        "Ngày 31 tháng 12 năm 2024",
+        "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2025",
+        "Năm tài chính kết thúc ngày 31 tháng 12 năm 2024"
+      ],
+      "patterns": [
+        {
+          "name": "date_period",
+          "regex": "(?:(?:Ngày|Tại ngày|Số dư tại ngày)\\\\s*)?31/12/20(?:24|25)"
+        },
+        {
+          "name": "year_period",
+          "regex": "(?:Năm\\\\s+20(?:24|25)|Năm nay|Năm trước)"
+        },
+        {
+          "name": "relative_period_label",
+          "regex": "^(Số cuối năm|Số đầu năm|Năm nay|Năm trước|Cuối năm|Đầu năm)$"
+        },
+        {
+          "name": "date_ddmmyyyy",
+          "regex": "^(?:Ngày\\s+)?\\d{1,2}/\\d{1,2}/\\d{4}$"
+        },
+        {
+          "name": "vietnamese_full_date",
+          "regex": "^(?:Ngày\\s+)?\\d{1,2}\\s+tháng\\s+\\d{1,2}\\s+năm\\s+\\d{4}$"
+        },
+        {
+          "name": "year",
+          "regex": "^(?:năm\\s+)?20\\d{2}$"
+        },
+        {
+          "name": "date_ddmmyyyy_dot",
+          "regex": "^(?:Tại ngày\\s+)?\\d{1,2}\\.\\d{1,2}\\.\\d{4}$"
+        },
+        {
+          "name": "year_period",
+          "regex": "^Năm\\s+20\\d{2}$"
+        },
+        {
+          "name": "inline_year_date",
+          "regex": "^năm\\s+\\d{1,2}\\.\\d{1,2}\\.\\d{4}$"
+        },
+        {
+          "name": "relative_period",
+          "regex": "^(?:Số cuối năm|Số đầu năm|Năm nay|Năm trước|Cuối năm|Đầu năm|Dư nợ cuối năm|Dư nợ đầu năm)$"
+        },
+        {
+          "name": "vietnamese_date",
+          "regex": "^(?:Ngày\\s+)?\\d{1,2}\\s+tháng\\s+\\d{1,2}\\s+năm\\s+\\d{4}$"
+        },
+        {
+          "name": "slash_date",
+          "regex": "^\\d{1,2}/\\d{1,2}/\\d{4}$"
+        },
+        {
+          "name": "full_vn_date",
+          "regex": "^(?:Ngày\\s+)?\\d{1,2}\\s+tháng\\s+\\d{1,2}\\s+năm\\s+20\\d{2}$"
+        },
+        {
+          "name": "year",
+          "regex": "^Năm\\s+20\\d{2}$"
+        },
+        {
+          "name": "fiscal_year_end",
+          "regex": "^(?:Cho\\s+)?Năm tài chính kết thúc ngày 31 tháng 12 năm 20\\d{2}$"
+        }
+      ],
+      "mappings": {
+        "Số cuối năm": "current_period_end",
+        "Cuối năm": "current_period_end",
+        "Số đầu năm": "previous_period_end",
+        "Đầu năm": "previous_period_end",
+        "Năm nay": "current_period",
+        "Năm trước": "previous_period",
+        "31.12.2025": "current_period_end",
+        "31.12.2024": "previous_period_end",
+        "Năm 2025": "current_period",
+        "Năm 2024": "previous_period",
+        "Dư nợ cuối năm": "current_period_end",
+        "Dư nợ đầu năm": "previous_period_end"
+      },
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "unit": {
+      "observed_forms": [
+        "triệu đồng",
+        "Triệu đồng",
+        "triệu VND",
+        "Triệu VND",
+        "đồng",
+        "%",
+        "%/năm",
+        "đồng/cổ phiếu",
+        "người",
+        "năm",
+        "VND/cổ phiếu",
+        "VND",
+        "cổ phiếu",
+        "USD",
+        "EUR",
+        "VNĐ",
+        "Đồng",
+        "cổ phần"
+      ],
+      "patterns": [
+        {
+          "name": "currency_unit",
+          "regex": "(?i)\\\\btriệu\\\\s+(?:đồng|VND)\\\\b|\\\\bVND\\\\b|\\\\bđồng\\\\b"
+        },
+        {
+          "name": "percent_unit",
+          "regex": "%"
+        },
+        {
+          "name": "million_vnd",
+          "regex": "(?i)\\b(?:triệu\\s+đồng|triệu\\s+VND)\\b"
+        },
+        {
+          "name": "percent",
+          "regex": "%"
+        },
+        {
+          "name": "percent_per_year",
+          "regex": "%\\s*/\\s*năm"
+        },
+        {
+          "name": "vnd_per_share",
+          "regex": "(?i)đồng\\s*/\\s*cổ\\s*phiếu"
+        },
+        {
+          "name": "million_vnd",
+          "regex": "(?i)\\btriệu\\s+(?:VND|đồng)\\b"
+        },
+        {
+          "name": "vnd_per_share",
+          "regex": "(?i)\\b(?:VND|đồng)\\s*/\\s*cổ\\s*phiếu\\b"
+        },
+        {
+          "name": "shares",
+          "regex": "(?i)\\bcổ\\s*phiếu\\b"
+        },
+        {
+          "name": "million_currency",
+          "regex": "(?i)\\btriệu\\s+(?:đồng|VND)\\b"
+        },
+        {
+          "name": "per_share",
+          "regex": "(?i)đồng\\s*/\\s*cổ\\s*phiếu"
+        },
+        {
+          "name": "currency_role",
+          "regex": "\\b(?:USD|EUR|VND)\\b"
+        },
+        {
+          "name": "vnd",
+          "regex": "(?i)\\b(?:VND|VNĐ|đồng)\\b"
+        },
+        {
+          "name": "shares",
+          "regex": "(?i)\\bcổ\\s+phần\\b"
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "note": {
+      "observed_forms": [
+        "**Thuyết minh:** 8.2",
+        "cột **Thuyết minh**",
+        "5.1: 585.389 trong bảng có cột Thuyết minh",
+        "Thuyết minh: 17",
+        "Thuyết minh: 10.1",
+        "Thuyết minh: 16.4",
+        "Thuyết minh: 34",
+        "Thuyết minh: 4",
+        "(Thuyết minh 22)",
+        "(Thuyết minh 33.1)",
+        "(Thuyết minh trang 15)",
+        "Thuyết minh: 5",
+        "Số liệu thuyết minh: 24",
+        "(Thuyết minh 29)",
+        "(15)",
+        "(16.1)",
+        "Thuyết minh: 6.2",
+        "Thuyết minh: 14.3.1"
+      ],
+      "patterns": [
+        {
+          "name": "explicit_note_key",
+          "regex": "(?i)\\\\bThuyết minh\\\\s*:\\\\s*([0-9]+(?:\\\\.[0-9]+)*)"
+        },
+        {
+          "name": "contextual_note_reference",
+          "regex": "^([0-9]+(?:\\\\.[0-9]+)+)\\\\s*:\\\\s*(.+)$",
+          "condition": "Chỉ coi group 1 là note khi active table context có cột Thuyết minh; nếu không, không suy đoán."
+        },
+        {
+          "name": "note_attribute",
+          "regex": "(?i)^Thuyết\\s+minh\\s*:\\s*([0-9]+(?:\\.[0-9]+)*)$"
+        },
+        {
+          "name": "note_parenthetical",
+          "regex": "(?i)\\(Thuyết\\s+minh\\s+([0-9]+(?:\\.[0-9]+)*)\\)"
+        },
+        {
+          "name": "note_page_parenthetical",
+          "regex": "(?i)\\(Thuyết\\s+minh\\s+trang\\s+([0-9]+)\\)"
+        },
+        {
+          "name": "note_attribute",
+          "regex": "(?i)^(?:Số liệu\\s+)?Thuyết\\s+minh\\s*:\\s*([0-9]+(?:\\.[0-9]+)*)$"
+        },
+        {
+          "name": "explicit_note",
+          "regex": "(?i)^Thuyết\\s+minh\\s*:\\s*([0-9]+(?:\\.[0-9]+)*)$"
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "role": {
+      "observed_forms": [
+        "Số cuối năm",
+        "Số đầu năm",
+        "Năm nay",
+        "Năm trước",
+        "current period from 2025",
+        "previous period from 2024",
+        "USD",
+        "EUR",
+        "Các ngoại tệ khác",
+        "Tổng cộng",
+        "Cuối năm",
+        "Đầu năm",
+        "current year",
+        "previous year",
+        "Nguyên giá",
+        "Dự phòng giảm giá trị",
+        "Giá trị thuần",
+        "Giá trị hợp lý"
+      ],
+      "patterns": [
+        {
+          "name": "current",
+          "tokens": [
+            "Số cuối năm",
+            "Năm nay",
+            "Cuối năm"
+          ]
+        },
+        {
+          "name": "previous",
+          "tokens": [
+            "Số đầu năm",
+            "Năm trước",
+            "Đầu năm"
+          ]
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "qualifier": {
+      "observed_forms": [
+        "Trong đó",
+        "Chi tiết",
+        "Theo kỳ hạn",
+        "Phân loại theo nguồn",
+        "Trong đó:"
+      ],
+      "patterns": [
+        {
+          "name": "structural_qualifier",
+          "regex": "(?i)^(Trong đó|Chi tiết|Theo kỳ hạn|Phân loại theo nguồn)\\\\s*:"
+        },
+        {
+          "name": "container_qualifier",
+          "regex": "(?i)^(Trong đó)\\s*:?$"
+        },
+        {
+          "name": "within_qualifier",
+          "regex": "(?i)^Trong đó\\s*:?$"
+        },
+        {
+          "name": "within",
+          "regex": "(?i)^Trong đó\\s*:?$"
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    },
+    "label": {
+      "observed_forms": [
+        "**III. Tiền gửi của khách hàng**",
+        "**Chỉ tiêu:** Thu nhập lãi...",
+        "Chi lương và phụ cấp: 1.160.504",
+        "a. Vốn điều lệ: ...",
+        "Bold bullet label",
+        "Plain bullet label",
+        "Table first-column label",
+        "Label before ':'",
+        "Numbered financial section heading",
+        "Bold numbered financial label",
+        "Plain nested bullet label",
+        "lhs before ':'",
+        "label containing parenthetical note reference",
+        "Plain '-' bullet label",
+        "numbered label",
+        "table first-column label",
+        "table row label",
+        "bullet label",
+        "lhs before colon"
+      ],
+      "patterns": [
+        {
+          "name": "bold_or_plain_label",
+          "rule": "Sau khi bỏ bullet marker, label là text nghiệp vụ trước value region hoặc sau key Chỉ tiêu:. Giữ numbering như raw_label nếu cần, nhưng canonical label có thể tách numbering bằng recognizer riêng."
+        },
+        {
+          "name": "bullet_label",
+          "description": "Text sau bullet marker, trước attribute/value region nếu có."
+        },
+        {
+          "name": "table_label",
+          "description": "Cell text đầu tiên theo table schema."
+        },
+        {
+          "name": "colon_lhs_label",
+          "description": "lhs trước ':' khi lhs không phải period hoặc named attribute."
+        }
+      ],
+      "mappings": {},
+      "sources": [
+        "A1_BAB",
+        "A2_ABB",
+        "A3_ACB",
+        "A4_BVB",
+        "A5_BVH"
+      ]
+    }
+  },
+  "named_attribute_keys": [
+    "Thuyết minh",
+    "Tên công ty",
+    "Giấy phép hoạt động",
+    "Lĩnh vực kinh doanh",
+    "Tỷ lệ sở hữu và quyền biểu quyết",
+    "Tình hình quá hạn",
+    "Tiêu chí",
+    "Phân loại",
+    "Ghi nhận",
+    "Đo lường",
+    "Chấm dứt ghi nhận",
+    "Số liệu thuyết minh",
+    "Họ và tên",
+    "Chức vụ",
+    "Bổ nhiệm/tái bổ nhiệm/miễn nhiệm",
+    "Diễn giải",
+    "Tỷ lệ dự phòng cụ thể",
+    "Hoạt động chính",
+    "Tỷ lệ sở hữu",
+    "Người lập",
+    "Người kiểm soát",
+    "Người phê duyệt",
+    "Mã số",
+    "Số tiền",
+    "Tỷ lệ sở hữu %"
+  ],
+  "source_guides": [
+    {
+      "guide_id": "A1_BAB",
+      "dataset": {
+        "file": "BAB.md",
+        "pages_observed": "1-51",
+        "content_bullets": 2000,
+        "structural_samples": 1835,
+        "sample_definition": "Markdown bullet trong ## Content có value/period/unit/note/qualifier hoặc có descendant chứa các tín hiệu đó; loại prose dài không có cấu trúc field rõ."
+      }
+    },
+    {
+      "guide_id": "A2_ABB",
+      "dataset": "ABB_BCTC_2025_hop_nhat_kiem_toan.md"
+    },
+    {
+      "guide_id": "A3_ACB",
+      "dataset": "ACB_BCTC_2025_hop_nhat_kiem_toan.md"
+    },
+    {
+      "guide_id": "A4_BVB",
+      "dataset": "BVB_BCTC_2025_hop_nhat_kiem_toan.md"
+    },
+    {
+      "guide_id": "A5_BVH",
+      "dataset": "BVH_BCTC_2025_hop_nhat_kiem_toan(1).md"
+    }
+  ],
+  "unmapped_source_pattern_names": [],
+  "selection_order": [
+    "SP_MARKDOWN_TABLE_ROW",
+    "SP_QUALIFIER_CONTAINER",
+    "SP_PIPE_DELIMITED_INLINE_ROW",
+    "SP_PERIOD_CONTAINER",
+    "SP_MULTI_PERIOD_INLINE",
+    "SP_NAMED_ATTRIBUTE",
+    "SP_PERIOD_VALUE_ATTRIBUTE",
+    "SP_PERIOD_CHILDREN",
+    "SP_KEYED_ATTRIBUTE_CHILDREN",
+    "SP_POSITIONAL_VALUE_CHILDREN",
+    "SP_LABEL_VALUE_INLINE",
+    "SP_VALUE_ONLY_POSITIONAL",
+    "SP_CONTEXT_CARRIER",
+    "SP_STRUCTURAL_CONTAINER",
+    "SP_LABEL_CONTAINER"
+  ]
+}

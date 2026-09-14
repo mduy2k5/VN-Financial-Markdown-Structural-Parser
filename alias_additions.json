@@ -1,0 +1,10 @@
+{
+  "INCOME.BANK.NET_INVESTMENT_SECURITIES": [
+    "(Lỗ)/lãi thuần từ mua bán chứng khoán đầu tư",
+    "(Lỗ)/Lãi thuần từ mua bán chứng khoán đầu tư"
+  ],
+  "INCOME.BANK.TAX_EXPENSE": [
+    "Tổng chi phí thuế thu nhập doanh nghiệp",
+    "Tổng chi phí thuế TNDN"
+  ]
+}

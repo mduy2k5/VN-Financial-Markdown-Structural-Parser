@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "signals": [
+    {
+      "name": "indentation",
+      "priority": 100,
+      "description": "Số khoảng trắng trước bullet. Trong dataset chủ yếu 0/4/8/12/16. Child có indent lớn hơn parent gần nhất; khi indent giảm, pop stack đến mức nhỏ hơn."
+    },
+    {
+      "name": "nested_bullet",
+      "priority": 95,
+      "description": "Bullet * hoặc - kết hợp indentation tạo tree. Dấu bullet không tự tạo parent nếu indent bằng nhau."
+    },
+    {
+      "name": "markdown_heading",
+      "priority": 80,
+      "description": "Heading #..#### mở section scope cho các bullet sau nó cho đến heading cùng/cao hơn; heading không tự biến bullet ngang cấp thành child."
+    },
+    {
+      "name": "context_carrier",
+      "priority": 70,
+      "description": "Period/unit/note headers cung cấp column/scope context nhưng không ghi đè quan hệ parent-child do indentation."
+    }
+  ],
+  "parent_rule": "Với mỗi bullet trong cùng page/content block, parent structural là bullet gần nhất trước đó có indent nhỏ hơn. Nếu không có, parent=null và heading gần nhất là section context. Không nối parent qua ranh giới Page nếu không có continuation marker rõ.",
+  "conflict_resolution": "Indentation/nested bullet quyết định tree. Heading chỉ quyết định section scope. Context header chỉ bổ sung period/unit mapping. Không dùng kiến thức tài chính để sửa tree.",
+  "examples": [
+    "Cam kết giao dịch hối đoái (indent 0) -> a. Cam kết mua ngoại tệ (indent 4) -> Ngày 31/12/2025 (indent 8).",
+    "Chi phí cho nhân viên -> Trong đó -> Chi lương và phụ cấp.",
+    "Năm 2025 (period container) -> Mua sắm TSCĐ (label:value children)."
+  ],
+  "continuation_warning": "Dataset chia theo # Page; một số bảng có thể tiếp tục trang sau. Nếu cần nối cross-page, chỉ nối khi heading/table signature và column context tương thích; nếu không đủ bằng chứng => ambiguous."
+}

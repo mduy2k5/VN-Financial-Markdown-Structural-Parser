@@ -1,0 +1,133 @@
+{
+  "value": {
+    "observed_forms": [
+      "1.219.788",
+      "(1.564.458)",
+      "245",
+      "-",
+      "1.141",
+      "10.032.190.520.000"
+    ],
+    "patterns": [
+      {
+        "name": "parenthesized_or_plain_numeric",
+        "regex": "(?<![\\\\w/])(?:\\\\(?-?\\\\d{1,3}(?:[\\\\.,]\\\\d{3})*(?:[\\\\.,]\\\\d+)?\\\\)?)(?![\\\\w/])",
+        "rule": "Không normalize dấu . , hoặc dấu ngoặc; loại spans đã được nhận diện là date/year/note."
+      },
+      {
+        "name": "dash_missing_value",
+        "regex": "(?<!\\\\S)-(?!\\\\S)",
+        "rule": "Giữ raw_value=\"-\"; semantic missing/null chỉ ở tầng sau."
+      }
+    ],
+    "warnings": [
+      "Dấu chấm/phẩy có thể là phân cách hàng nghìn hoặc thập phân; guide không chuẩn hóa.",
+      "Số trong date, note ref, numbering và văn bản pháp lý không được coi là financial value nếu chưa có structural context."
+    ]
+  },
+  "period": {
+    "observed_forms": [
+      "31/12/2025",
+      "31/12/2024",
+      "Ngày 31/12/2025",
+      "Tại ngày 31/12/2025",
+      "Số dư tại ngày 31/12/2024",
+      "Năm 2025",
+      "Năm 2024",
+      "Năm nay",
+      "Năm trước"
+    ],
+    "patterns": [
+      {
+        "name": "date_period",
+        "regex": "(?:(?:Ngày|Tại ngày|Số dư tại ngày)\\\\s*)?31/12/20(?:24|25)"
+      },
+      {
+        "name": "year_period",
+        "regex": "(?:Năm\\\\s+20(?:24|25)|Năm nay|Năm trước)"
+      }
+    ]
+  },
+  "unit": {
+    "observed_forms": [
+      "triệu đồng",
+      "Triệu đồng",
+      "triệu VND",
+      "Triệu VND",
+      "đồng",
+      "%"
+    ],
+    "patterns": [
+      {
+        "name": "currency_unit",
+        "regex": "(?i)\\\\btriệu\\\\s+(?:đồng|VND)\\\\b|\\\\bVND\\\\b|\\\\bđồng\\\\b"
+      },
+      {
+        "name": "percent_unit",
+        "regex": "%"
+      }
+    ],
+    "warnings": [
+      "Unit có thể inline, ở header cột, hoặc ở node **Đơn vị:**; inheritance phải theo scope."
+    ]
+  },
+  "note": {
+    "observed_forms": [
+      "**Thuyết minh:** 8.2",
+      "cột **Thuyết minh**",
+      "5.1: 585.389 trong bảng có cột Thuyết minh"
+    ],
+    "patterns": [
+      {
+        "name": "explicit_note_key",
+        "regex": "(?i)\\\\bThuyết minh\\\\s*:\\\\s*([0-9]+(?:\\\\.[0-9]+)*)"
+      },
+      {
+        "name": "contextual_note_reference",
+        "regex": "^([0-9]+(?:\\\\.[0-9]+)+)\\\\s*:\\\\s*(.+)$",
+        "condition": "Chỉ coi group 1 là note khi active table context có cột Thuyết minh; nếu không, không suy đoán."
+      }
+    ]
+  },
+  "role": {
+    "observed_forms": [],
+    "patterns": [],
+    "warnings": [
+      "Không quan sát thấy marker structural rõ như \"Trình bày lại\" trong BAB.md; role phải null/unknown, không suy từ năm trước/năm nay."
+    ]
+  },
+  "qualifier": {
+    "observed_forms": [
+      "Trong đó",
+      "Chi tiết",
+      "Theo kỳ hạn",
+      "Phân loại theo nguồn"
+    ],
+    "patterns": [
+      {
+        "name": "structural_qualifier",
+        "regex": "(?i)^(Trong đó|Chi tiết|Theo kỳ hạn|Phân loại theo nguồn)\\\\s*:"
+      }
+    ],
+    "warnings": [
+      "Từ \"bao gồm\" xuất hiện nhiều trong prose; không dùng làm qualifier nếu không ở node cấu trúc độc lập/prefix rõ."
+    ]
+  },
+  "label": {
+    "observed_forms": [
+      "**III. Tiền gửi của khách hàng**",
+      "**Chỉ tiêu:** Thu nhập lãi...",
+      "Chi lương và phụ cấp: 1.160.504",
+      "a. Vốn điều lệ: ..."
+    ],
+    "patterns": [
+      {
+        "name": "bold_or_plain_label",
+        "rule": "Sau khi bỏ bullet marker, label là text nghiệp vụ trước value region hoặc sau key Chỉ tiêu:. Giữ numbering như raw_label nếu cần, nhưng canonical label có thể tách numbering bằng recognizer riêng."
+      }
+    ],
+    "warnings": [
+      "Không coi period/unit/note/qualifier header là label nghiệp vụ."
+    ]
+  }
+}

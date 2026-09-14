@@ -1,0 +1,132 @@
+{
+  "version": "1.0",
+  "dataset": "BVH_BCTC_2025_hop_nhat_kiem_toan(1).md",
+  "value": {
+    "observed_forms": [
+      "4.194.682.648.364",
+      "(169.920.276.247)",
+      "3.821",
+      "65,00",
+      "-"
+    ],
+    "patterns": [
+      {
+        "name": "dot_grouped_integer",
+        "regex": "^\\(?\\d{1,3}(?:\\.\\d{3})+\\)?$"
+      },
+      {
+        "name": "plain_integer",
+        "regex": "^\\(?\\d+\\)?$"
+      },
+      {
+        "name": "decimal_comma",
+        "regex": "^\\(?\\d+(?:,\\d+)?\\)?$"
+      },
+      {
+        "name": "missing_dash",
+        "regex": "^-$"
+      }
+    ],
+    "rules": [
+      "Không normalize raw_value.",
+      "Không biến ngoặc thành số âm ở structural layer.",
+      "Không lấy 31/12/2025 thành value."
+    ]
+  },
+  "period": {
+    "observed_forms": [
+      "Ngày 31 tháng 12 năm 2025",
+      "Ngày 31 tháng 12 năm 2024",
+      "Năm 2025",
+      "Năm 2024",
+      "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2025",
+      "Năm tài chính kết thúc ngày 31 tháng 12 năm 2024"
+    ],
+    "patterns": [
+      {
+        "name": "full_vn_date",
+        "regex": "^(?:Ngày\\s+)?\\d{1,2}\\s+tháng\\s+\\d{1,2}\\s+năm\\s+20\\d{2}$"
+      },
+      {
+        "name": "year",
+        "regex": "^Năm\\s+20\\d{2}$"
+      },
+      {
+        "name": "fiscal_year_end",
+        "regex": "^(?:Cho\\s+)?Năm tài chính kết thúc ngày 31 tháng 12 năm 20\\d{2}$"
+      }
+    ]
+  },
+  "unit": {
+    "observed_forms": [
+      "VND",
+      "VNĐ",
+      "đồng",
+      "Đồng",
+      "%",
+      "cổ phần"
+    ],
+    "patterns": [
+      {
+        "name": "vnd",
+        "regex": "(?i)\\b(?:VND|VNĐ|đồng)\\b"
+      },
+      {
+        "name": "percent",
+        "regex": "%"
+      },
+      {
+        "name": "shares",
+        "regex": "(?i)\\bcổ\\s+phần\\b"
+      }
+    ]
+  },
+  "note": {
+    "observed_forms": [
+      "Thuyết minh: 6.2",
+      "Thuyết minh: 14.3.1"
+    ],
+    "patterns": [
+      {
+        "name": "explicit_note",
+        "regex": "(?i)^Thuyết\\s+minh\\s*:\\s*([0-9]+(?:\\.[0-9]+)*)$"
+      }
+    ]
+  },
+  "role": {
+    "observed_forms": [
+      "current year",
+      "previous year",
+      "Nguyên giá",
+      "Dự phòng giảm giá trị",
+      "Giá trị thuần",
+      "Giá trị hợp lý"
+    ],
+    "rules": [
+      "Role có thể đến từ header/cell label, không chỉ period."
+    ]
+  },
+  "qualifier": {
+    "observed_forms": [
+      "Trong đó:"
+    ],
+    "patterns": [
+      {
+        "name": "within",
+        "regex": "(?i)^Trong đó\\s*:?$"
+      }
+    ]
+  },
+  "label": {
+    "observed_forms": [
+      "table row label",
+      "bullet label",
+      "lhs before colon",
+      "numbered label"
+    ],
+    "rules": [
+      "Không dựa vào bold/capitalization.",
+      "Mã số/item number là field riêng, không thay label."
+    ]
+  }
+}

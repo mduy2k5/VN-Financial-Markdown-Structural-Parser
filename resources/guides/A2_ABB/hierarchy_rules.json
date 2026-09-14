@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "dataset": "ABB_BCTC_2025_hop_nhat_kiem_toan.md",
+  "signals": [
+    {
+      "name": "bullet_indentation",
+      "priority": 100,
+      "description": "Indentation của bullet là tín hiệu parent-child chính. Dataset có các mức phổ biến 0, 4, 8, 12 spaces; một số lệch OCR/format tồn tại."
+    },
+    {
+      "name": "markdown_heading",
+      "priority": 80,
+      "description": "Heading tạo section context nhưng không tự biến mọi dòng sau thành financial child."
+    },
+    {
+      "name": "table_block",
+      "priority": 120,
+      "description": "Trong Markdown table, header/separator xác lập schema cột; rows là siblings cùng table."
+    },
+    {
+      "name": "ordered_sibling_schema",
+      "priority": 60,
+      "description": "Chỉ dùng cho value-only bullet khi parent/header thể hiện rõ thứ tự cột/period."
+    }
+  ],
+  "parent_rule": "Với bullet node, parent là bullet gần nhất phía trước có indentation nhỏ hơn lớn nhất. Không dùng tên chỉ tiêu tài chính để sửa parent.",
+  "attribute_attachment_rule": "P003/P007 là child attribute của parent bullet gần nhất theo indentation. P003 tạo values[] cho parent; P007 key=Thuyết minh gán note cho parent.",
+  "qualifier_rule": "P010 tạo qualifier context cho descendants trong subtree tương ứng.",
+  "table_rule": "Header row + separator row mở table context; mỗi data row dùng cùng column schema cho tới khi table kết thúc.",
+  "conflict_resolution": [
+    "Table context thắng bullet/colon heuristics.",
+    "Qualifier-only thắng generic label.",
+    "Multi-period inline thắng single inline.",
+    "Named attribute và period-value attribute thắng generic label:value.",
+    "Nếu indentation bị phá và không còn table/header/schema đủ chắc chắn, không dựng parent bằng nghiệp vụ; đánh UNKNOWN/ambiguous."
+  ],
+  "examples": [
+    {
+      "input": [
+        "* **Tiền gửi của khách hàng**",
+        "    * Thuyết minh: 19",
+        "    * Số cuối năm (Triệu đồng): 133.411.372",
+        "    * Số đầu năm (Triệu đồng): 90.719.121"
+      ],
+      "result": "Parent label có note=19 và 2 values từ hai P003 children."
+    }
+  ]
+}

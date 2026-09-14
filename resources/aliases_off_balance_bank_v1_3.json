@@ -1,0 +1,145 @@
+{
+  "alias_catalog_id": "OFF_BALANCE_BANK_ALIASES_V1_3",
+  "version": "1.3.0",
+  "statement": "OFF_BALANCE",
+  "sector": "bank",
+  "aliases": {
+    "OFF_BALANCE.GUARANTEES.LOAN": [
+      "Bảo lãnh vay vốn",
+      "Bảo lãnh vốn vay"
+    ],
+    "OFF_BALANCE.GUARANTEES.OTHER": [
+      "Bảo lãnh khác"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS": [
+      "Cam kết giao dịch hối đoái"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.BUY_FX": [
+      "Cam kết mua ngoại tệ",
+      "Cam kết mua ngoại tệ giao ngay"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.SELL_FX": [
+      "Cam kết bán ngoại tệ",
+      "Cam kết bán ngoại tệ giao ngay"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.SWAP": [
+      "Cam kết giao dịch hoán đổi",
+      "Cam kết giao dịch hoán đổi tiền tệ"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.SWAP_BUY": [
+      "Cam kết mua - giao dịch hoán đổi tiền tệ",
+      "Cam kết mua giao dịch hoán đổi ngoại tệ"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.SWAP_SELL": [
+      "Cam kết bán - giao dịch hoán đổi tiền tệ",
+      "Cam kết bán giao dịch hoán đổi ngoại tệ"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.CROSS_CURRENCY_SWAP_FX": [
+      "Cam kết hoán đổi tiền tệ chéo bằng ngoại tệ"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.CROSS_CURRENCY_SWAP_VND": [
+      "Cam kết hoán đổi tiền tệ chéo bằng VND"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.INTEREST_RATE_SWAP_FX": [
+      "Cam kết hoán đổi lãi suất bằng ngoại tệ"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.INTEREST_RATE_SWAP_VND": [
+      "Cam kết hoán đổi lãi suất bằng VND"
+    ],
+    "OFF_BALANCE.FX_COMMITMENTS.SECURITIES_FORWARD": [
+      "Cam kết kỳ hạn giấy tờ có giá"
+    ],
+    "OFF_BALANCE.CREDIT_COMMITMENTS.LC": [
+      "Cam kết trong nghiệp vụ L/C",
+      "Cam kết trong nghiệp vụ thư tín dụng",
+      "Cam kết trong nghiệp vụ thư tín dụng (L/C)"
+    ],
+    "OFF_BALANCE.CREDIT_COMMITMENTS.UNUSED_LIMIT": [
+      "Hạn mức tín dụng chưa sử dụng"
+    ],
+    "OFF_BALANCE.OTHER_COMMITMENTS": [
+      "Các cam kết khác",
+      "Cam kết khác"
+    ],
+    "OFF_BALANCE.UNCOLLECTED_INTEREST_FEES": [
+      "Lãi cho vay và phí phải thu chưa thu được",
+      "Lãi cho vay và chi phí chưa thu được"
+    ],
+    "OFF_BALANCE.WRITTEN_OFF_BAD_DEBT": [
+      "Nợ khó đòi đã xử lý"
+    ],
+    "OFF_BALANCE.OTHER_ASSETS_DOCUMENTS": [
+      "Tài sản và chứng từ khác"
+    ],
+    "OFF_BALANCE.GUARANTEES.PAYMENT": [
+      "Bảo lãnh thanh toán"
+    ],
+    "OFF_BALANCE.GUARANTEES.PERFORMANCE": [
+      "Bảo lãnh thực hiện hợp đồng"
+    ],
+    "OFF_BALANCE.GUARANTEES.BID": [
+      "Bảo lãnh dự thầu"
+    ],
+    "OFF_BALANCE.CREDIT_COMMITMENTS.IRREVOCABLE_LOAN": [
+      "Cam kết cho vay không hủy ngang"
+    ],
+    "OFF_BALANCE.FUTURE_TRANSACTION_COMMITMENTS": [
+      "Cam kết giao dịch tương lai"
+    ]
+  },
+  "context_only": {
+    "Cam kết giao dịch": {
+      "role": "container",
+      "do_not_map_to_leaf": true
+    },
+    "Trong đó": {
+      "role": "context_carrier",
+      "do_not_map_to_leaf": true
+    },
+    "Tổng cộng": {
+      "candidate": "OFF_BALANCE.TOTAL",
+      "requires_scope_root": true
+    },
+    "Nghĩa vụ nợ tiềm ẩn và các cam kết đưa ra": {
+      "role": "section_container",
+      "do_not_map_to_leaf": true
+    },
+    "CÁC CHỈ TIÊU NGOÀI BÁO CÁO TÌNH HÌNH TÀI CHÍNH HỢP NHẤT": {
+      "role": "scope_heading",
+      "do_not_map_to_leaf": true
+    },
+    "CÁC CHỈ TIÊU NGOÀI BẢNG CÂN ĐỐI KẾ TOÁN": {
+      "role": "scope_heading",
+      "do_not_map_to_leaf": true
+    },
+    "Nghĩa vụ nợ tiềm ẩn": {
+      "role": "section_container",
+      "do_not_map_to_leaf": true
+    },
+    "Nghĩa vụ tiềm ẩn và các cam kết đưa ra": {
+      "role": "section_container",
+      "do_not_map_to_leaf": true
+    },
+    "Các khoản mục ngoại bảng khác": {
+      "role": "section_container",
+      "do_not_map_to_leaf": true
+    },
+    "Bảng số liệu": {
+      "role": "presentation_heading",
+      "do_not_map_to_leaf": true
+    },
+    "Tổng quan": {
+      "role": "presentation_heading",
+      "do_not_map_to_leaf": true
+    },
+    "Chi tiết": {
+      "role": "presentation_heading",
+      "do_not_map_to_leaf": true
+    }
+  },
+  "design_notes": [
+    "Semantic aliases only. Enumeration prefixes, note references, inline amounts and table pipes are removed before matching.",
+    "No auto-merge for narrower/wider concepts where semantic loss is possible.",
+    "Securities/enterprise/insurance concepts are out of this bank alias catalog."
+  ]
+}
