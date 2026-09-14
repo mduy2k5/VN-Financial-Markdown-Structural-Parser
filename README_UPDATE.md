@@ -1,96 +1,72 @@
-# README_UPDATE — v15
+# v16 — Structural Identity Repair
 
-## Mục tiêu
+V16 is a debug iteration built from v15. It does **not** add a quality gate and does not suppress low-accuracy outputs.
 
-V15 là bản debug tiếp theo của pipeline 3 statements. Không có quality gate và không chặn output theo accuracy.
+## Main changes
 
-Bản này sửa regression chính của v14: reconciliation đã làm sạch source observations nhưng xóa một số occurrence, khiến Financial Position matched rows giảm từ 88.17% xuống 86.23%.
+### Financial Position
 
-## Thay đổi chính
+- Adds structural row identity based on `label + form_code + hierarchy context` instead of collapsing rows by label alone.
+- Supports column-major OCR/LLM layouts where a row is emitted as `label -> code -> note? -> current -> previous`.
+- Supports continuation-page rows using `Số cuối năm / Số đầu năm` with optional unit annotations.
+- Supports `Số liệu / Số liệu (Trình bày lại)` bank layouts.
+- Supports inline `value (2025), value (2024)` layouts and `Tổng cộng` rows whose real identity is the parent label.
+- Extracts trailing/suffix form codes such as `(200)` and `(Mã số: 311, Thuyết minh: 20)`.
+- Keeps repeated generic labels such as `Nguyên giá` separated by hierarchy context.
 
-### 1. Non-destructive source reconciliation
+### Cash Flow
 
-`source_reconciliation.py` không còn xóa duplicate source observations.
+- Adds section-aware source recovery (`operating`, `investing`, `financing`, `reconciliation`).
+- Adds `current inline + Năm trước child` recovery for continuation pages.
+- Adds `Năm kết thúc 31/12/YYYY` period-section recovery.
+- Adds label-less statutory pipe-table recovery by form code. A code table can only fill an existing unique semantic node for the active sector/method and only when that period is null.
+- Never overwrites an existing non-null semantic value.
 
-Mỗi nhóm source row cùng normalized label được gắn:
+### Reconciliation
 
+- Source observations are never deleted.
+- Reconciliation groups Financial Position observations using hierarchy context.
+- Reconciled values live in `reconciled_source_view`; original source-observation values are not synthetically modified.
+- Semantic hydration remains fill-missing-only.
+
+### Income
+
+Income broad extraction/mapping remains frozen from v15.
+
+## Debug diagnostics
+
+Look at:
+
+- `diagnostics.source_statement_recovery`
+- `diagnostics.source_observation_reconciliation`
+- `diagnostics.form_code_period_recovery`
+- `parent_label`
+- `hierarchy_path`
 - `duplicate_group_id`
-- `duplicate_group_size`
-- `preferred_observation`
-- `reconciliation_rank`
 
-Toàn bộ occurrence gốc vẫn nằm trong `nodes` để evaluator/downstream không mất source evidence.
+Accuracy is a measurement for debugging, not a runtime gate.
 
-### 2. Reconciled source view
-
-Canonical bổ sung top-level:
-
-```json
-"reconciled_source_view": []
-```
-
-Mỗi group chứa:
-
-- preferred node;
-- toàn bộ member node IDs;
-- current/previous đã reconcile;
-- vote table;
-- trạng thái `unanimous`, `majority`, `conflict`, `missing`.
-
-### 3. Conservative value reconciliation
-
-Period value chỉ được chọn khi:
-
-- toàn bộ evidence đồng nhất; hoặc
-- có strict majority.
-
-Nếu tie/conflict, v15 giữ nguyên tất cả evidence và không ép chọn một giá trị mới.
-
-Preferred source observation có thể được fill period còn thiếu từ reconciled view, nhưng các alternatives không bị xóa.
-
-### 4. Semantic hydration
-
-Semantic node chỉ được fill khi:
-
-- exact normalized label match;
-- Cash Flow section tương thích;
-- chỉ có đúng một semantic candidate;
-- period hiện tại đang null.
-
-Không overwrite giá trị semantic đã có.
-
-### 5. Income
-
-Không thay broad extractor/mapper. V15 chỉ thay source reconciliation policy để tránh regression recall.
-
-## Diagnostics
-
-`diagnostics.source_observation_reconciliation` gồm:
-
-- `input_source_nodes`
-- `output_source_nodes`
-- `duplicate_groups`
-- `removed_duplicate_nodes` (v15 luôn bằng 0)
-- `conflicting_groups`
-- `preferred_completed_nodes`
-- `semantic_nodes_filled`
-- `preserves_all_source_observations`
-
-## Chạy
+## Run
 
 ```powershell
 python .\run_income_comparison.py .\output\md_reports `
-  --financial-position-dir .\<folder_financial_position_canonical> `
-  --comparison-dir .\comparison_v14 `
-  --output .\comparison_v15 `
+  --financial-position-dir .\<financial_position_canonical_dir> `
+  --comparison-dir .\comparison_v15 `
+  --output .\comparison_v16 `
   --current-year 2025 `
   --previous-year 2024
 ```
 
-## Kỳ vọng debug
+## v16.1 refinements from detailed v15 evaluation
 
-- Financial Position: lấy lại recall của v13 nhưng giữ phần cải thiện period accuracy của v14.
-- Income: không regress mức matched rows v14.
-- Cash Flow: giữ toàn bộ evidence v13/v14 để tiếp tục debug 112 ground-truth rows còn thiếu.
+The detailed v15 evaluation showed that row recall alone was not the dominant Financial Position problem: many matched rows still had wrong current/previous values. v16.1 therefore adds a conservative period-identity repair before source-row recovery.
 
-Các KPI >90% / >95% chỉ dùng để theo dõi, không dùng để chặn output.
+- `31/12/current_year`, `Số cuối năm`, `Cuối kỳ` => current.
+- `31/12/previous_year`, `Số đầu năm`, `Đầu kỳ` => previous.
+- **`01/01/current_year` / `Ngày 1 tháng 1 năm current_year` => previous**, even though the calendar year is the current report year.
+- Existing semantic values are corrected only when explicit period-label evidence has a unique consensus. Conflicting evidence is retained in diagnostics instead of being guessed.
+- Short/generic Financial Position labels such as `Nguyên giá`, `Hao mòn lũy kế`, `Dự phòng`, `Tổng cộng` keep their literal source observation and additionally receive a hierarchy-qualified contextual observation for evaluator/downstream matching.
+
+New diagnostic:
+
+`diagnostics.financial_position_period_identity_repair`

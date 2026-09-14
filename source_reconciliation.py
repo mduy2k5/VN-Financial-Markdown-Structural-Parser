@@ -18,8 +18,8 @@ def _source_line(node: dict) -> int:
     return occ.get("source_line") or 10**9
 
 
-def _group_id(statement: str, section: str, label: str) -> str:
-    raw = f"{statement}|{section}|{label}".encode("utf-8")
+def _group_id(statement: str, section: str, label: str, context: str = "") -> str:
+    raw = f"{statement}|{section}|{label}|{context}".encode("utf-8")
     return "SRCGRP." + hashlib.sha1(raw).hexdigest()[:14]
 
 
@@ -111,16 +111,16 @@ def _semantic_candidates(semantic: list[dict], statement: str, section: str, lab
 
 
 def reconcile_source_observations(canonical: dict | None, statement: str) -> dict | None:
-    """v15 non-destructive source reconciliation.
+    """v16 structural-identity, non-destructive source reconciliation.
 
-    v14 physically collapsed compatible source observations. That improved value precision but
-    reduced ground-truth row recall. v15 keeps every source observation in ``nodes`` and treats
-    reconciliation as a parallel view:
+    Source observations stay intact. Financial Position duplicate families additionally use
+    hierarchy context so repeated generic labels under different parents are not collapsed.
+    Reconciliation is a parallel view:
 
     * all original observations remain available;
     * duplicate groups are annotated, not deleted;
     * one observation is marked preferred and moved before alternatives;
-    * the preferred observation may be completed with a conservative reconciled period pair;
+    * original source-observation period values are never synthetically modified;
     * semantic nodes are only hydrated when the semantic identity is unique and the period is null;
     * conflicting evidence is retained verbatim for debugging.
     """
@@ -133,15 +133,18 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
 
     # Family identity deliberately ignores form code: code is supporting evidence and continuation
     # pages often drop it. Cash Flow section remains part of identity because labels/codes can repeat.
-    groups: dict[tuple[str, str], list[dict]] = collections.defaultdict(list)
+    groups: dict[tuple[str, str, str], list[dict]] = collections.defaultdict(list)
     ungrouped = []
     for n in src:
         label = fold(n.get("canonical_name"))
         section = clean(n.get("section") or "") if statement == "CASHFLOW" else ""
+        # Financial-position labels such as "Nguyên giá" or "Dự phòng" legitimately repeat under
+        # different parents.  Preserve that source identity instead of collapsing by label alone.
+        context = fold(n.get("hierarchy_path") or n.get("parent_label") or "") if statement == "FINANCIAL_POSITION" else ""
         if not label:
             ungrouped.append(n)
             continue
-        groups[(section, label)].append(n)
+        groups[(section, label, context)].append(n)
 
     ordered_src: list[dict] = []
     view = []
@@ -150,8 +153,8 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
     semantic_fills = 0
     preferred_completed = 0
 
-    for (section, label), bucket in sorted(groups.items(), key=lambda kv: min(_source_line(n) for n in kv[1])):
-        gid = _group_id(statement, section, label)
+    for (section, label, context), bucket in sorted(groups.items(), key=lambda kv: min(_source_line(n) for n in kv[1])):
+        gid = _group_id(statement, section, label, context)
         if len(bucket) > 1:
             duplicate_groups += 1
 
@@ -161,14 +164,8 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
             conflicts += 1
 
         preferred = _preferred_node(bucket, cur, prev)
-        pval = preferred.setdefault("value", {})
-        before = (pval.get("current"), pval.get("previous"))
-        if pval.get("current") is None and cur is not None:
-            pval["current"] = cur
-        if pval.get("previous") is None and prev is not None:
-            pval["previous"] = prev
-        if before != (pval.get("current"), pval.get("previous")):
-            preferred_completed += 1
+        # v16 keeps source observations byte-semantic: reconciliation is a parallel view only.
+        # Never synthesize a period directly into an original source observation.
 
         member_ids = []
         for rank, n in enumerate(sorted(bucket, key=_source_line), start=1):
@@ -177,7 +174,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
             em["duplicate_group_size"] = len(bucket)
             em["preferred_observation"] = (n is preferred)
             em["reconciliation_rank"] = 0 if n is preferred else rank
-            em["reconciliation_policy"] = "non_destructive_source_view_v15"
+            em["reconciliation_policy"] = "structural_identity_non_destructive_v16"
             member_ids.append(n.get("node_id"))
 
         # Fill semantic node only if exact normalized identity is unique and semantic period is null.
@@ -197,7 +194,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
                     "group_id": gid,
                     "current": cur,
                     "previous": prev,
-                    "policy": "fill_missing_only_v15",
+                    "policy": "fill_missing_only_v16",
                 })
 
         # Preferred first, but every alternative remains in nodes for recall/debug evidence.
@@ -208,6 +205,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
             "statement": statement,
             "section": section or None,
             "normalized_label": label,
+            "identity_context": context or None,
             "display_label": preferred.get("canonical_name"),
             "preferred_node_id": preferred.get("node_id"),
             "member_node_ids": member_ids,
@@ -226,13 +224,13 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
     canonical["reconciled_source_view"] = view
     canonical.setdefault("diagnostics", {})["source_observation_reconciliation"] = {
         "statement": statement,
-        "policy": "non_destructive_source_view_v15",
+        "policy": "structural_identity_non_destructive_v16",
         "input_source_nodes": len(src),
         "output_source_nodes": len(ordered_src),
         "duplicate_groups": duplicate_groups,
         "removed_duplicate_nodes": 0,
         "conflicting_groups": conflicts,
-        "preferred_completed_nodes": preferred_completed,
+        "preferred_completed_nodes": 0,
         "semantic_nodes_filled": semantic_fills,
         "preserves_all_source_observations": True,
     }
