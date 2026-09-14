@@ -1,6 +1,6 @@
 {
   "schema_id": "UNIVERSAL_INCOME_STATEMENT_V1",
-  "schema_version": "1.4.0",
+  "schema_version": "1.5.0",
   "statement_type": "INCOME_STATEMENT",
   "profiles": {
     "enterprise": {
@@ -797,6 +797,46 @@
       "canonical_name": "Lãi cơ bản trên cổ phiếu",
       "sector": "insurance",
       "form_code": "70"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.DIRECT_PREMIUM_REVENUE",
+      "canonical_name": "Doanh thu phí bảo hiểm gốc",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.REINSURANCE_ACCEPTED_REVENUE",
+      "canonical_name": "Doanh thu nhận tái bảo hiểm",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.REINSURANCE_CEDED_PREMIUM",
+      "canonical_name": "Phí nhượng tái bảo hiểm",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.NET_PREMIUM_REVENUE",
+      "canonical_name": "Doanh thu phí bảo hiểm thuần",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.DIRECT_CLAIMS_EXPENSE",
+      "canonical_name": "Chi bồi thường bảo hiểm gốc",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.REINSURANCE_RECOVERY",
+      "canonical_name": "Thu bồi thường nhượng tái bảo hiểm",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.RESERVE_CHANGE",
+      "canonical_name": "Tăng/giảm dự phòng nghiệp vụ bảo hiểm",
+      "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.LIFE_RESERVE_CHANGE",
+      "canonical_name": "Tăng/giảm dự phòng nghiệp vụ bảo hiểm nhân thọ",
+      "sector": "insurance"
     }
   ]
 }

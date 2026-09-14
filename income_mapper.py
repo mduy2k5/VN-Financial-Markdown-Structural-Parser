@@ -523,6 +523,9 @@ class IncomeMapper:
             sign_normalizations = normalize_bank_semantic_signs(by)
         elif self.sector == "securities":
             sign_normalizations = normalize_securities_semantic_signs(by)
+        elif self.sector == "enterprise":
+            # Formula-only normalization: preserve source-facing canonical values.
+            sign_normalizations = normalize_enterprise_formula_signs(by)
         elif self.sector == "insurance":
             sign_normalizations = []
         else:
@@ -571,9 +574,14 @@ class IncomeMapper:
         else:
             formula_checks = validate_enterprise_formulas(by)
         formula_summary = summarize_formula_checks(formula_checks)
-        if formula_summary["failed"] > 0 and status == "ok":
-            status = "value_semantic_conflict"
-            diagnostic = "Mapped rows are complete, but one or more accounting identity checks failed after semantic sign normalization."
+        # Mapping/extraction status and accounting-validation status are separate in v17.
+        # A formula mismatch must remain visible for debugging, but it must not relabel
+        # a structurally complete extraction as a mapping failure/conflict.
+        validation_status = "ok" if formula_summary["failed"] == 0 else "formula_warning"
+        validation_diagnostic = None if validation_status == "ok" else (
+            "One or more accounting identity checks failed. Canonical source values are preserved; "
+            "inspect diagnostics.formula_checks and diagnostics.sign_normalizations."
+        )
         unmapped_rows = [
             {"source_line": r.source_line, "label": r.label, "code": r.code, "current": r.current, "previous": r.previous, "parent_context": r.parent_context}
             for r in rows if r.mapping_status == "unmapped"
@@ -592,6 +600,8 @@ class IncomeMapper:
             "periods": {"current": current_year, "previous": previous_year},
             "status": status,
             "diagnostic": diagnostic,
+            "validation_status": validation_status,
+            "validation_diagnostic": validation_diagnostic,
             "nodes": list(by.values()),
             "conflicts": conflicts,
             "mapping_summary": {
@@ -750,6 +760,49 @@ def normalize_bank_semantic_signs(by: dict) -> list[dict]:
     return actions
 
 
+
+
+
+ENTERPRISE_PRESENTATION_MAGNITUDE_NODES = {
+    "INCOME.ENTERPRISE.REVENUE_DEDUCTIONS",
+    "INCOME.ENTERPRISE.COGS",
+    "INCOME.ENTERPRISE.FINANCIAL_EXPENSE",
+    "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+    "INCOME.ENTERPRISE.SELLING_EXPENSE",
+    "INCOME.ENTERPRISE.GENERAL_ADMIN_EXPENSE",
+    "INCOME.ENTERPRISE.OTHER_EXPENSE",
+    "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+}
+
+
+def normalize_enterprise_formula_signs(by: dict) -> list[dict]:
+    """Build a diagnostic sign-normalization view for enterprise formulas.
+
+    Enterprise B02-DN statements are not consistent in presentation sign for cost
+    rows: some sources print positive magnitudes, others use parentheses/minus.
+    Canonical values are kept faithful to source. Formula validation consumes
+    magnitudes for unambiguously deductive rows, so this function records what was
+    normalized *for formula semantics only* without mutating canonical values.
+    """
+    actions = []
+    for nid in ENTERPRISE_PRESENTATION_MAGNITUDE_NODES:
+        node = by.get(nid) or {}
+        value = node.get("value") or {}
+        for period in ("current", "previous"):
+            old = value.get(period)
+            if not isinstance(old, (int, float)):
+                continue
+            normalized = abs(old)
+            if normalized != old:
+                actions.append({
+                    "node_id": nid,
+                    "period": period,
+                    "source_value": old,
+                    "formula_value": normalized,
+                    "reason": "enterprise_formula_magnitude_normalization",
+                    "canonical_mutated": False,
+                })
+    return actions
 
 
 SECURITIES_ALWAYS_NEGATIVE_NODES = {

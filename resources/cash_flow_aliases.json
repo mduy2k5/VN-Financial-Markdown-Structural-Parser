@@ -149,7 +149,9 @@
     "Khẩu hao TSCĐ"
   ],
   "CASHFLOW.SECURITIES.INDIRECT.PROVISIONS": [
-    "Chi phí (hoàn nhập) dự phòng"
+    "Chi phí (hoàn nhập) dự phòng",
+    "Tăng/giảm các khoản dự phòng",
+    "Tăng giảm các khoản dự phòng"
   ],
   "CASHFLOW.SECURITIES.INDIRECT.NON_CASH_EXPENSES": [
     "Biến động các chi phí phi tiền tệ"
@@ -185,7 +187,8 @@
   ],
   "CASHFLOW.SECURITIES.INDIRECT.CHANGE_SERVICE_RECEIVABLES": [
     "(Tăng)/giảm các khoản phải thu các dịch vụ công ty chứng khoán cung cấp",
-    "(Tăng)/giảm phải thu các dịch vụ CTCK cung cấp"
+    "(Tăng)/giảm phải thu các dịch vụ CTCK cung cấp",
+    "Tăng giảm phải thu dịch vụ công ty chứng khoán cung cấp"
   ],
   "CASHFLOW.SECURITIES.INDIRECT.CHANGE_OTHER_RECEIVABLES": [
     "(Tăng)/giảm các khoản phải thu khác",
@@ -262,5 +265,19 @@
   ],
   "CASHFLOW.BANK.FINANCING.NET_CASH": [
     "Lưu chuyển tiền thuần sử dụng vào hoạt động tài chính"
+  ],
+  "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS": [
+    "Tăng/giảm các khoản dự phòng",
+    "Tăng giảm các khoản dự phòng",
+    "Dự phòng giảm giá hàng tồn kho và đầu tư"
+  ],
+  "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX": [
+    "Lỗ/lãi chênh lệch tỷ giá hối đoái chưa thực hiện",
+    "Lãi/lỗ chênh lệch tỷ giá hối đoái chưa thực hiện",
+    "Lãi lỗ chênh lệch tỷ giá do đánh giá lại"
+  ],
+  "CASHFLOW.SECURITIES.INDIRECT.CHANGE_LOANS": [
+    "Tăng giảm các khoản cho vay",
+    "Tăng các khoản cho vay và ứng trước"
   ]
 }

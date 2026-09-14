@@ -1,6 +1,6 @@
 {
-  "alias_schema_version": "1.2.2",
-  "target_schema": "UNIVERSAL_INCOME_STATEMENT_V1@1.3.0",
+  "alias_schema_version": "1.3.0",
+  "target_schema": "UNIVERSAL_INCOME_STATEMENT_V1@1.5.0",
   "nodes": {
     "INCOME.ENTERPRISE.REVENUE_GROSS": {
       "exact": [
@@ -357,7 +357,9 @@
       "exact": [
         "Lãi từ các tài sản tài chính FVTPL",
         "Lãi từ các tài sản tài chính ghi nhận thông qua lãi/lỗ (FVTPL)",
-        "Lãi từ các tài sản tài chính ghi nhận thông qua lãi/lỗ (\"FVTPL\")"
+        "Lãi từ các tài sản tài chính ghi nhận thông qua lãi/lỗ (\"FVTPL\")",
+        "Lãi FVTPL",
+        "Lãi từ tài sản tài chính FVTPL"
       ]
     },
     "INCOME.SECURITIES.FVTPL_SALE_GAIN": {
@@ -374,7 +376,8 @@
     "INCOME.SECURITIES.FVTPL_DIVIDEND_INTEREST": {
       "exact": [
         "Cổ tức, tiền lãi phát sinh từ các tài sản tài chính FVTPL",
-        "Cổ tức, tiền lãi phát sinh từ tài sản tài chính FVTPL"
+        "Cổ tức, tiền lãi phát sinh từ tài sản tài chính FVTPL",
+        "Cổ tức và tiền lãi phát sinh từ tài sản tài chính FVTPL"
       ]
     },
     "INCOME.SECURITIES.WARRANT_REVALUATION_GAIN": {
@@ -391,7 +394,10 @@
     },
     "INCOME.SECURITIES.LOAN_RECEIVABLE_INCOME": {
       "exact": [
-        "Lãi từ các khoản cho vay và phải thu"
+        "Lãi từ các khoản cho vay và phải thu",
+        "Lãi từ các khoản cho vay ứng trước tiền bán",
+        "Lãi từ các khoản cho vay và ứng trước tiền bán",
+        "Doanh thu lãi cho vay margin"
       ]
     },
     "INCOME.SECURITIES.AFS_INCOME": {
@@ -403,7 +409,9 @@
     },
     "INCOME.SECURITIES.BROKERAGE_REVENUE": {
       "exact": [
-        "Doanh thu nghiệp vụ môi giới chứng khoán"
+        "Doanh thu nghiệp vụ môi giới chứng khoán",
+        "Doanh thu môi giới chứng khoán",
+        "Doanh thu hoạt động môi giới chứng khoán"
       ]
     },
     "INCOME.SECURITIES.UNDERWRITING_REVENUE": {
@@ -440,7 +448,10 @@
     },
     "INCOME.SECURITIES.FVTPL_LOSS": {
       "exact": [
-        "Lỗ từ các tài sản tài chính FVTPL"
+        "Lỗ từ các tài sản tài chính FVTPL",
+        "Lỗ từ các tài sản tài chính ghi nhận thông qua lãi/lỗ (FVTPL)",
+        "Lỗ FVTPL",
+        "Lỗ từ tài sản tài chính FVTPL"
       ]
     },
     "INCOME.SECURITIES.FVTPL_SALE_LOSS": {
@@ -484,7 +495,9 @@
     },
     "INCOME.SECURITIES.BROKERAGE_EXPENSE": {
       "exact": [
-        "Chi phí nghiệp vụ môi giới chứng khoán"
+        "Chi phí nghiệp vụ môi giới chứng khoán",
+        "Chi phí môi giới chứng khoán",
+        "Chi phí hoạt động môi giới chứng khoán"
       ]
     },
     "INCOME.SECURITIES.UNDERWRITING_EXPENSE": {
@@ -703,6 +716,54 @@
     "INCOME.INSURANCE.PROFIT_ATTRIBUTABLE_PARENT": {
       "exact": [
         "LỢI NHUẬN SAU THUẾ CỦA CHỦ SỞ HỮU TẬP ĐOÀN"
+      ]
+    },
+    "INCOME.INSURANCE.DIRECT_PREMIUM_REVENUE": {
+      "exact": [
+        "Doanh thu phí bảo hiểm gốc",
+        "Thu phí bảo hiểm gốc"
+      ]
+    },
+    "INCOME.INSURANCE.REINSURANCE_ACCEPTED_REVENUE": {
+      "exact": [
+        "Doanh thu nhận tái bảo hiểm",
+        "Phí nhận tái bảo hiểm"
+      ]
+    },
+    "INCOME.INSURANCE.REINSURANCE_CEDED_PREMIUM": {
+      "exact": [
+        "Phí nhượng tái bảo hiểm",
+        "Chi phí nhượng tái bảo hiểm"
+      ]
+    },
+    "INCOME.INSURANCE.NET_PREMIUM_REVENUE": {
+      "exact": [
+        "Doanh thu phí bảo hiểm thuần"
+      ]
+    },
+    "INCOME.INSURANCE.DIRECT_CLAIMS_EXPENSE": {
+      "exact": [
+        "Chi bồi thường bảo hiểm gốc",
+        "Chi trả tiền bảo hiểm",
+        "Chi bồi thường bảo hiểm"
+      ]
+    },
+    "INCOME.INSURANCE.REINSURANCE_RECOVERY": {
+      "exact": [
+        "Thu bồi thường nhượng tái bảo hiểm",
+        "Thu bồi thường từ nhà tái bảo hiểm"
+      ]
+    },
+    "INCOME.INSURANCE.RESERVE_CHANGE": {
+      "exact": [
+        "Tăng giảm dự phòng nghiệp vụ bảo hiểm",
+        "Tăng/giảm dự phòng nghiệp vụ bảo hiểm"
+      ]
+    },
+    "INCOME.INSURANCE.LIFE_RESERVE_CHANGE": {
+      "exact": [
+        "Tăng giảm dự phòng nghiệp vụ bảo hiểm nhân thọ",
+        "Tăng/giảm dự phòng nghiệp vụ bảo hiểm nhân thọ"
       ]
     }
   }
