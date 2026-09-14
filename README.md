@@ -89,8 +89,7 @@ python .\run_income_map.py .\rows `
   --previous-year 2024
 ```
 
-Runtime income schemas and aliases are in `resources/` and
-`income_schema/resources/`. Do not replace them with generated reports.
+Runtime income schemas and aliases are in `resources/`. Do not replace them with generated reports.
 
 ## Integrated and legacy entrypoints
 
@@ -117,7 +116,7 @@ python -m pytest -q
 For a dependency-free syntax check:
 
 ```powershell
-python -m compileall -q flat_parser income_schema scripts tests `
+python -m compileall -q flat_parser scripts tests `
   income_mapper.py income_observation_patch.py run_income_comparison.py
 ```
 
@@ -125,7 +124,6 @@ python -m compileall -q flat_parser income_schema scripts tests `
 
 ```text
 flat_parser/                 Parser engines and shared models
-income_schema/               Standalone income row mapper
 resources/                   Runtime schemas, aliases, and structural guides
 samples/                     Small safe fixtures
 scripts/                     Guide and coverage utilities
