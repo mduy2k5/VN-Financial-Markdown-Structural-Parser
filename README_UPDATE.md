@@ -1,22 +1,65 @@
-# v17 debug update
+# README_UPDATE — v22.2
 
-v17 continues the debug-oriented three-statement pipeline. It does **not** add a quality gate.
+## Mục tiêu
 
-## Changes
+v22.2 là patch rất hẹp trên v22.1, chỉ hoàn thiện 8 dòng còn unmapped của
+Income Statement ngành bảo hiểm. Không thay đổi broad extractor/mapping logic.
 
-1. Income formula validation is separated from extraction/mapping status.
-   - `status` describes extraction/mapping coverage.
-   - `validation_status` is `ok` or `formula_warning`.
-   - Formula warnings no longer turn an otherwise complete mapping into `value_semantic_conflict`.
-2. Enterprise sign handling is formula-only.
-   - Canonical values remain faithful to source presentation.
-   - Deductive enterprise rows are interpreted as magnitudes only inside formula validation.
-   - Diagnostics record `canonical_mutated: false`.
-3. Securities income aliases are expanded for FVTPL, margin/loan, brokerage variants.
-4. Insurance income schema is expanded with premium, reinsurance, claims, and reserve-change rows before aliases are added.
-   - This avoids creating aliases that point to nonexistent nodes.
-5. Cash-flow aliases are enriched only for nodes that already exist in the schema (`PROVISIONS`, `UNREALIZED_FX`, selected securities working-capital rows).
+## 8 semantic node mới
 
-## Important
+1. `INCOME.INSURANCE.TOTAL_PREMIUM_REVENUE`
+   - Doanh thu phí bảo hiểm
 
-The earlier proposal that normalizing enterprise cost rows to positive values would automatically make all 9 formula-conflict files `ok` is not assumed. The existing enterprise validator already uses magnitude semantics for COGS, other expense, and current tax. v17 therefore preserves source values and makes formula diagnostics independent from mapping status.
+2. `INCOME.INSURANCE.REINSURANCE_COMMISSION_OTHER_REVENUE`
+   - Hoa hồng nhượng tái bảo hiểm và doanh thu khác hoạt động kinh doanh bảo hiểm
+
+3. `INCOME.INSURANCE.NET_INSURANCE_BUSINESS_REVENUE`
+   - Doanh thu thuần từ hoạt động kinh doanh bảo hiểm
+
+4. `INCOME.INSURANCE.ACCEPTED_REINSURANCE_CLAIMS_EXPENSE`
+   - Chi bồi thường nhận tái bảo hiểm
+
+5. `INCOME.INSURANCE.CLAIM_EXPENSE_REDUCTIONS`
+   - Các khoản giảm trừ chi phí
+
+6. `INCOME.INSURANCE.THIRD_PARTY_RECOVERY`
+   - Thu đòi người thứ ba
+
+7. `INCOME.INSURANCE.SALVAGE_RECOVERY`
+   - Thu xử lý hàng bồi thường
+
+8. `INCOME.INSURANCE.TOTAL_CLAIMS_AND_BENEFITS`
+   - Tổng chi bồi thường và trả tiền bảo hiểm
+
+## Nguyên tắc
+
+- Không dùng ticker-specific mapping.
+- Không map 8 dòng này vào các node aggregate cũ có semantics khác.
+- Không đổi fuzzy threshold.
+- Không đổi scope logic.
+- Không đổi Income extractor.
+- Không đổi Bank / Enterprise / Securities aliases.
+- Không đổi bất kỳ Cash Flow file nào.
+- Không thêm quality gate.
+
+## Regression expectation
+
+Với source BVH hiện tại, extractor v22.1 emit 49 Income rows.
+Trước patch:
+- mapped: 41
+- unmapped: 8
+
+Sau patch v22.2 local smoke:
+- mapped: 49
+- unmapped: 0
+
+Đây chỉ là mapper/extractor smoke trên source BVH, không thay thế evaluator ground-truth 57 file.
+
+## Ground-truth cần chạy lại
+
+So sánh v22.2 với v22.1:
+
+- Financial Position: phải giữ nguyên.
+- Cash Flow: phải giữ nguyên.
+- Income ngoài Insurance: phải giữ nguyên.
+- BVH Income: kỳ vọng tăng từ 41/49 nếu evaluator dùng cùng semantic rows.

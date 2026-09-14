@@ -1,6 +1,6 @@
 {
   "schema_id": "UNIVERSAL_INCOME_STATEMENT_V1",
-  "schema_version": "1.5.0",
+  "schema_version": "1.5.1",
   "statement_type": "INCOME_STATEMENT",
   "profiles": {
     "enterprise": {
@@ -837,6 +837,54 @@
       "node_id": "INCOME.INSURANCE.LIFE_RESERVE_CHANGE",
       "canonical_name": "Tăng/giảm dự phòng nghiệp vụ bảo hiểm nhân thọ",
       "sector": "insurance"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.TOTAL_PREMIUM_REVENUE",
+      "canonical_name": "Doanh thu phí bảo hiểm",
+      "sector": "insurance",
+      "form_code": "01"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.REINSURANCE_COMMISSION_OTHER_REVENUE",
+      "canonical_name": "Hoa hồng nhượng tái bảo hiểm và doanh thu khác hoạt động kinh doanh bảo hiểm",
+      "sector": "insurance",
+      "form_code": "09"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.NET_INSURANCE_BUSINESS_REVENUE",
+      "canonical_name": "Doanh thu thuần từ hoạt động kinh doanh bảo hiểm",
+      "sector": "insurance",
+      "form_code": "15"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.ACCEPTED_REINSURANCE_CLAIMS_EXPENSE",
+      "canonical_name": "Chi bồi thường nhận tái bảo hiểm",
+      "sector": "insurance",
+      "form_code": "17"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.CLAIM_EXPENSE_REDUCTIONS",
+      "canonical_name": "Các khoản giảm trừ chi phí",
+      "sector": "insurance",
+      "form_code": "18"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.THIRD_PARTY_RECOVERY",
+      "canonical_name": "Thu đòi người thứ ba",
+      "sector": "insurance",
+      "form_code": "19"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.SALVAGE_RECOVERY",
+      "canonical_name": "Thu xử lý hàng bồi thường",
+      "sector": "insurance",
+      "form_code": "20"
+    },
+    {
+      "node_id": "INCOME.INSURANCE.TOTAL_CLAIMS_AND_BENEFITS",
+      "canonical_name": "Tổng chi bồi thường và trả tiền bảo hiểm",
+      "sector": "insurance",
+      "form_code": "29"
     }
   ]
 }

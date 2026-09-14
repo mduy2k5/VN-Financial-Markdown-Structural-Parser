@@ -414,6 +414,17 @@ class IncomeMapper:
             node_alias = self.aliases.get("nodes", {}).get(nid, {})
             labels += node_alias.get("exact", [])
             labels += node_alias.get("aliases", [])
+
+            # v22.1 compatibility: older alias packs may contain node aliases
+            # directly at the JSON top level instead of under `nodes`.
+            # Merge those aliases conservatively so a malformed/legacy pack
+            # does not silently lose sector coverage.
+            legacy_alias = self.aliases.get(nid)
+            if isinstance(legacy_alias, list):
+                labels += legacy_alias
+            elif isinstance(legacy_alias, dict):
+                labels += legacy_alias.get("exact", [])
+                labels += legacy_alias.get("aliases", [])
             for lab in labels:
                 self.exact.setdefault(fold(lab), []).append(nid)
             if n.get("form_code"):

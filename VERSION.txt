@@ -1,1 +1,2 @@
-v22
+v22.2
+Insurance Income completion: add 8 generic insurance statement nodes for the remaining BVH statutory rows. All non-insurance Income and all Cash Flow behavior remain frozen from v22.1.
