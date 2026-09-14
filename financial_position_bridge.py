@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from source_observation_layer import augment_financial_position
+
 
 GENERIC_CANONICAL_SUFFIX = ".canonical.json"
 EXCLUDE_CANONICAL_MARKERS = (".income.canonical.json", ".cashflow.canonical.json", ".financial_position.canonical.json")
@@ -204,10 +206,11 @@ def integrate_financial_position(base: str, output_dir: Path, index: FinancialPo
         }
 
     canonical = read_json(src, {})
+    canonical = augment_financial_position(canonical)
     out_path = output_dir / f"{base}.financial_position.canonical.json"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # Canonical is already the completed historical FP output; copy byte-for-byte when possible.
-    shutil.copy2(src, out_path)
+    # v12 keeps the historical semantic canonical and adds a lossless source-observation layer.
+    out_path.write_text(json.dumps(canonical, ensure_ascii=False, indent=2), encoding="utf-8")
     metrics = summarize_canonical(canonical, src, legacy_metrics=legacy_v05)
     return {
         "canonical": canonical,

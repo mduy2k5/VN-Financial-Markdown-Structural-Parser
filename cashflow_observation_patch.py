@@ -12,9 +12,9 @@ METHOD_INDIRECT_RE = re.compile(r"(?i)ph[ươu]ơng\s+ph[áa]p\s+gi[áa]n\s+ti[�
 NOTES_RE = re.compile(r"(?i)^(?:(?:B[ẢA]N\s+)?THUY[ẾE]T\s+MINH\s+B[ÁA]O\s+C[ÁA]O\s+T[ÀA]I\s+CH[ÍI]NH|B0?5\s*/\s*TCTD|B0?9\s*[-–]?\s*DN)(?:\b|$)")
 
 SECTION_PATTERNS = {
-    "operating": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+kinh\s+doanh"),
-    "investing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+[đd][ầa]u\s+t[ưu]"),
-    "financing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+t[àa]i\s+ch[íi]nh"),
+    "operating": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+kinh\s+doanh"),
+    "investing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+[đd][ầa]u\s+t[ưu]"),
+    "financing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+t[àa]i\s+ch[íi]nh"),
 }
 
 
@@ -100,6 +100,7 @@ def _looks_metadata_line(text: str) -> bool:
         f.startswith("ma so") or f.startswith("thuyet minh") or
         f.startswith("nam nay") or f.startswith("nam truoc") or
         f.startswith("ky nay") or f.startswith("ky truoc") or
+        bool(re.match(r"^nam 20\d{2}(?:\s|$)", f)) or
         f in {"chi tieu", "ma so", "thuyet minh", "nam nay", "nam truoc"}
     )
 
@@ -343,10 +344,10 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         m = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
         if m and pending:
             pending["note"] = strip_md(m.group(1)); continue
-        m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)\s*:\s*(.+)$", clean)
+        m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
             pending["current"] = parse_number(m.group(1)); continue
-        m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)\s*:\s*(.+)$", clean)
+        m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
             pending["previous"] = parse_number(m.group(1)); continue
         m = re.match(r"(?i)^(20\d{2})\s*:\s*(.+)$", clean)
@@ -421,9 +422,9 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         for sec, pat in SECTION_PATTERNS.items():
             if pat.search(clean):
                 section = sec; break
-        my = re.match(r"(?i)^Năm\s*(20\d{2})\s*:?$", clean)
+        my = re.match(r"(?i)^Năm\s*(20\d{2})(?:\s*\([^)]*\))?\s*:?$", clean)
         if not my:
-            my = re.match(r"^(20\d{2})\s*:?$", clean)
+            my = re.match(r"^(20\d{2})(?:\s*\([^)]*\))?\s*:?$", clean)
         if my:
             y = int(my.group(1)); active_year = y if y in {current_year, previous_year} else None; continue
         if active_year is None: continue
@@ -443,6 +444,84 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         if rec["current"] is not None or rec["previous"] is not None:
             emit(rec["label"], rec["current"], rec["previous"], rec["section"], rec["code"], None, rec["line"], "CF_YEAR_SECTIONS")
 
+    # PASS 3: positional numeric children under a semantic label.
+    # Common LLM layout for bank direct statements:
+    #   * Thu nhập lãi ...:
+    #       * 85.076.748
+    #       * 68.529.262
+    # The two child numbers are current/previous even when the child lines do not repeat year labels.
+    section = None
+    for idx, raw in enumerate(scoped_lines):
+        abs_line = s + idx + 1
+        clean = _clean_bullet(raw)
+        if not clean:
+            continue
+        for sec, pat in SECTION_PATTERNS.items():
+            if pat.search(clean):
+                section = sec
+                break
+        f = fold(clean)
+        if _looks_metadata_line(clean):
+            continue
+        if re.match(r"(?i)^(?:Năm\s*)?20\d{2}(?:\s*\([^)]*\))?\s*:?$", clean):
+            continue
+        if re.fullmatch(r"\(?-?[\d.,]+\)?|-", clean):
+            continue
+        if not re.search(r"[A-Za-zÀ-ỹ]", clean):
+            continue
+        if any(k in f for k in ("bao cao tai chinh", "cho nam tai chinh ket thuc", "don vi tinh", "nguoi lap", "ke toan truong", "tong giam doc", "metadata")):
+            continue
+
+        # Do not use pure section headings as observations unless they are semantic totals.
+        matched_section = next((sec for sec, pat in SECTION_PATTERNS.items() if pat.search(clean)), None)
+        if matched_section and "thuan" not in f:
+            continue
+
+        # Strip an optional leading form code from the label.
+        code = None
+        label = clean.rstrip(":").strip()
+        mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
+        if mc:
+            code, label = mc.group(1), mc.group(2)
+
+        nums = []
+        year_vals = {}
+        # Look only through the immediate child block. Stop when a new unrelated textual item begins.
+        for j in range(idx + 1, min(len(scoped_lines), idx + 8)):
+            child_raw = scoped_lines[j]
+            child = _clean_bullet(child_raw)
+            if not child:
+                continue
+            if re.match(r"^#\s*Page\b|^---$", child_raw.strip(), re.I):
+                break
+            # `Năm 2025 (triệu đồng): 123` / `Năm 2024: 456` children.
+            ym = re.match(r"(?i)^Năm\s*(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)$", child)
+            if ym:
+                year_vals[int(ym.group(1))] = parse_number(ym.group(2))
+                if current_year in year_vals and previous_year in year_vals:
+                    break
+                continue
+            # A year-only header inside the child block is context, not a value.
+            if re.match(r"(?i)^(?:Năm\s*)?20\d{2}(?:\s*\([^)]*\))?\s*:?$", child):
+                continue
+            v = parse_number(child.rstrip(":"))
+            if v is not None and re.fullmatch(r"\(?-?[\d.,]+\)?|-", child.rstrip(":")):
+                nums.append(v)
+                if len(nums) >= 2:
+                    break
+                continue
+            # Explicit bullet labels such as `Mua sắm TSCĐ: 123` belong to another layout.
+            if re.search(r"[A-Za-zÀ-ỹ]", child):
+                break
+        if year_vals:
+            emit(label, year_vals.get(current_year), year_vals.get(previous_year),
+                 _section_from_label(label, section), code, None, abs_line,
+                 "CF_YEAR_VALUE_CHILDREN")
+        elif nums:
+            emit(label, nums[0], nums[1] if len(nums) > 1 else None,
+                 _section_from_label(label, section), code, None, abs_line,
+                 "CF_POSITIONAL_VALUE_CHILDREN")
+
     # Deduplicate/merge complementary observations from overlapping collectors.
     merged = {}
     order = []
@@ -451,10 +530,23 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
         if key not in merged:
             merged[key] = r; order.append(key); continue
         old = merged[key]
-        if old.current is None and r.current is not None: old.current = r.current
-        if old.previous is None and r.previous is not None: old.previous = r.previous
+        if old.current is None and r.current is not None:
+            old.current = r.current
+        if old.previous is None and r.previous is not None:
+            old.previous = r.previous
+        # Repeated-period block recovery. Some LLM conversions emit two complete blocks of
+        # `label: value` rows but lose/mislabel the second period header. If the same semantic
+        # row reappears materially later with another current-only value, treat the second
+        # occurrence as previous rather than dropping it. Overlapping collectors on the same
+        # source line are intentionally excluded.
+        if (old.previous is None and old.current is not None and r.current is not None and r.previous is None
+                and old.current != r.current
+                and (old.source_line or 0) and (r.source_line or 0)
+                and abs((r.source_line or 0) - (old.source_line or 0)) >= 5):
+            old.previous = r.current
+            old.pattern = (old.pattern or "") + "+CF_REPEATED_PERIOD_BLOCK"
         if not old.note and r.note: old.note = r.note
-        if old.pattern != r.pattern and r.pattern:
+        if old.pattern != r.pattern and r.pattern and "CF_REPEATED_PERIOD_BLOCK" not in (old.pattern or ""):
             old.pattern = old.pattern or r.pattern
     dedup=[merged[k] for k in order if merged[k].current is not None or merged[k].previous is not None]
 

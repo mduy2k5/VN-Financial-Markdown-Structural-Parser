@@ -1,2 +1,2 @@
-11.0.0
-Integrated 3-statement flow: completed Financial Position canonical reuse + Income v8 + Cash Flow v2. Acceptance target: >=90% matched rows, target >=95%.
+v12-debug
+Three-statement debug build: source-observation canonical layer + Cash Flow previous-period recovery. No quality gate; evaluator metrics are diagnostic only.

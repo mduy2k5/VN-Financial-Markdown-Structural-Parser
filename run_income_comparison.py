@@ -18,6 +18,7 @@ from income_mapper import IncomeMapper, adapt_row, auto_sector
 from cashflow_observation_patch import extract_cashflow_fallback, detect_method as detect_cf_method
 from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
 from financial_position_bridge import FinancialPositionIndex, integrate_financial_position
+from source_observation_layer import augment_from_rows
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -321,6 +322,7 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
                           regex_min_score=0.93, regex_gap=0.08)
     mapped = mapper.map_rows(rows)
     canonical = mapper.canonical(mapped, source_name=md_path.name, current_year=current_year, previous_year=previous_year)
+    canonical = augment_from_rows(canonical, mapped, "INCOME")
     metrics = build_metrics(canonical, mapped, ext, sector, sector_method)
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector}
 
@@ -405,7 +407,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
             "method": method, "method_method": method_method,
             "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
-            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v2",
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v3",
             "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
         },
         "quality": {
@@ -454,6 +456,7 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
     mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
     mapped = mapper.map_rows(rows)
     canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year)
+    canonical = augment_from_rows(canonical, mapped, "CASHFLOW")
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
