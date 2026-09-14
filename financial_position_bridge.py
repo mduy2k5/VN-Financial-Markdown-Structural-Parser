@@ -9,6 +9,7 @@ from typing import Any, Iterable, Optional
 
 from source_observation_layer import augment_financial_position
 from source_statement_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
+from source_reconciliation import reconcile_source_observations
 
 
 GENERIC_CANONICAL_SUFFIX = ".canonical.json"
@@ -214,14 +215,15 @@ def integrate_financial_position(base: str, output_dir: Path, index: FinancialPo
     if source_text:
         recovered = extract_financial_position_source_rows(source_text, current_year=current_year, previous_year=previous_year)
         canonical = augment_canonical_with_recovered_rows(canonical, recovered.get("rows") or [], "FINANCIAL_POSITION")
+        canonical = reconcile_source_observations(canonical, "FINANCIAL_POSITION")
     out_path = output_dir / f"{base}.financial_position.canonical.json"
     output_dir.mkdir(parents=True, exist_ok=True)
-    # v13 keeps the historical semantic canonical and adds a lossless source-observation layer.
+    # v13 keeps the historical semantic canonical and adds a reconciled source-observation layer.
     out_path.write_text(json.dumps(canonical, ensure_ascii=False, indent=2), encoding="utf-8")
     metrics = summarize_canonical(canonical, src, legacy_metrics=legacy_v05)
     parser = dict(metrics.get("parser") or {})
     parser.update({
-        "source_recovery": "v13",
+        "source_recovery": "v14",
         "recovery_scope_start": recovered.get("scope_start_line"),
         "recovery_scope_end": recovered.get("scope_end_line"),
         "recovery_scope_score": recovered.get("scope_score"),

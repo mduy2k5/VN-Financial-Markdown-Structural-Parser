@@ -83,54 +83,98 @@ NEXT_STATEMENT = re.compile(r"(?i)^(?:BÁO\s+CÁO\s+KẾT\s+QUẢ\s+HOẠT\s+Đ�
 NOTES_ONLY_FP = re.compile(r"(?i)THÔNG\s+TIN\s+BỔ\s+SUNG.*(?:BẢNG\s+CÂN\s+ĐỐI|TÌNH\s+HÌNH\s+TÀI\s+CHÍNH)")
 
 
+def _is_fp_heading_line(line: str) -> bool:
+    f = fold(line)
+    return any(x in f for x in (
+        "bang can doi ke toan", "bao cao can doi ke toan",
+        "bao cao tinh hinh tai chinh", "bang tinh hinh tai chinh"
+    )) and "thong tin bo sung" not in f and "thuyet minh" not in f
+
+
+def _is_next_statement_line(line: str) -> bool:
+    f = fold(line)
+    return (
+        "bao cao ket qua hoat dong" in f or
+        "bao cao ket qua kinh doanh" in f or
+        "bao cao luu chuyen tien te" in f or
+        f.startswith("thuyet minh bao cao tai chinh")
+    )
+
+
 def choose_financial_position_scope(text: str):
     lines = text.splitlines()
     cand = []
     for i, line in enumerate(lines):
         c = clean(line)
-        if FP_HEADING.search(c) and not NOTES_ONLY_FP.search(c) and len(c) <= 120 and FP_HEADING.match(c):
-            # Continuation headings are valid but primary starts should rank higher.
+        if _is_fp_heading_line(c) and len(c) <= 160:
             end = len(lines)
-            for j in range(i + 1, min(len(lines), i + 1400)):
-                cj = clean(lines[j])
-                if NEXT_STATEMENT.search(cj):
+            for j in range(i + 1, min(len(lines), i + 1600)):
+                if _is_next_statement_line(lines[j]):
                     end = j
                     break
-            sample = "\n".join(lines[i:min(end, i + 1000)])
+            sample = "\n".join(lines[i:min(end, i + 1200)])
             f = fold(sample)
             score = 0
             score += 80 * sum(k in f for k in ("tai san", "no phai tra", "von chu so huu"))
             score += 80 if "tong cong tai san" in f or "tong tai san" in f else 0
-            score += 40 if re.search(r"(?i)B\s*0?2\s*/\s*TCTD|B\s*0?1\s*[-–]?\s*DN", sample[:2500]) else 0
-            score += min(240, len(re.findall(r"(?i)(?:Số\s+cuối\s+năm|Số\s+đầu\s+năm|Tại\s+ngày\s+31[./-]12[./-]20\d{2})\s*:", sample)) * 4)
+            score += 40 if re.search(r"(?i)B\s*0?2[a-z]?\s*/\s*TCTD|B\s*0?1\s*[-–]?\s*DN", sample[:3000]) else 0
+            score += min(260, len(re.findall(r"(?i)(?:Số\s+cuối\s+năm|Số\s+đầu\s+năm|31[./-]12[./-]20\d{2})\s*:", sample)) * 4)
             score += min(220, len(re.findall(r"\|[^\n]+\|[^\n]+\|[^\n]+\|", sample)) * 3)
             score += min(220, len(re.findall(r"\(?-?\d{1,3}(?:[.,]\d{3}){1,}\)?", sample)) // 3)
-            if "tiep theo" not in fold(c):
-                score += 120
-            if i < 250:
-                score -= 150
+            if "tiep theo" not in fold(c): score += 120
+            if i < 120: score -= 80
             cand.append((score, i, end))
+
+    # Fallback when the first page heading was lost by OCR/LLM but the body clearly contains B02/FP anchors.
+    if not cand:
+        next_stmt = next((i for i,l in enumerate(lines) if _is_next_statement_line(l)), len(lines))
+        search_end = min(next_stmt, 1400)
+        anchors = []
+        for i in range(search_end):
+            f = fold(lines[i])
+            if ("b02" in f and "tctd" in f) or "tong cong tai san" in f or "tong no phai tra va von chu so huu" in f:
+                anchors.append(i)
+        if anchors:
+            a = min(anchors)
+            # Walk back to the beginning of the page/content block rather than taking just the anchor row.
+            s0 = max(0, a - 260)
+            for j in range(a, max(-1, a-320), -1):
+                if fold(lines[j]).startswith("content") or re.match(r"^#\s*Page\s+", clean(lines[j]), re.I):
+                    s0 = j + 1; break
+            sample = "\n".join(lines[s0:search_end])
+            score = 220 + min(240, len(re.findall(r"\(?-?\d{1,3}(?:[.,]\d{3}){1,}\)?", sample)) // 2)
+            cand.append((score, s0, search_end))
+
     if not cand:
         return {"scope_start_line": None, "scope_end_line": None, "scope_score": 0}
     max_score = max(x[0] for x in cand)
-    # A later continuation page can contain more numeric rows than the first page.  Treat nearby
-    # candidates with comparable evidence as one statement chain and start from the earliest one.
     eligible = [x for x in cand if x[0] >= max_score - 180]
     score, s, e = min(eligible, key=lambda x: x[1])
-    # Extend over continuation headings until next *different* statement / notes.
-    for j in range(e, min(len(lines), e + 1200)):
-        cj = clean(lines[j])
-        if NEXT_STATEMENT.search(cj):
-            e = j
-            break
+    # Always extend to the first following different statement. This joins continuation pages.
+    for j in range(s + 1, min(len(lines), s + 1800)):
+        if _is_next_statement_line(lines[j]):
+            e = j; break
     return {"scope_start_line": s + 1, "scope_end_line": e, "scope_score": score}
 
 
 _YEAR_VALUE_PATTERNS = [
-    # `Tại ngày 31.12.2025: 123`
-    re.compile(r"(?i)^(?:Tại\s+ngày\s+)?31[./-]12[./-](20\d{2})(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
-    re.compile(r"(?i)^(?:Năm\s*)?(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
+    # `31/12/2025 Triệu VND: 123`, optionally with audited annotation.
+    re.compile(r"(?i)^(?:Tại\s+ngày\s+)?31[./-]12[./-](20\d{2})(?:\s+(?:triệu|nghìn)\s*(?:đồng|vnd|vnđ))?(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
+    # `Ngày 31 tháng 12 năm 2025 (triệu đồng): 123`
+    re.compile(r"(?i)^Ngày\s+31\s+tháng\s+12\s+năm\s+(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
+    re.compile(r"(?i)^(?:Năm\s*)?(20\d{2})(?:\s+(?:triệu|nghìn)\s*(?:đồng|vnd|vnđ))?(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
 ]
+
+
+def _inline_end_begin_values(line: str):
+    s = clean(line)
+    cur = prev = None
+    # `578.891 triệu đồng (Cuối năm) | 1.209.509 triệu đồng (Đầu năm)`
+    mc = re.search(r"(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*\(\s*Cuối\s+năm\s*\)", s, re.I)
+    mp = re.search(r"(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*\(\s*Đầu\s+năm\s*\)", s, re.I)
+    if mc: cur = parse_number(mc.group(1))
+    if mp: prev = parse_number(mp.group(1))
+    return cur, prev
 
 
 def _inline_year_values(line: str, current_year: int, previous_year: int):
@@ -174,6 +218,15 @@ def _valid_label(label: str):
     )
     return not any(f.startswith(x) or x in f for x in bad)
 
+
+
+def _is_period_value_line(text: str) -> bool:
+    c = clean(text)
+    f = fold(c)
+    return bool(
+        re.match(r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Số\s*cuối\s*năm|Số\s*đầu\s*năm|Tại\s+ngày|Năm\s*20\d{2}|20\d{2})\s*:", c)
+        or re.match(r"^(?:ngay\s+)?31(?:\s+thang\s+12\s+nam\s*|\s+12\s+|[./-]12[./-])20\d{2}", f)
+    )
 
 def extract_generic_statement_rows(text: str, start_line: int, end_line: int, current_year=2025, previous_year=2024,
                                    statement: str = "GENERIC") -> list[RecoveredRow]:
@@ -222,8 +275,15 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             continue
         cur, prev = _inline_year_values(c, current_year, previous_year)
         if cur is None and prev is None:
+            cur, prev = _inline_end_begin_values(c)
+        if cur is None and prev is None:
             continue
         label = c.split(":", 1)[0]
+        flabel = fold(label)
+        if (re.match(r"^(?:ngay\s+)?31(?:\s+thang\s+12\s+nam\s*|\s+12\s+|[./-]12[./-])20\d{2}", flabel)
+                or re.match(r"^(?:nam\s*)?20\d{2}$", flabel)
+                or flabel in {"tong cong", "chi tiet"}):
+            continue
         code, label = _split_code_label(label)
         rows.append(RecoveredRow(label=label, current=cur, previous=prev, code=code,
                                  source_line=s + idx + 1, pattern=f"{statement}_RAW_INLINE_YEARS"))
@@ -234,9 +294,12 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         if not _valid_label(c):
             continue
         # Do not choose a value/meta child as its own parent.
-        if re.match(r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Số\s*cuối\s*năm|Số\s*đầu\s*năm|Tại\s+ngày|Năm\s*20\d{2}|20\d{2})\s*:", c):
+        if _is_period_value_line(c):
             continue
         if re.fullmatch(r"\(?-?[\d.,]+\)?|-", c):
+            continue
+        # Inline label:value rows are observations themselves, not structural parents.
+        if re.search(r":\s*\(?-?\d[\d., ]*\)?(?:\s|$)", c):
             continue
         code, label = _split_code_label(c.rstrip(":"))
         current = previous = None
@@ -251,7 +314,7 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                 continue
             child_indent = len(cr) - len(cr.lstrip(" \t"))
             # Once a new sibling/parent label appears, stop.  Markdown bullets with equal or shallower indentation are siblings.
-            if j > idx + 1 and re.search(r"[A-Za-zÀ-ỹ]", cc) and not re.match(r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Số\s*cuối\s*năm|Số\s*đầu\s*năm|Tại\s+ngày|Năm\s*20\d{2}|20\d{2})\s*:", cc):
+            if j > idx + 1 and re.search(r"[A-Za-zÀ-ỹ]", cc) and not _is_period_value_line(cc):
                 if child_indent <= parent_indent + 4:
                     break
             m = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", cc)
@@ -266,10 +329,19 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             m = re.match(r"(?i)^Số\s*đầu\s*năm\s*:\s*(.+)$", cc)
             if m:
                 previous = parse_number(m.group(1)); found = True; continue
+            icur, iprev = _inline_end_begin_values(cc)
+            if (icur is not None or iprev is not None) and child_indent <= parent_indent + 6:
+                if icur is not None: current = icur
+                if iprev is not None: previous = iprev
+                found = True
+                continue
             matched = False
             for yp in _YEAR_VALUE_PATTERNS:
                 my = yp.match(cc)
                 if my:
+                    if child_indent > parent_indent + 6:
+                        matched = True
+                        break
                     y = int(my.group(1)); val = parse_number(my.group(2))
                     if y == current_year: current = val
                     elif y == previous_year: previous = val
@@ -280,6 +352,47 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         if found and (current is not None or previous is not None):
             rows.append(RecoveredRow(label=label, current=current, previous=previous, code=child_code, note=note,
                                      source_line=s + idx + 1, pattern=f"{statement}_RAW_CHILDREN"))
+
+    # Period-section child lists. Example:
+    # `31/12/2025 ...: total` followed by nested `Sub-label: value`, then a 2024 block.
+    period_children: dict[tuple, RecoveredRow] = {}
+    active_year = None
+    active_indent = None
+    for idx, raw in enumerate(scoped):
+        cc = clean(raw)
+        indent = len(raw) - len(raw.lstrip(" \t"))
+        found_year = None
+        for yp in _YEAR_VALUE_PATTERNS:
+            my = yp.match(cc)
+            if my:
+                found_year = int(my.group(1)); break
+        if found_year in {current_year, previous_year}:
+            active_year, active_indent = found_year, indent
+            continue
+        if active_year is None or active_indent is None:
+            continue
+        # leave the period section when a structural sibling at the same/shallower indent appears
+        if indent <= active_indent and re.search(r"[A-Za-zÀ-ỹ]", cc):
+            active_year = active_indent = None
+            continue
+        if indent <= active_indent:
+            continue
+        m = re.match(r"^(.+?):\s*(\(?-?\d[\d., ]*\)?|-)(?:\s|$)", cc)
+        if not m:
+            continue
+        label = clean(m.group(1))
+        if not _valid_label(label) or fold(label) in {"thuyet minh", "ma so", "trang"}:
+            continue
+        value = parse_number(m.group(2))
+        code, label = _split_code_label(label)
+        key = (fold(label), clean(code or ""))
+        rr = period_children.get(key)
+        if rr is None:
+            rr = RecoveredRow(label=label, current=None, previous=None, code=code, source_line=s+idx+1, pattern=f"{statement}_RAW_PERIOD_SECTION")
+            period_children[key] = rr
+        if active_year == current_year: rr.current = value
+        else: rr.previous = value
+    rows.extend(period_children.values())
 
     # Deduplicate and merge complementary periods.  Code is retained in the key when present to disambiguate repeated generic labels.
     merged: dict[tuple, RecoveredRow] = {}
@@ -400,6 +513,6 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
     canonical.setdefault("diagnostics", {})["source_statement_recovery"] = {
         "statement": statement, "rows_recovered": len(rows), "added_nodes": added,
         "filled_existing_nodes": filled, "conflicts": conflicts,
-        "policy": "source_scope_structural_recovery_v13",
+        "policy": "source_scope_structural_recovery_v14",
     }
     return canonical

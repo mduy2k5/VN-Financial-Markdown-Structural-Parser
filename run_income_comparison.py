@@ -20,6 +20,7 @@ from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
 from financial_position_bridge import FinancialPositionIndex, integrate_financial_position
 from source_observation_layer import augment_from_rows
 from source_statement_recovery import extract_generic_statement_rows, augment_canonical_with_recovered_rows
+from source_reconciliation import reconcile_source_observations
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -330,10 +331,11 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
         recovered_rows = extract_generic_statement_rows(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "INCOME")
         canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "INCOME")
+        canonical = reconcile_source_observations(canonical, "INCOME")
     metrics = build_metrics(canonical, mapped, ext, sector, sector_method)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
-        "source_recovery": "v13", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery": "v14", "source_recovered_rows": sr.get("rows_recovered", 0),
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
@@ -421,7 +423,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,
             "method": method, "method_method": method_method,
             "scope_start": ext.get("scope_start_line"), "scope_end": ext.get("scope_end_line"),
-            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v4_source_recovery",
+            "scope_score": ext.get("scope_score"), "collector_policy": "cashflow_multi_layout_v5_reconciliation",
             "patterns": sorted({getattr(r, "pattern", None) for r in rows if getattr(r, "pattern", None)}),
         },
         "quality": {
@@ -477,10 +479,11 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
         recovered_rows = extract_generic_statement_rows(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "CASHFLOW")
         canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "CASHFLOW")
+        canonical = reconcile_source_observations(canonical, "CASHFLOW")
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
-        "source_recovery": "v13", "source_recovered_rows": sr.get("rows_recovered", 0),
+        "source_recovery": "v14", "source_recovered_rows": sr.get("rows_recovered", 0),
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
