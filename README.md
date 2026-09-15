@@ -2,7 +2,7 @@
 
 Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
 
-Phiên bản phát hành: **Release v23.0.0** — **Notes Scope & Coverage Patch**: Đạt tỷ lệ phát hiện phạm vi Thuyết minh BCTC **57/57 tệp (100.0%)** trên toàn bộ corpus tham chiếu chính thức. Giữ vững **171 / 171 primary statements đạt tiêu chuẩn release** (B01, B02, B03), nguyên tắc `PRIMARY > NOTES` bảo toàn $100\%$ không gây hồi quy (Zero Regression), độ chính xác khớp dòng đạt **99.80%** (3.398/3.408 dòng) và **100.0%** (406/406 dòng trên bộ 3 tệp kiểm thử mở rộng BID, FPT, VNM).
+Phiên bản phát hành: **Release v23.0.1 (v23.1)** — **Notes Scope, Coverage & Row-level Export**: Đạt tỷ lệ phát hiện phạm vi Thuyết minh BCTC **57/57 tệp (100.0%)** trên toàn bộ corpus tham chiếu chính thức, bổ sung thư mục xuất dòng chi tiết Thuyết minh (`notes_rows/*.csv` & `*.json`). Giữ vững **171 / 171 primary statements đạt tiêu chuẩn release** (B01, B02, B03), nguyên tắc `PRIMARY > NOTES` bảo toàn $100\%$ không gây hồi quy (Zero Regression), độ chính xác khớp dòng đạt **99.80%** (3.398/3.408 dòng) và **100.0%** (406/406 dòng trên bộ 3 tệp kiểm thử mở rộng BID, FPT, VNM).
 
 ## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
 

@@ -38,3 +38,24 @@ Output:
 - Không scale số theo đơn vị.
 - Không mở rộng linker bằng fuzzy rule.
 - Không sửa movement/multi-axis parser ngoài các capability đã có ở Foundation.
+
+
+## Row-level Notes output
+
+`run_notes.py` now creates:
+
+```text
+output_notes/
+├── notes_rows/
+│   ├── <report>.notes_rows.csv
+│   ├── <report>.notes_rows.json
+│   ├── all_notes_rows.csv
+│   └── all_notes_rows.json
+├── ir/
+│   └── <report>.notes.ir.json
+└── notes_summary.json
+```
+
+Each CSV record represents one extracted Notes source row. Multi-axis values remain
+lossless in the `values`, `headers`, and `dimensions` JSON columns. Convenience
+`current_*` and `previous_*` columns are populated only when period roles can be inferred.

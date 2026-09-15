@@ -38,6 +38,10 @@ try:
     from notes.pipeline import NotesPipeline
 except ImportError:
     from src.notes.pipeline import NotesPipeline
+try:
+    from notes.row_exporter import export_note_rows
+except ImportError:
+    from src.notes.row_exporter import export_note_rows
 
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
@@ -380,9 +384,20 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         )
         if (notes_ir.get("diagnostics") or {}).get("notes_found"):
             write_json(notes_path, notes_ir)
-        elif notes_path.exists():
-            notes_path.unlink()
-    elif notes_path.exists():
+            notes_rows_dir = output_dir / "notes_rows"
+            notes_rows_export = export_note_rows(
+                notes_ir,
+                notes_rows_dir,
+                stem=base,
+                write_json=True,
+            )
+        else:
+            notes_rows_export = {"row_count": 0, "csv_file": None, "json_file": None}
+            if notes_path.exists():
+                notes_path.unlink()
+    else:
+        notes_rows_export = {"row_count": 0, "csv_file": None, "json_file": None}
+    if not enable_notes and notes_path.exists():
         notes_path.unlink()
 
     merged = deepcopy(existing)
@@ -412,6 +427,15 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
             "sections": nd.get("section_count", 0),
             "tables": nd.get("table_count", 0),
             "rows": nd.get("row_count", 0),
+            "exported_rows": notes_rows_export.get("row_count", 0),
+            "rows_csv": (
+                f"notes_rows/{notes_rows_export.get('csv_file')}"
+                if notes_rows_export.get("csv_file") else None
+            ),
+            "rows_json": (
+                f"notes_rows/{notes_rows_export.get('json_file')}"
+                if notes_rows_export.get("json_file") else None
+            ),
             "links": nd.get("link_count", 0),
             "high_confidence_links": nd.get("high_confidence_links", 0),
             "policy": "PRIMARY_GT_NOTES_non_destructive_v1",
@@ -469,6 +493,11 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "notes_sections": ((notes_ir or {}).get("diagnostics") or {}).get("section_count", 0),
         "notes_tables": ((notes_ir or {}).get("diagnostics") or {}).get("table_count", 0),
         "notes_rows": ((notes_ir or {}).get("diagnostics") or {}).get("row_count", 0),
+        "notes_exported_rows": notes_rows_export.get("row_count", 0) if enable_notes else 0,
+        "notes_rows_csv": (
+            f"notes_rows/{notes_rows_export.get('csv_file')}"
+            if enable_notes and notes_rows_export.get("csv_file") else None
+        ),
         "notes_links": ((notes_ir or {}).get("diagnostics") or {}).get("link_count", 0),
         "notes_ir_file": notes_path.name if notes_ir is not None and (notes_ir.get("diagnostics") or {}).get("notes_found") else None,
     }
@@ -550,7 +579,7 @@ def main():
         "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
         "financial_position_canonical_file","financial_position_preserved",
         "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file",
-        "notes_status","notes_sections","notes_tables","notes_rows","notes_links","notes_ir_file","error"
+        "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")

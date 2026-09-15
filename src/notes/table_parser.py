@@ -71,10 +71,13 @@ def _row_role(label: str) -> str:
 
 def _infer_period_role(header: str) -> Optional[str]:
     f = fold_text(header)
-    if any(x in f for x in ("2025", "31 12 2025", "cuoi nam", "nam nay", "gia tri 2025")):
-        return "current"
-    if any(x in f for x in ("2024", "01 01 2025", "dau nam", "nam truoc", "gia tri 2024")):
+    # Opening-balance labels such as 01/01/2025 belong to the comparative/previous
+    # slot even though they contain the current calendar year. Resolve specific
+    # opening-period semantics before generic year tokens.
+    if any(x in f for x in ("01 01 2025", "dau nam", "nam truoc", "gia tri 2024", "2024")):
         return "previous"
+    if any(x in f for x in ("31 12 2025", "cuoi nam", "nam nay", "gia tri 2025", "2025")):
+        return "current"
     return None
 
 

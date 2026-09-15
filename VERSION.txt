@@ -1,2 +1,2 @@
-v23.0.0-notes-scope-coverage
-Notes Scope & Coverage Patch: presentation-normalized Notes title detection, TOC rejection, scanner validation, sticky scope preservation, and 57-file batch coverage evaluator. PRIMARY > NOTES remains non-destructive.
+v23.0.1-notes-rows-output
+v23 Notes Scope & Coverage + row-level Notes export folder (CSV/JSON) without changing extraction/canonical semantics.

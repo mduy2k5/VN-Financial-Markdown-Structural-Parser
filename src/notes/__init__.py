@@ -28,3 +28,7 @@ __all__ = [
     "link_notes_to_primary",
     "reconcile_notes",
 ]
+
+from .row_exporter import flatten_note_rows, export_note_rows, write_aggregate_rows
+
+__all__ += ["flatten_note_rows", "export_note_rows", "write_aggregate_rows"]
