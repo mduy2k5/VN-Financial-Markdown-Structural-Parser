@@ -58,6 +58,7 @@ class CFRow:
     note: Optional[str] = None
     source_line: Optional[int] = None
     pattern: Optional[str] = None
+    unit: Optional[str] = None
     mapping_status: str = "unmapped"
     mapped_node_id: Optional[str] = None
     mapping_method: Optional[str] = None
@@ -72,6 +73,7 @@ def adapt_cashflow_row(obj: dict) -> CFRow:
         code=strip_md(obj.get("code")) if obj.get("code") not in (None, "") else None,
         note=strip_md(obj.get("note")) if obj.get("note") not in (None, "") else None,
         source_line=obj.get("source_line"), pattern=obj.get("pattern"),
+        unit=obj.get("unit"),
     )
 
 
@@ -133,7 +135,7 @@ class CashFlowMapper:
     def map_rows(self, rows):
         return [self.map_one(r) for r in rows]
 
-    def canonical(self, rows, source_name: str, current_year=2025, previous_year=2024):
+    def canonical(self, rows, source_name: str, current_year=2025, previous_year=2024, statement_unit: Optional[str] = None):
         nodes_out = []
         conflicts = []
         grouped = {}
@@ -144,6 +146,7 @@ class CashFlowMapper:
             occ = grouped.get(n["node_id"], [])
             cur = next((r.current for r in occ if r.current is not None), None)
             prev = next((r.previous for r in occ if r.previous is not None), None)
+            row_unit = next((r.unit for r in occ if getattr(r, "unit", None)), statement_unit)
             if len({r.current for r in occ if r.current is not None}) > 1 or len({r.previous for r in occ if r.previous is not None}) > 1:
                 conflicts.append({"node_id": n["node_id"], "type": "multiple_values"})
             nodes_out.append({
@@ -151,14 +154,14 @@ class CashFlowMapper:
                 "value": {
                     "current": cur, "previous": prev,
                     "note": next((r.note for r in occ if r.note), None),
-                    "unit": None,
+                    "unit": row_unit,
                     "raw_text": next((r.label for r in occ), None),
                 },
                 "extraction_meta": {"occurrences": [
                     {"source_line": r.source_line, "source_label": r.label, "pattern": r.pattern,
                      "mapping_method": r.mapping_method, "mapping_confidence": r.mapping_confidence,
                      "current": r.current, "previous": r.previous, "code": r.code, "note": r.note,
-                     "section": r.section, "method": r.method}
+                     "section": r.section, "method": r.method, "unit": getattr(r, "unit", None)}
                     for r in occ
                 ]}
             })
@@ -185,6 +188,7 @@ class CashFlowMapper:
         return {
             "schema_id": self.schema["schema_id"], "schema_version": self.schema["schema_version"],
             "statement_type": "CASH_FLOW_STATEMENT", "sector": self.sector, "method": self.method,
+            "unit": statement_unit,
             "source_name": source_name, "periods": {"current": current_year, "previous": previous_year},
             "status": status, "validation_status": validation_status, "nodes": nodes_out, "conflicts": conflicts,
             "mapping_summary": {"rows_total": len(rows), "mapped": mapped, "unmapped": len(rows)-mapped, "valued_nodes": valued, "mapping_rate": round(rate, 6)},
@@ -210,7 +214,14 @@ class CashFlowMapper:
                 if target is None or any(v is None for v in ops):
                     checks.append({"name": frm["name"], "period": period, "status": "skipped_missing_operand"})
                     continue
-                expected = sum(ops)
+                # Some statutory presentations add reconciliation-only lines such as
+                # translation differences (code 62). Include them when reported, but
+                # do not require them for documents that do not present the line.
+                optional_ops = [
+                    values.get(x, {}).get(period)
+                    for x in frm.get("optional_components", [])
+                ]
+                expected = sum(ops) + sum(v for v in optional_ops if v is not None)
                 diff = target - expected
                 tol = max(1.0, abs(target) * 1e-6)
                 checks.append({"name": frm["name"], "period": period, "status": "pass" if abs(diff) <= tol else "fail",

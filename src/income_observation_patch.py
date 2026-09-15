@@ -4,6 +4,11 @@ import re
 import unicodedata
 from typing import Any, Optional
 
+try:
+    from .value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+except ImportError:
+    from value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+
 HEADING_RE = re.compile(
     r"(?i)^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:BÁO CÁO|BẢNG)\s+KẾT QUẢ\s+HOẠT ĐỘNG(?:\s+KINH DOANH)?(?:\s+HỢP NHẤT|\s+TỔNG HỢP)?"
 )
@@ -654,56 +659,134 @@ def extract_heading_attribute_rows(lines, start, end, current_year=2025, previou
     return out
 
 
+def _looks_like_plain_note_token(raw: str) -> bool:
+    """Generalized note reference detector. Structural position is still required."""
+    return is_note_reference(strip_md(raw))
+
 def extract_plain_text_code_rows(lines, start, end):
     """Fallback for OCR/plain-text enterprise tables without bullets.
 
-    Typical sequence:
-      1.
-      Doanh thu bán hàng và cung cấp
-      dịch vụ
-      01
-      16.820...
-      13.657...
+    Supported layouts:
+
+      label
+      code
+      current
+      previous
+
+    and the common degraded 5-line layout:
+
+      label
+      code
+      note
+      current
+      previous
+
+    The note is consumed only when there are THREE numeric tokens after the form
+    code and the first token is a conservative note-like reference.  This avoids
+    shifting the note into the current-period value.
     """
     out = []
     for i in range(start, end):
         code = strip_md(lines[i])
         if code not in ENTERPRISE_CODES:
             continue
-        vals = []
-        val_lines = []
+
+        numeric_tokens = []
         j = i + 1
-        while j < min(end, i+7) and len(vals) < 2:
-            v = clean_value(lines[j])
+        while j < min(end, i + 8) and len(numeric_tokens) < 3:
+            raw = lines[j]
+            t = strip_md(raw)
+            if not t:
+                j += 1
+                continue
+
+            v = clean_value(raw)
             if v is not None:
-                vals.append(v); val_lines.append(lines[j])
-            elif strip_md(lines[j]) and not re.match(r"(?i)^(thuyết|minh|năm nay|năm trước)$", strip_md(lines[j])):
-                if len(vals)==0:
-                    break
+                numeric_tokens.append((raw, t, v))
+                j += 1
+                continue
+            # Generalized note references such as VI.02 / V.03.3 are payload tokens
+            # only in the structural slot immediately after the form code.
+            if not numeric_tokens and is_note_reference(t):
+                numeric_tokens.append((raw, t, None))
+                j += 1
+                continue
+
+            # A textual row after the code means the vertical numeric payload ended.
+            if not re.match(
+                r"(?i)^(?:thuyết\s*minh|tm|năm\s*nay|năm\s*trước|"
+                r"202\d|số\s*cuối\s*năm|số\s*đầu\s*năm)$",
+                t,
+            ):
+                break
             j += 1
-        if len(vals) < 2:
+
+        if len(numeric_tokens) < 2:
             continue
+
+        note = None
+        payload = list(numeric_tokens)
+
+        # label -> code -> note -> current -> previous
+        if (
+            len(payload) >= 3
+            and _looks_like_plain_note_token(payload[0][1])
+            and clean_value(payload[1][0]) is not None
+            and clean_value(payload[2][0]) is not None
+        ):
+            note = payload.pop(0)[1]
+
+        if len(payload) < 2:
+            continue
+
+        current = payload[0][2]
+        previous = payload[1][2]
+        value_lines = [x[0] for x in numeric_tokens]
+
         # Build label from up to four previous non-header text lines.
         parts = []
         k = i - 1
         while k >= start and len(parts) < 4:
             t = strip_md(lines[k])
             if not t:
-                if parts: break
-                k -= 1; continue
-            if re.fullmatch(r"\d+[.)]?", t) or re.match(r"(?i)^(chỉ tiêu|mã số|thuyết|minh|năm nay|năm trước)$", t):
-                k -= 1; continue
+                if parts:
+                    break
+                k -= 1
+                continue
+            if (
+                re.fullmatch(r"\d+[.)]?", t)
+                or re.match(
+                    r"(?i)^(?:chỉ\s*tiêu|mã\s*số|thuyết\s*minh|tm|"
+                    r"năm\s*nay|năm\s*trước)$",
+                    t,
+                )
+            ):
+                k -= 1
+                continue
             if clean_value(t) is not None or FORM_CODE_RE.search(t):
                 break
-            parts.append(t); k -= 1
+            parts.append(t)
+            k -= 1
+
         label = " ".join(reversed(parts)).strip()
         label = re.sub(r"^\d+[.)]\s*", "", label).strip()
         if 3 <= len(label) <= 220:
-            out.append(_row(label, vals[0], vals[1], code=code,
-                            pattern_id="SP_INCOME_PLAIN_TEXT_CODE", line_no=i+1,
-                            raw_lines=list(reversed(parts)) + [lines[i]] + val_lines, confidence=0.93))
+            out.append(
+                _row(
+                    label,
+                    current,
+                    previous,
+                    code=code,
+                    note=note,
+                    pattern_id="SP_INCOME_PLAIN_TEXT_CODE_NOTE_VALUES"
+                    if note
+                    else "SP_INCOME_PLAIN_TEXT_CODE",
+                    line_no=i + 1,
+                    raw_lines=list(reversed(parts)) + [lines[i]] + value_lines,
+                    confidence=0.97 if note else 0.93,
+                )
+            )
     return out
-
 
 def extract_column_major(lines, start, end, current_year=2025, previous_year=2024):
     labels, codes, current, previous = [], [], [], []
@@ -775,6 +858,27 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=2025, previous_y
             if j + 2 < end and not strip_md(lines[j+1]) and code_re.match(strip_md(lines[j+2])):
                 break
             if tj:
+                # A completed keyed row must not absorb the next plain-text row label.
+                # Keep trailing-label serialization support only when this code block
+                # has not already acquired an explicit semantic label.
+                original = lines[j]
+                is_top_level_plain = (
+                    len(original) == len(original.lstrip(" \t"))
+                    and not original.lstrip().startswith(("*", "+", "-"))
+                )
+                if (
+                    cur is not None
+                    and prev is not None
+                    and candidates
+                    and is_top_level_plain
+                    and clean_value(tj) is None
+                    and not parse_period_line(tj, current_year, previous_year)
+                    and not re.match(r"(?i)^(?:Thuyết\s*minh|Mã\s*số|Chỉ\s*tiêu|Diễn\s*giải)\s*:", tj)
+                    and not HEADING_RE.search(tj)
+                    and not STOP_RE.search(tj)
+                ):
+                    break
+
                 raw.append(lines[j])
                 mn = re.match(r"(?i)^Thuyết\s*minh\s*:?\s*(.*)$", tj)
                 if mn:
@@ -785,7 +889,7 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=2025, previous_y
                     if role == 'current' and prio >= curp: cur, curp = val, prio
                     if role == 'previous' and prio >= prevp: prev, prevp = val, prio
                     j += 1; continue
-                md = re.match(r"(?i)^Diễn\s*giải\s*:?\s*(.+)$", tj)
+                md = re.match(r"(?i)^(?:Chỉ\s*tiêu|Diễn\s*giải)\s*:?\s*(.+)$", tj)
                 if md:
                     candidates.append(strip_md(md.group(1))); j += 1; continue
                 if not is_non_item_header_or_noise(tj) and clean_value(tj) is None:
@@ -936,6 +1040,7 @@ def dedupe(rows):
         "SP_INCOME_PERIOD_CHILDREN": 6,
         "SP_POSITIONAL_VALUE_CHILDREN": 5,
         "SP_INCOME_COLUMN_MAJOR": 5,
+        "SP_INCOME_PLAIN_TEXT_CODE_NOTE_VALUES": 8,
         "SP_INCOME_PLAIN_TEXT_CODE": 4,
     }
     for r in rows:
@@ -960,7 +1065,7 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
     return dedupe(rows)
 
 
-def extract_income_fallback(markdown_text: str, current_year: int = 2025, previous_year: int = 2024):
+def extract_income_fallback(markdown_text: str, current_year: int = 2025, previous_year: int = 2024, fallback_unit: Optional[str] = None):
     lines, start, end, score = choose_income_scope(markdown_text, current_year, previous_year)
     rows = _extract_rows_for_scope(lines, start, end, current_year, previous_year)
 
@@ -968,21 +1073,29 @@ def extract_income_fallback(markdown_text: str, current_year: int = 2025, previo
     # try other structurally viable headings before declaring `no_structural_rows`.
     # This protects against OCR/TOC variations without weakening statement boundaries.
     if not rows:
-        raw = [c for c in _heading_candidates(lines, current_year, previous_year) if c["score"] > -1000]
-        alts = [_candidate_viability(lines, c, current_year, previous_year) for c in raw]
-        alts = [c for c in alts if c["span"] >= 8 and c["i"] != start]
-        alts.sort(key=lambda c: (c["adjusted_score"], c["span"], -c["i"]), reverse=True)
+        notes_start = _find_notes_start(lines)
+        raw_cands = [c for c in _heading_candidates(lines, current_year, previous_year) if c["score"] > -1000]
+        alts = [_candidate_viability(lines, c, current_year, previous_year, notes_start) for c in raw_cands if c["i"] != start]
+        alts.sort(key=lambda x: (x["adjusted_score"], x["span"]), reverse=True)
         for cand in alts:
             alt_rows = _extract_rows_for_scope(lines, cand["i"], cand["end"], current_year, previous_year)
             if alt_rows:
                 start, end, score, rows = cand["i"], cand["end"], cand["adjusted_score"], alt_rows
                 break
 
+    unit_ctx = detect_statement_unit("\n".join(lines[start:end]), fallback_unit=fallback_unit)
+    for r in rows:
+        u = row_unit_override(r.get("indicator"), unit_ctx)
+        r["unit"] = u.unit
+        r["unit_source"] = u.source
+
     return {
         "rows": rows,
         "scope_start_line": start + 1 if start < len(lines) else None,
         "scope_end_line": end,
         "scope_score": score,
+        "unit": unit_ctx.unit,
+        "unit_source": unit_ctx.source,
     }
 
 

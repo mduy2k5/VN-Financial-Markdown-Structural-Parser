@@ -26,6 +26,7 @@ from source_statement_recovery import (
     extract_code_period_table, hydrate_canonical_by_form_code,
 )
 from source_reconciliation import reconcile_source_observations
+from value_semantics import detect_document_unit, fold_text
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -267,9 +268,9 @@ def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method
     }
 
 
-def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sector="auto"):
+def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sector="auto", fallback_unit: Optional[str] = None):
     text = md_path.read_text(encoding="utf-8", errors="ignore")
-    ext = extract_income_fallback(text, current_year, previous_year)
+    ext = extract_income_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
     raw_rows = ext["rows"]
     rows = []
     for i, r in enumerate(raw_rows):
@@ -328,7 +329,10 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
     mapper = IncomeMapper(schema_path=SCHEMA, aliases_path=ALIASES, sector=sector, regex_fallback=True,
                           regex_min_score=0.93, regex_gap=0.08)
     mapped = mapper.map_rows(rows)
-    canonical = mapper.canonical(mapped, source_name=md_path.name, current_year=current_year, previous_year=previous_year)
+    stmt_unit = ext.get("unit") or fallback_unit
+    if stmt_unit == "unknown":
+        stmt_unit = None
+    canonical = mapper.canonical(mapped, source_name=md_path.name, current_year=current_year, previous_year=previous_year, statement_unit=stmt_unit)
     canonical = augment_from_rows(canonical, mapped, "INCOME")
     # v13: source-scope recovery is additive only. It preserves rows that the semantic extractor
     # did not materialize, without changing mapping decisions for already-populated semantic nodes.
@@ -446,9 +450,9 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
     }
 
 
-def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
+def run_cashflow(md_path: Path, current_year=2025, previous_year=2024, fallback_unit: Optional[str] = None):
     text = md_path.read_text(encoding="utf-8", errors="ignore")
-    ext = extract_cashflow_fallback(text, current_year, previous_year)
+    ext = extract_cashflow_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
     rows = []
     for raw in ext.get("rows", []):
         try:
@@ -476,7 +480,10 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
     mapped = mapper.map_rows(rows)
-    canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year)
+    stmt_unit = ext.get("unit") or fallback_unit
+    if stmt_unit == "unknown":
+        stmt_unit = None
+    canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year, statement_unit=stmt_unit)
     canonical = augment_from_rows(canonical, mapped, "CASHFLOW")
     # v13: raw source recovery covers mixed inline-year/date layouts (e.g. current value followed
     # by `(Năm 2024: ...)`, or `(31.12.2025); (31.12.2024)`) that can hydrate only one period in v12.
@@ -503,9 +510,44 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024):
 
 def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str, fp_index: FinancialPositionIndex):
     base = stem_base(md_path)
-    inc = run_income(md_path, current_year, previous_year, sector)
-    cf = run_cashflow(md_path, current_year, previous_year)
+    source_text = md_path.read_text(encoding="utf-8", errors="ignore")
+    doc_unit_ctx = detect_document_unit(source_text)
+    doc_unit = doc_unit_ctx.unit if doc_unit_ctx.unit != "unknown" else None
+
+    inc = run_income(md_path, current_year, previous_year, sector, fallback_unit=doc_unit)
+    cf = run_cashflow(md_path, current_year, previous_year, fallback_unit=doc_unit)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    existing_path = find_existing_comparison(base, comparison_dir, output_dir, md_path.parent)
+    existing = read_json(existing_path, {}) if existing_path else {}
+    if not isinstance(existing, dict):
+        existing = {}
+
+    # Integrate the completed Financial Position pipeline/output before writing the unified comparison.
+    fp = integrate_financial_position(
+        base, output_dir, fp_index, existing, source_text=source_text,
+        current_year=current_year, previous_year=previous_year, fallback_unit=doc_unit)
+
+    # Cross-statement unit re-synchronization
+    resolved_unit = (
+        doc_unit
+        or (inc.get("canonical") or {}).get("unit")
+        or (cf.get("canonical") or {}).get("unit")
+        or (fp.get("canonical") or {}).get("unit")
+    )
+    if resolved_unit and resolved_unit != "unknown":
+        for obj in (inc.get("canonical"), cf.get("canonical"), fp.get("canonical")):
+            if obj:
+                if not obj.get("unit") or obj.get("unit") == "unknown":
+                    obj["unit"] = resolved_unit
+                for n in obj.get("nodes", []):
+                    v = n.get("value")
+                    if isinstance(v, dict) and (not v.get("unit") or v.get("unit") == "unknown"):
+                        cname = fold_text(n.get("canonical_name", ""))
+                        if "lai co ban" in cname or "lai suy giam" in cname:
+                            v["unit"] = "vnd_per_share"
+                        else:
+                            v["unit"] = resolved_unit
 
     income_path = output_dir / f"{base}.income.canonical.json"
     if inc["canonical"] is not None:
@@ -519,16 +561,9 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     elif cashflow_path.exists():
         cashflow_path.unlink()
 
-    existing_path = find_existing_comparison(base, comparison_dir, output_dir, md_path.parent)
-    existing = read_json(existing_path, {}) if existing_path else {}
-    if not isinstance(existing, dict):
-        existing = {}
-
-    # Integrate the completed Financial Position pipeline/output before writing the unified comparison.
-    source_text = md_path.read_text(encoding="utf-8", errors="ignore")
-    fp = integrate_financial_position(
-        base, output_dir, fp_index, existing, source_text=source_text,
-        current_year=current_year, previous_year=previous_year)
+    fp_path = output_dir / f"{base}.financial_position.canonical.json"
+    if fp.get("canonical") is not None:
+        write_json(fp_path, fp["canonical"])
 
     merged = deepcopy(existing)
     merged.setdefault("source_name", md_path.name)

@@ -582,5 +582,10 @@
   "CASHFLOW.ENTERPRISE.INDIRECT.INTEREST_PAID": [
     "Lãi vay đã trả",
     "Tiền chi trả lãi vay"
+  ],
+  "CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE": [
+    "Chênh lệch quy đổi tiền tệ",
+    "Chênh lệch chuyển đổi tiền tệ",
+    "Chênh lệch tỷ giá do quy đổi báo cáo tài chính"
   ]
 }

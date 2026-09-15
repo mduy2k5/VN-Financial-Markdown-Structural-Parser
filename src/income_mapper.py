@@ -108,8 +108,10 @@ def parse_number(v: Any):
     s = strip_md(v).strip()
     if not s:
         return None
+    # Source fidelity: dash means blank / no reported occurrence, not numeric zero.
+    # Formula views may coerce None to 0 separately when appropriate.
     if s in {"-", "–", "—"}:
-        return 0
+        return None
     neg = s.startswith("(") and s.endswith(")")
     s = s.strip("() ").replace(" ", "")
     try:
@@ -484,7 +486,7 @@ class IncomeMapper:
     def map_rows(self, rows: Iterable[IncomeRow]) -> list[IncomeRow]:
         return [self.map_row(r) for r in rows]
 
-    def canonical(self, rows: list[IncomeRow], source_name="input", current_year=None, previous_year=None):
+    def canonical(self, rows: list[IncomeRow], source_name="input", current_year=None, previous_year=None, statement_unit: Optional[str] = None):
         by = {nid: {
             "node_id": nid,
             "canonical_name": n["canonical_name"],
@@ -526,10 +528,19 @@ class IncomeMapper:
                     })
             if v["note"] is None and r.note:
                 v["note"] = r.note
-            if v["unit"] is None and r.unit:
+            if v["unit"] is None and getattr(r, "unit", None):
                 v["unit"] = r.unit
             if v["raw_text"] is None:
                 v["raw_text"] = r.label
+
+        for nid, node in by.items():
+            v = node["value"]
+            if v["unit"] is None and (v["current"] is not None or v["previous"] is not None):
+                cname = fold(node.get("canonical_name", ""))
+                if "lai co ban tren co phieu" in cname or "lai suy giam tren co phieu" in cname:
+                    v["unit"] = "vnd_per_share"
+                elif statement_unit:
+                    v["unit"] = statement_unit
 
         if self.sector == "bank":
             sign_normalizations = normalize_bank_semantic_signs(by)
@@ -610,6 +621,7 @@ class IncomeMapper:
             "schema_version": self.schema["schema_version"],
             "statement_type": "INCOME_STATEMENT",
             "sector": self.sector,
+            "unit": statement_unit,
             "source_name": source_name,
             "periods": {"current": current_year, "previous": previous_year},
             "status": status,

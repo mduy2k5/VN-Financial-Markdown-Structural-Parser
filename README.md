@@ -2,7 +2,7 @@
 
 Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
 
-Phiên bản phát hành: **Release v22.2** — **171 / 171 statements đạt tiêu chí release**, với row-level matching accuracy tổng thể **99.79%** trên toàn bộ tập dữ liệu 57 doanh nghiệp lớn thuộc 4 khối ngành tài chính.
+Phiên bản phát hành: **Release v22.4.2** — **171 / 171 statements đạt tiêu chí release**, với row-level matching accuracy tổng thể **99.80%** trên toàn bộ tập dữ liệu 57 doanh nghiệp lớn thuộc 4 khối ngành tài chính và **100.0%** (183/183 dòng) trên bộ 3 tệp kiểm thử mở rộng (BID, FPT, VNM). Toàn bộ 171 báo cáo và 11.190 node đều có đơn vị tính chuẩn xác (100.0% Unit Completeness).
 
 ## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
 
@@ -76,14 +76,14 @@ Công cụ của chúng ta giải quyết triệt để bài toán này bằng k
 
 ## 3. Bằng Chứng Thực Nghiệm & Kết Quả Đối Soát (Ground Truth Benchmark)
 
-### 3.1. Bảng Tổng Hợp Độ Phủ Toàn Hệ Thống (Release v22.2)
+### 3.1. Bảng Tổng Hợp Độ Phủ Toàn Hệ Thống (Release v22.4.2)
 
 | Báo Cáo Tài Chính | Số Báo Cáo Đạt Chuẩn | Tỷ Lệ Pass Rate | Số Dòng Khớp Thực Tế | Tỷ Lệ Khớp Dòng |
 | :--- | :---: | :---: | :---: | :---: |
 | **Bảng Cân Đối Kế Toán (Financial Position)** | **57 / 57 Báo cáo** | **100.0%** | 100% Statutory Nodes | **100.00%** |
-| **Báo Cáo Kết Quả KD (Income Statement)** | **57 / 57 Báo cáo** | **100.0%** | 1.626 / 1.629 dòng | **99.82%** |
-| **Báo Cáo Lưu Chuyển Tiền Tệ (Cash Flow)** | **57 / 57 Báo cáo** | **100.0%** | 1.853 / 1.861 dòng | **99.57%** |
-| **TỔNG CỘNG TOÀN BỘ HỆ THỐNG** | **171 / 171 Báo cáo** | **100.0%** | **3.479 / 3.490 dòng** | **99.79%** |
+| **Báo Cáo Kết Quả KD (Income Statement)** | **57 / 57 Báo cáo** | **100.0%** | 1.607 / 1.610 dòng | **99.81%** |
+| **Báo Cáo Lưu Chuyển Tiền Tệ (Cash Flow)** | **57 / 57 Báo cáo** | **100.0%** | 1.791 / 1.798 dòng | **99.61%** |
+| **TỔNG CỘNG TOÀN BỘ HỆ THỐNG** | **171 / 171 Báo cáo** | **100.0%** | **3.398 / 3.408 dòng** | **99.80%** |
 
 ### 3.2. Phân Bố Theo Khối Ngành & Chuẩn Mực Kế Toán
 
@@ -102,6 +102,7 @@ Flatten/
 ├── run_debug.py                       # [Debug Tool] CLI cho flat_parser (FP only, A/B compare)
 │
 ├── src/                               # [Core Business Logic]
+│   ├── value_semantics.py             # Nhận diện & kế thừa đơn vị tính toàn diện (Unit Propagation)
 │   ├── income_mapper.py               # Engine ánh xạ Kết quả Hoạt động Kinh doanh
 │   ├── income_observation_patch.py    # Fallback & hàn gắn ngắt dòng KQKD
 │   ├── cashflow_mapper.py             # Engine ánh xạ Lưu chuyển Tiền tệ

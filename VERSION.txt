@@ -1,2 +1,2 @@
-v22.2
-Insurance Income completion: add 8 generic insurance statement nodes for the remaining BVH statutory rows. All non-insurance Income and all Cash Flow behavior remain frozen from v22.1.
+v22.4.2
+Cash Flow Fidelity & Comprehensive Unit Propagation: support CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE (code 62), preserve dash period alignment, document-level and cross-statement currency propagation with zero arithmetic scaling.

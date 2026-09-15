@@ -1,6 +1,6 @@
 {
   "schema_id": "UNIVERSAL_CASH_FLOW_V1",
-  "schema_version": "1.1.0",
+  "schema_version": "1.1.1",
   "statement_type": "CASH_FLOW_STATEMENT",
   "profiles": [
     "enterprise_direct",
@@ -353,6 +353,14 @@
       "method": "any",
       "section": "reconciliation",
       "form_code": "61"
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE",
+      "canonical_name": "Chênh lệch quy đổi tiền tệ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "62"
     },
     {
       "node_id": "CASHFLOW.ENTERPRISE.CASH_ENDING",
@@ -1319,7 +1327,10 @@
           "CASHFLOW.ENTERPRISE.CASH_BEGINNING",
           "CASHFLOW.ENTERPRISE.FX_EFFECT"
         ],
-        "method": "any"
+        "method": "any",
+        "optional_components": [
+          "CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE"
+        ]
       }
     ],
     "bank": [

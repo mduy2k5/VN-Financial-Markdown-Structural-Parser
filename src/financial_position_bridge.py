@@ -13,8 +13,9 @@ from source_reconciliation import reconcile_source_observations
 from period_identity_repair import repair_financial_position_period_identity
 
 
+FP_CANONICAL_SUFFIX = ".financial_position.canonical.json"
 GENERIC_CANONICAL_SUFFIX = ".canonical.json"
-EXCLUDE_CANONICAL_MARKERS = (".income.canonical.json", ".cashflow.canonical.json", ".financial_position.canonical.json")
+EXCLUDE_CANONICAL_MARKERS = (".income.canonical.json", ".cashflow.canonical.json")
 
 
 def read_json(path: Path, default=None):
@@ -31,7 +32,9 @@ def stem_base(path: Path) -> str:
 
 def canonical_base_name(path: Path) -> str:
     name = path.name
-    if name.endswith(GENERIC_CANONICAL_SUFFIX):
+    if name.endswith(FP_CANONICAL_SUFFIX):
+        name = name[: -len(FP_CANONICAL_SUFFIX)]
+    elif name.endswith(GENERIC_CANONICAL_SUFFIX):
         name = name[: -len(GENERIC_CANONICAL_SUFFIX)]
     name = re.sub(r"\((?:\d+|\d{8}-\d{6})\)$", "", name)
     return name
@@ -39,6 +42,8 @@ def canonical_base_name(path: Path) -> str:
 
 def is_financial_position_canonical(path: Path) -> bool:
     low = path.name.lower()
+    if low.endswith(FP_CANONICAL_SUFFIX):
+        return True
     if not low.endswith(GENERIC_CANONICAL_SUFFIX):
         return False
     if any(low.endswith(x) for x in EXCLUDE_CANONICAL_MARKERS):
@@ -177,7 +182,8 @@ def summarize_canonical(canonical: dict, source_path: Optional[Path] = None, leg
 def integrate_financial_position(base: str, output_dir: Path, index: FinancialPositionIndex,
                                  existing_comparison: Optional[dict] = None,
                                  source_text: Optional[str] = None,
-                                 current_year: int = 2025, previous_year: int = 2024) -> dict:
+                                 current_year: int = 2025, previous_year: int = 2024,
+                                 fallback_unit: Optional[str] = None) -> dict:
     src = index.find(base)
     existing_comparison = existing_comparison or {}
     legacy_fp = existing_comparison.get("financial_position") if isinstance(existing_comparison, dict) else None
@@ -215,10 +221,22 @@ def integrate_financial_position(base: str, output_dir: Path, index: FinancialPo
     # v16.1: repair period identity from explicit source period labels before additive source recovery.
     canonical = repair_financial_position_period_identity(canonical, current_year=current_year, previous_year=previous_year)
     recovered = {"rows": [], "scope_start_line": None, "scope_end_line": None, "scope_score": 0}
+    stmt_unit = fallback_unit if fallback_unit and fallback_unit != "unknown" else None
     if source_text:
-        recovered = extract_financial_position_source_rows(source_text, current_year=current_year, previous_year=previous_year)
+        recovered = extract_financial_position_source_rows(source_text, current_year=current_year, previous_year=previous_year, fallback_unit=fallback_unit)
+        rec_unit = recovered.get("unit")
+        if rec_unit and rec_unit != "unknown":
+            stmt_unit = rec_unit
         canonical = augment_canonical_with_recovered_rows(canonical, recovered.get("rows") or [], "FINANCIAL_POSITION")
         canonical = reconcile_source_observations(canonical, "FINANCIAL_POSITION")
+
+    if stmt_unit:
+        canonical["unit"] = stmt_unit
+        for node in canonical.get("nodes", []):
+            val = node.get("value")
+            if isinstance(val, dict) and val.get("unit") is None and (val.get("current") is not None or val.get("previous") is not None):
+                val["unit"] = stmt_unit
+
     out_path = output_dir / f"{base}.financial_position.canonical.json"
     output_dir.mkdir(parents=True, exist_ok=True)
     # v16 keeps the historical semantic canonical and adds a reconciled source-observation layer.

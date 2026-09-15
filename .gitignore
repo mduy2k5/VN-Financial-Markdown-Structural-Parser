@@ -2,6 +2,8 @@
 output/
 ground_truth/
 REGRESSION_LOCAL.json
+LOCAL_SMOKE.json
+*.smoke.json
 comparison_*/
 comparison_full/
 md_reports/

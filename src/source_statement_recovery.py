@@ -6,6 +6,11 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Optional
 
+try:
+    from .value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+except ImportError:
+    from value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+
 
 def clean(s: Any) -> str:
     s = "" if s is None else str(s)
@@ -29,10 +34,10 @@ def parse_number(v: Any):
     s = clean(v).replace("−", "-")
     if not s:
         return None
-    # Financial statements commonly use '-' for zero/blank.  In statement rows this is
-    # materially closer to the reported value than dropping the period entirely.
+    # Source-fidelity rule: a dash is an unreported / no-occurrence marker, not a
+    # reported numeric zero. Formula validation may treat None as 0 in a separate view.
     if s in {"-", "–", "—"}:
-        return 0
+        return None
     neg = s.startswith("(") and ")" in s
     s = s.strip().strip("()")
     # Keep only the leading numeric token; units / year annotations may follow.
@@ -78,6 +83,8 @@ class RecoveredRow:
     pattern: Optional[str] = None
     parent_label: Optional[str] = None
     hierarchy_path: Optional[str] = None
+    unit: Optional[str] = None
+    unit_source: Optional[str] = None
 
 
 FP_HEADING = re.compile(r"(?i)(?:BẢNG\s+CÂN\s+ĐỐI\s+KẾ\s+TOÁN|BÁO\s+CÁO\s+TÌNH\s+HÌNH\s+TÀI\s+CHÍNH)(?:\s+HỢP\s+NHẤT)?")
@@ -167,6 +174,64 @@ _YEAR_VALUE_PATTERNS = [
     re.compile(r"(?i)^Ngày\s+31\s+tháng\s+12\s+năm\s+(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
     re.compile(r"(?i)^(?:Năm\s*)?(20\d{2})(?:\s+(?:triệu|nghìn)\s*(?:đồng|vnd|vnđ))?(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
 ]
+
+
+def _explicit_fp_period_value(text: str, current_year: int, previous_year: int):
+    """Return (role, value) for explicit FP period children.
+
+    Important accounting identity:
+      01/01/current_year == opening balance == previous comparative period.
+    """
+    c = re.sub(r"^[*+\-]\s+", "", clean(text))
+
+    date_patterns = [
+        # Tại ngày 31/12/2025: 123
+        re.compile(
+            r"(?i)^(?:Tại\s+ngày\s+|Ngày\s+)?"
+            r"(?P<day>\d{1,2})[./-](?P<month>\d{1,2})[./-](?P<year>20\d{2})"
+            r"(?:\s*\([^)]*\))?\s*:\s*(?P<value>.+)$"
+        ),
+        # Ngày 31 tháng 12 năm 2025: 123
+        re.compile(
+            r"(?i)^(?:Tại\s+)?Ngày\s+"
+            r"(?P<day>\d{1,2})\s+tháng\s+(?P<month>\d{1,2})\s+năm\s+(?P<year>20\d{2})"
+            r"(?:\s*\([^)]*\))?\s*:\s*(?P<value>.+)$"
+        ),
+    ]
+
+    for pat in date_patterns:
+        m = pat.match(c)
+        if not m:
+            continue
+        day = int(m.group("day"))
+        month = int(m.group("month"))
+        year = int(m.group("year"))
+        value = parse_number(m.group("value"))
+
+        if year == current_year and day == 1 and month == 1:
+            return "previous", value
+        if year == current_year and day == 31 and month == 12:
+            return "current", value
+        if year == previous_year and day == 31 and month == 12:
+            return "previous", value
+
+    m = re.match(r"(?i)^Năm\s+nay\s*:\s*(.+)$", c)
+    if m:
+        return "current", parse_number(m.group(1))
+
+    m = re.match(r"(?i)^Năm\s+trước\s*:\s*(.+)$", c)
+    if m:
+        return "previous", parse_number(m.group(1))
+
+    m = re.match(r"(?i)^Năm\s+(20\d{2})\s*:\s*(.+)$", c)
+    if m:
+        y = int(m.group(1))
+        if y == current_year:
+            return "current", parse_number(m.group(2))
+        if y == previous_year:
+            return "previous", parse_number(m.group(2))
+
+    return None
 
 
 def _inline_end_begin_values(line: str):
@@ -270,6 +335,7 @@ def _is_period_value_line(text: str) -> bool:
     return bool(
         re.match(r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Số\s*thuyết\s*minh|Số\s*cuối\s*năm(?:\s*\([^)]*\))?|Số\s*đầu\s*năm(?:\s*\([^)]*\))?|Số\s*liệu(?:\s*\([^)]*\))?|Tại\s+ngày|Năm\s+kết\s+thúc\s+31[./-]12[./-]20\d{2}(?:\s*\([^)]*\))*|Năm\s*20\d{2}|20\d{2})\s*:", c)
         or re.match(r"^(?:ngay\s+)?31(?:\s+thang\s+12\s+nam\s*|\s+12\s+|[./-]12[./-])20\d{2}", f)
+        or re.match(r"^(?:tai\s+ngay\s+|ngay\s+)?0?1(?:\s+thang\s+0?1\s+nam\s*|\s+0?1\s+|[./-]0?1[./-])20\d{2}", f)
     )
 
 
@@ -418,7 +484,7 @@ def _cashflow_section_by_line(scoped: list[str], absolute_start_zero: int):
             section = "financing"
         elif "luu chuyen tien" in f and "hoat dong kinh doanh" in f:
             section = "operating"
-        elif any(x in f for x in ("luu chuyen tien thuan trong", "tien va tuong duong tien dau", "tien va cac khoan tuong duong tien tai thoi diem dau", "anh huong cua thay doi ty gia", "tien va tuong duong tien cuoi", "tien va cac khoan tuong duong tien tai thoi diem cuoi")):
+        elif any(x in f for x in ("luu chuyen tien thuan trong", "tien va tuong duong tien dau", "tien va cac khoan tuong duong tien tai thoi diem dau", "anh huong cua thay doi ty gia", "chenh lech quy doi tien te", "tien va tuong duong tien cuoi", "tien va cac khoan tuong duong tien tai thoi diem cuoi")):
             section = "reconciliation"
         out[absolute_start_zero + idx + 1] = section
     return out
@@ -509,25 +575,32 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         fcells = [fold(c) for c in cells]
         if any(x in {"chi tieu", "ma so", "thuyet minh", "so cuoi nam", "so dau nam"} for x in fcells):
             continue
-        vals = [(i, parse_number(c)) for i, c in enumerate(cells)]
-        numeric = [(i, v) for i, v in vals if v is not None]
-        if len(numeric) < 1:
+        # Preserve period column POSITION, including dash/null cells.
+        # Numeric-token-only extraction shifts form code/note into a period when a
+        # period cell is '-' (e.g. `23 | | - | (3.620...)`).
+        # For table-like rows, the final two columns are the two period slots.
+        if len(cells) < 3:
             continue
-        text_cells = [(i, c) for i, c in enumerate(cells) if re.search(r"[A-Za-zÀ-ỹ]", c) and _valid_label(c)]
+        cur_raw, prev_raw = cells[-2], cells[-1]
+        value_token = re.compile(r"^\(?-?[\d][\d., ]*\)?$|^[-–—]$")
+        if not (value_token.fullmatch(cur_raw) and value_token.fullmatch(prev_raw)):
+            # Fallback only for malformed/non-standard rows; do not consume code as value.
+            vals = [(i, parse_number(c)) for i, c in enumerate(cells)]
+            numeric = [(i, v) for i, v in vals if v is not None]
+            if len(numeric) < 1:
+                continue
+            cur = numeric[-2][1] if len(numeric) >= 2 else numeric[-1][1]
+            prev = numeric[-1][1] if len(numeric) >= 2 else None
+        else:
+            cur, prev = parse_number(cur_raw), parse_number(prev_raw)
+
+        text_cells = [(i, c) for i, c in enumerate(cells[:-2]) if re.search(r"[A-Za-zÀ-ỹ]", c) and _valid_label(c)]
         if not text_cells:
             continue
         li, label = max(text_cells, key=lambda t: len(t[1]))
-        # Avoid treating notes/page strings as the label.
-        code = next((c for c in cells[:max(1, len(cells)-2)] if re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]+)?|[IVXLC]+", c, re.I)), None)
-        cur = numeric[-2][1] if len(numeric) >= 2 else numeric[-1][1]
-        prev = numeric[-1][1] if len(numeric) >= 2 else None
-        # If code itself was parsed as numeric, remove it from value candidates.
-        if code is not None:
-            numeric2 = [(i, v) for i, v in numeric if clean(cells[i]) != clean(code)]
-            if len(numeric2) >= 2:
-                cur, prev = numeric2[-2][1], numeric2[-1][1]
-            elif len(numeric2) == 1:
-                cur, prev = numeric2[0][1], None
+        # Avoid treating notes/page strings as the label. Form code comes only
+        # from non-period columns.
+        code = next((c for c in cells[:-2] if re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]+)?|[IVXLC]+", c, re.I)), None)
         parent, path = hierarchy.get(idx, (None, None))
         rows.append(RecoveredRow(label=label, current=cur, previous=prev, code=code,
                                  source_line=s + idx + 1, pattern=f"{statement}_RAW_PIPE",
@@ -563,6 +636,76 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         rows.append(RecoveredRow(label=label, current=cur, previous=prev, code=suffix_code or code, note=suffix_note,
                                  source_line=s + idx + 1, pattern=f"{statement}_RAW_INLINE_YEARS",
                                  parent_label=parent, hierarchy_path=path))
+
+
+    # Code-first keyed block:
+    #   * Mã số: 135
+    #     * Chỉ tiêu: Các khoản phải thu khác
+    #     * Năm nay: 180
+    #     * Năm trước: 160
+    #
+    # The semantic identity is the Chỉ tiêu child, NOT the surrounding parent.
+    for idx, raw in enumerate(scoped):
+        c = re.sub(r"^[*+\-]\s+", "", clean(raw))
+        mcode = re.match(r"(?i)^Mã\s*số\s*:\s*(\d{2,4}(?:\.\d+)?)\s*$", c)
+        if not mcode:
+            continue
+
+        code = clean(mcode.group(1))
+        label = None
+        note = None
+        current = None
+        previous = None
+        raw_indent = len(raw) - len(raw.lstrip(" \t"))
+
+        for j in range(idx + 1, min(len(scoped), idx + 10)):
+            cr = scoped[j]
+            cc = re.sub(r"^[*+\-]\s+", "", clean(cr))
+            if not cc:
+                continue
+
+            child_indent = len(cr) - len(cr.lstrip(" \t"))
+            if j > idx + 1 and child_indent < raw_indent:
+                break
+
+            ml = re.match(r"(?i)^(?:Chỉ\s*tiêu|Diễn\s*giải)\s*:\s*(.+)$", cc)
+            if ml:
+                label = _normalize_row_label(ml.group(1))
+                continue
+
+            mn = re.match(r"(?i)^(?:Thuyết\s*minh|Số\s*thuyết\s*minh)\s*:\s*(.+)$", cc)
+            if mn:
+                note = clean(mn.group(1))
+                continue
+
+            pv = _explicit_fp_period_value(cc, current_year, previous_year)
+            if pv:
+                role, value = pv
+                if role == "current":
+                    current = value
+                else:
+                    previous = value
+                continue
+
+            # A new semantic keyed block starts.
+            if re.match(r"(?i)^Mã\s*số\s*:", cc):
+                break
+
+        if label and (current is not None or previous is not None):
+            parent, path = hierarchy.get(idx, (None, None))
+            rows.append(
+                RecoveredRow(
+                    label=label,
+                    current=current,
+                    previous=previous,
+                    code=code,
+                    note=note,
+                    source_line=s + idx + 1,
+                    pattern=f"{statement}_RAW_CODE_FIRST_KEYED",
+                    parent_label=parent,
+                    hierarchy_path=path,
+                )
+            )
 
 
     # Inline current value followed by an explicit previous-period child. Common on continuation pages.
@@ -663,6 +806,16 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             m = re.match(r"(?i)^Số\s*liệu\s*:\s*(.+)$", meta_cc)
             if m:
                 current = parse_number(m.group(1)); found = True; continue
+            explicit_period = _explicit_fp_period_value(meta_cc, current_year, previous_year)
+            if explicit_period:
+                role, value = explicit_period
+                if role == "current":
+                    current = value
+                else:
+                    previous = value
+                found = True
+                continue
+
             icur, iprev = _inline_end_begin_values(meta_cc)
             if (icur is not None or iprev is not None) and child_indent <= parent_indent + 6:
                 if icur is not None: current = icur
@@ -761,12 +914,172 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
     return [merged[k] for k in order if merged[k].current is not None or merged[k].previous is not None]
 
 
-def extract_financial_position_source_rows(text: str, current_year=2025, previous_year=2024):
+
+def _split_page_blocks(text: str):
+    """Return [(page_no, content_lines, global_start_line)]. YAML page boundaries are retained only as boundaries."""
+    lines = text.splitlines()
+    blocks = []
+    cur_page = None
+    cur = []
+    cur_start = 1
+    in_yaml = False
+    yaml_page = None
+    for idx, raw in enumerate(lines, start=1):
+        if raw.strip() == "---":
+            if in_yaml:
+                in_yaml = False
+                if yaml_page is not None:
+                    if cur and cur_page is not None:
+                        blocks.append((cur_page, cur, cur_start))
+                    cur_page = yaml_page
+                    cur = []
+                    cur_start = idx + 1
+                    yaml_page = None
+                continue
+            in_yaml = True
+            continue
+        if in_yaml:
+            m = re.match(r"\s*page\s*:\s*(\d+)\s*$", raw, re.I)
+            if m:
+                yaml_page = int(m.group(1))
+            continue
+        if cur_page is not None:
+            cur.append(raw)
+    if cur and cur_page is not None:
+        blocks.append((cur_page, cur, cur_start))
+    return blocks
+
+
+def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, scope_start_line: int | None = None, scope_end_line: int | None = None):
+    """Recover incomplete FP tail rows whose values start the adjacent page.
+
+    Conservative by design: same adjacent page pair, code required, values must appear
+    before a new semantic row. This is a generic structural recovery, never ticker/code specific.
+    """
+    blocks = _split_page_blocks(text)
+    # Restrict stitching to the selected primary-statement scope. This prevents
+    # similarly shaped fragments in notes/decoy tables from being recovered as B01 rows.
+    if scope_start_line is not None or scope_end_line is not None:
+        lo = int(scope_start_line or 1)
+        hi = int(scope_end_line or 10**18)
+        blocks = [b for b in blocks if b[2] <= hi and (b[2] + len(b[1]) + 16) >= lo]
+    recovered = []
+    note_re = re.compile(r"^(?:\d{1,3}(?:\.\d{1,2})?|[IVXLCDM]+\.\d+(?:\.\d+)*(?:\([A-Za-z0-9]+\))?)$", re.I)
+    code_re = re.compile(r"^\d{2,4}(?:[a-z])?$", re.I)
+
+    for bi in range(len(blocks)-1):
+        page, left, left_start = blocks[bi]
+        next_page, right, right_start = blocks[bi+1]
+        if next_page != page + 1:
+            continue
+
+        # Tail meaningful lines only; metadata has already been removed.
+        tail = [(i, clean(x)) for i,x in enumerate(left[-18:]) if clean(x)]
+        if not tail:
+            continue
+        # Find last plausible form code near page tail.
+        code_pos = None
+        code = None
+        for local_i, t in reversed(tail):
+            tt = re.sub(r"^[*+\-]\s+", "", t)
+            if code_re.fullmatch(tt) and tt not in {str(current_year), str(previous_year)}:
+                code_pos = len(left)-18+local_i if len(left)>=18 else local_i
+                code = tt
+                break
+        if code_pos is None:
+            continue
+
+        note = None
+        after_code = []
+        for j in range(code_pos+1, len(left)):
+            t=clean(left[j])
+            if t:
+                after_code.append(t)
+        if after_code and is_note_reference(after_code[0]):
+            note = after_code[0]
+            after_code = after_code[1:]
+        # If values already exist on the left, it is not an incomplete tail row.
+        if any(parse_number(x) is not None for x in after_code):
+            continue
+
+        # Reconstruct label from lines before code until heading/table/noise boundary.
+        parts=[]
+        for j in range(code_pos-1, max(-1, code_pos-7), -1):
+            t=clean(left[j])
+            if not t:
+                if parts: break
+                continue
+            if t.startswith('|') or re.match(r"(?i)^(?:Mã\s*số|Thuyết\s*minh|TM)\s*:", t):
+                break
+            if re.match(r"^#{1,6}\s", left[j].strip()):
+                break
+            if parse_number(t) is not None or code_re.fullmatch(t):
+                break
+            if fold(t) in {"content", "tiep theo"}:
+                break
+            parts.append(_normalize_row_label(t))
+        label=" ".join(reversed([p for p in parts if p])).strip()
+        if len(label)<4:
+            continue
+
+        # Leading values on next page, allowing heading/content noise but no new semantic row.
+        vals=[]
+        value_lines=[]
+        for j,raw in enumerate(right[:12]):
+            t=clean(raw)
+            if not t or t in {"Content"} or re.match(r"^#{1,6}\s", raw.strip()):
+                continue
+            v=parse_number(t)
+            if v is not None and re.fullmatch(r"\(?-?[\d., ]+\)?", t):
+                vals.append(v); value_lines.append(j)
+                if len(vals)>=2: break
+                continue
+            # Dash is a real observed null; retain position if encountered.
+            if t in {"-","–","—"}:
+                vals.append(None); value_lines.append(j)
+                if len(vals)>=2: break
+                continue
+            # Stop at a new semantic row/table.
+            if '|' in raw or re.search(r"[A-Za-zÀ-ỹ]", t):
+                break
+        if len(vals)<2:
+            continue
+
+        recovered.append(RecoveredRow(
+            label=label, current=vals[0], previous=vals[1], code=code, note=note,
+            source_line=left_start+code_pos,
+            pattern="FP_CROSS_PAGE_STITCH",
+        ))
+    return recovered
+
+def extract_financial_position_source_rows(text: str, current_year=2025, previous_year=2024, fallback_unit: Optional[str] = None):
     scope = choose_financial_position_scope(text)
     if not scope.get("scope_start_line"):
         return {**scope, "rows": []}
     rows = extract_generic_statement_rows(text, scope["scope_start_line"], scope["scope_end_line"], current_year, previous_year, "FP")
-    return {**scope, "rows": rows}
+    rows += _cross_page_fp_rows(text, current_year, previous_year, scope_start_line=scope.get("scope_start_line"), scope_end_line=scope.get("scope_end_line"))
+
+    # Merge after cross-page recovery using form code + label identity.
+    merged = {}
+    order = []
+    for r in rows:
+        key = (clean(r.code or ""), fold(r.label), fold(r.parent_label or ""))
+        if key not in merged:
+            merged[key] = r; order.append(key); continue
+        old = merged[key]
+        if old.current is None and r.current is not None: old.current = r.current
+        if old.previous is None and r.previous is not None: old.previous = r.previous
+        if not old.note and r.note: old.note = r.note
+        if r.pattern and r.pattern not in (old.pattern or ""):
+            old.pattern = ((old.pattern or "") + "+" + r.pattern).strip("+")
+    rows = [merged[k] for k in order if merged[k].current is not None or merged[k].previous is not None]
+
+    unit_ctx = detect_statement_unit("\n".join(text.splitlines()[scope["scope_start_line"]-1:scope["scope_end_line"]]), fallback_unit=fallback_unit)
+    for r in rows:
+        u = row_unit_override(r.label, unit_ctx)
+        r.unit = u.unit
+        r.unit_source = u.source
+    return {**scope, "rows": rows, "unit": unit_ctx.unit, "unit_source": unit_ctx.source}
 
 
 def _source_id(statement: str, label: str, code: str, line: Optional[int], hierarchy_path: str = "") -> str:
@@ -781,6 +1094,7 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
     # Index exact label+code first; then unique exact label.  We only overwrite missing periods on semantic nodes.
     by_lc: dict[tuple, list[dict]] = {}
     by_l: dict[str, list[dict]] = {}
+    by_code: dict[str, list[dict]] = {}
     for n in nodes:
         fl = fold(n.get("canonical_name"))
         if not fl:
@@ -788,6 +1102,8 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
         code = clean(n.get("form_code") or "")
         by_lc.setdefault((fl, code), []).append(n)
         by_l.setdefault(fl, []).append(n)
+        if code:
+            by_code.setdefault(code, []).append(n)
 
     added = filled = conflicts = 0
     seen_source = set()
@@ -796,8 +1112,16 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
         code = clean(r.code or "")
         if not fl:
             continue
+        # Explicit form code is stronger identity evidence than label alone.
+        # If source has a code but the schema node has no matching form_code, preserve the
+        # recovered row as a source_observation instead of collapsing it into a same-label
+        # subtotal/group node (e.g. 150 vs 155, 260 vs 268).
         candidates = by_lc.get((fl, code), []) if code else []
-        if not candidates and len(by_l.get(fl, [])) == 1:
+        # v22.4: within a statement, an explicit unique form code is stronger identity
+        # evidence than a short/ambiguous label (e.g. 131 vs 211 both "Phải thu khách hàng").
+        if code and not candidates and len(by_code.get(code, [])) == 1:
+            candidates = by_code[code]
+        if not code and not candidates and len(by_l.get(fl, [])) == 1:
             candidates = by_l[fl]
         # Fill missing periods where identity is unambiguous; never replace an existing non-null semantic value.
         if len(candidates) == 1:
@@ -808,6 +1132,14 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
                 v["current"] = r.current; changed = True
             if v.get("previous") is None and r.previous is not None:
                 v["previous"] = r.previous; changed = True
+            stmt_unit = canonical.get("unit")
+            eff_u = r.unit or stmt_unit
+            if eff_u and (not v.get("unit") or v.get("unit") == "unknown"):
+                cname = fold(n.get("canonical_name", ""))
+                if "lai co ban" in cname or "lai suy giam" in cname:
+                    v["unit"] = "vnd_per_share"
+                else:
+                    v["unit"] = eff_u
             if changed:
                 filled += 1
                 em = n.setdefault("extraction_meta", {})
@@ -815,6 +1147,7 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
                     "source_line": r.source_line, "source_label": r.label, "pattern": r.pattern,
                     "current": r.current, "previous": r.previous, "code": r.code, "note": r.note,
                     "parent_label": r.parent_label, "hierarchy_path": r.hierarchy_path,
+                    "unit": r.unit, "unit_source": r.unit_source,
                 })
                 continue
             # Exact identity with differing values is valuable debug evidence, but avoid creating duplicate exact labels
@@ -833,6 +1166,13 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
         if key in seen_source:
             continue
         seen_source.add(key)
+        stmt_u = canonical.get("unit")
+        eff_u = r.unit or stmt_u
+        cname = fold(r.label)
+        if "lai co ban" in cname or "lai suy giam" in cname:
+            node_u = "vnd_per_share"
+        else:
+            node_u = eff_u
         node = {
             "node_id": _source_id(statement, r.label, code, r.source_line, r.hierarchy_path or r.parent_label or ""),
             "canonical_name": clean(r.label),
@@ -846,7 +1186,7 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
             "form_code": code or None,
             "value": {
                 "current": r.current, "previous": r.previous, "note": r.note,
-                "unit": None, "raw_text": clean(r.label),
+                "unit": node_u, "raw_text": clean(r.label),
             },
             "extraction_meta": {
                 "source_recovery": True,
@@ -860,6 +1200,8 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
         nodes.append(node)
         by_lc.setdefault((fl, code), []).append(node)
         by_l.setdefault(fl, []).append(node)
+        if code:
+            by_code.setdefault(code, []).append(node)
         added += 1
 
         # v16.1: ambiguous short labels often require hierarchy to recover their real row identity.
@@ -887,7 +1229,7 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
                         "parent_label": r.parent_label,
                         "hierarchy_path": r.hierarchy_path,
                         "form_code": code or None,
-                        "value": {"current": r.current, "previous": r.previous, "note": r.note, "unit": None, "raw_text": clean(r.label)},
+                        "value": {"current": r.current, "previous": r.previous, "note": r.note, "unit": node_u, "raw_text": clean(r.label)},
                         "extraction_meta": {
                             "source_recovery": True, "contextual_identity": True,
                             "occurrences": [{"source_line": r.source_line, "source_label": clean(r.label), "contextual_label": contextual_label, "pattern": r.pattern}]
@@ -901,6 +1243,6 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Rec
     canonical.setdefault("diagnostics", {})["source_statement_recovery"] = {
         "statement": statement, "rows_recovered": len(rows), "added_nodes": added,
         "filled_existing_nodes": filled, "conflicts": conflicts,
-        "policy": "source_scope_structural_identity_repair_v16_1",
+        "policy": "source_scope_structural_identity_repair_v22_4_1",
     }
     return canonical

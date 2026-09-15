@@ -5,6 +5,11 @@ import unicodedata
 from dataclasses import dataclass, asdict
 from typing import Any, Optional
 
+try:
+    from .value_semantics import detect_statement_unit, row_unit_override
+except ImportError:
+    from value_semantics import detect_statement_unit, row_unit_override
+
 
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")
 METHOD_DIRECT_RE = re.compile(r"(?i)ph[ươu]ơng\s+ph[áa]p\s+tr[ựu]c\s+ti[ếe]p")
@@ -77,7 +82,7 @@ def parse_number(v: Any):
         s = ns
     s = s.strip()
     if s in {"-", "–", "—", "..."}:
-        return 0
+        return None
     m_paren = re.match(r"^\((\d[\d.,]*)\)$", s)
     if m_paren:
         neg = True
@@ -173,7 +178,8 @@ def _section_from_label(label: str, current_section: Optional[str]) -> Optional[
         "luu chuyen tien thuan trong", "tang giam tien thuan trong",
         "tien va cac khoan tuong duong tien tai thoi diem dau", "tien va cac khoan tuong duong tien dau nam",
         "tien va tuong duong tien dau", "dieu chinh anh huong cua thay doi ty gia", "dieu chinh cua anh huong thay doi ty gia",
-        "anh huong cua thay doi ty gia", "tien va cac khoan tuong duong tien tai thoi diem cuoi",
+        "anh huong cua thay doi ty gia", "chenh lech quy doi tien te",
+        "tien va cac khoan tuong duong tien tai thoi diem cuoi",
         "tien va cac khoan tuong duong tien cuoi nam", "tien va tuong duong tien cuoi",
     )):
         return "reconciliation"
@@ -378,10 +384,11 @@ def _emit(rows, label, current, previous, section, method, code, note, line_no, 
     ))
 
 
-def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
+def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, fallback_unit: Optional[str] = None):
     scope = choose_cashflow_scope(text)
     if not scope.get("scope_start_line"):
-        return {**scope, "rows": [], "method": "unknown", "method_method": "unknown", "sector": "unknown", "sector_method": "unknown"}
+        unit_val = fallback_unit if fallback_unit and fallback_unit != "unknown" else "unknown"
+        return {**scope, "rows": [], "method": "unknown", "method_method": "unknown", "sector": "unknown", "sector_method": "unknown", "unit": unit_val}
     lines = text.splitlines()
     s = scope["scope_start_line"] - 1
     e = scope["scope_end_line"]
@@ -496,19 +503,24 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
             continue
 
         # Pipe table row: label | code? | note? | current | previous.
+        # v22.4: preserve column positions even when a period is reported as dash/null.
+        # Never infer values from the last two *numeric* tokens because that shifts the
+        # form code into a value column when current/previous is '-'.
         if raw.count("|") >= 2:
             cells = [strip_md(x) for x in raw.strip().strip("|").split("|")]
             if len(cells) >= 3 and not any(fold(x) in {"chi tieu", "nam nay", "nam truoc", "stt chi tieu"} for x in cells[:2]):
-                nums = [(idx, parse_number(c)) for idx, c in enumerate(cells)]
-                numeric = [(idx, val) for idx, val in nums if val is not None]
-                if len(numeric) >= 2:
+                cur_raw, prev_raw = cells[-2], cells[-1]
+                cur_is_value = bool(re.fullmatch(r"\(?-?[\d., ]+\)?|-|–|—", cur_raw))
+                prev_is_value = bool(re.fullmatch(r"\(?-?[\d., ]+\)?|-|–|—", prev_raw))
+                if cur_is_value and prev_is_value:
+                    cur_val, prev_val = parse_number(cur_raw), parse_number(prev_raw)
                     code = next((c for c in cells[:-2] if re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+", c, re.I)), None)
                     text_cells = [c for c in cells[:-2] if re.search(r"[A-Za-zÀ-ỹ]", c) and not _looks_metadata_line(c)]
                     label = max(text_cells, key=len) if text_cells else cells[0]
                     mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
                     if mc and not code:
                         code, label = mc.group(1), mc.group(2)
-                    flush_pending(); emit(label, numeric[-2][1], numeric[-1][1], section, code, None, abs_line, "CF_PIPE_TABLE"); continue
+                    flush_pending(); emit(label, cur_val, prev_val, section, code, None, abs_line, "CF_PIPE_TABLE"); continue
 
         # Inline year values on one line.
         cur, prev = _extract_inline_periods(clean, current_year, previous_year)
@@ -709,5 +721,11 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024):
             old.pattern = old.pattern or r.pattern
     dedup=[merged[k] for k in order if merged[k].current is not None or merged[k].previous is not None]
 
+    unit_ctx = detect_statement_unit("\n".join(scoped_lines), fallback_unit=fallback_unit)
+    for r in dedup:
+        u = row_unit_override(r.source_label, unit_ctx)
+        r.unit = u.unit
+
     return {**scope, "rows": [r.to_dict() for r in dedup], "method": method, "method_method": method_method,
-            "sector": sector, "sector_method": sector_method}
+            "sector": sector, "sector_method": sector_method,
+            "unit": unit_ctx.unit, "unit_source": unit_ctx.source}

@@ -33,6 +33,7 @@ class IntegratedFinancialPipeline:
         financial_aliases_path,
         universal_guide_path,
         off_balance_schema_path,
+        off_balance_aliases_path=None,
         income_schema_path="resources/income_statement_schema.json",
         income_aliases_path="resources/income_statement_aliases.json",
         allow_fuzzy=False,
