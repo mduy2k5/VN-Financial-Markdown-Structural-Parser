@@ -3,24 +3,34 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, asdict
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 
-NOTES_TITLE_RE = re.compile(
-    r"(?i)^\s*(?:#{1,6}\s*)?(?:BẢN\s+)?THUYẾT\s+MINH"
-    r"(?:\s+VỀ)?\s+BÁO\s+CÁO\s+TÀI\s+CHÍNH"
-)
-NOTES_CONT_RE = re.compile(
-    r"(?i)^\s*(?:#{1,6}\s*)?(?:BẢN\s+)?THUYẾT\s+MINH.*(?:TIẾP\s+THEO|\(TIẾP\s+THEO\))"
-)
 PAGE_META_RE = re.compile(r"^\s*page\s*:\s*(\d+)\s*$", re.I)
 STATEMENT_META_RE = re.compile(r"^\s*statement_type\s*:\s*([A-Za-z_]+)\s*$", re.I)
 PAGE_DELIM_RE = re.compile(r"^\s*---\s*$")
-PRIMARY_HEADING_RE = re.compile(
-    r"(?i)^\s*(?:#{1,6}\s*)?(?:BÁO\s+CÁO|BẢNG)\s+"
-    r"(?:TÌNH\s+HÌNH\s+TÀI\s+CHÍNH|CÂN\s+ĐỐI\s+KẾ\s+TOÁN|"
-    r"KẾT\s+QUẢ\s+HOẠT\s+ĐỘNG\s+KINH\s+DOANH|LƯU\s+CHUYỂN\s+TIỀN\s+TỆ)"
+PAGE_RANGE_ONLY_RE = re.compile(r"^\s*\d{1,3}\s*(?:[-–—]\s*\d{1,3})?\s*$")
+TRAILING_PAGE_RANGE_RE = re.compile(r"(?:^|\s)\d{1,3}\s*(?:[-–—]\s*\d{1,3})?\s*$")
+MARKDOWN_TABLE_RE = re.compile(r"^\s*\|.*\|\s*$")
+HEADING_PREFIX_RE = re.compile(r"^\s*#{1,6}\s*")
+BULLET_PREFIX_RE = re.compile(r"^\s*(?:[-+*•]|\d+[.)])\s+")
+BLOCKQUOTE_PREFIX_RE = re.compile(r"^\s*>+\s*")
+
+PRIMARY_TITLE_FOLDS = (
+    "bao cao tinh hinh tai chinh",
+    "bang can doi ke toan",
+    "bao cao ket qua hoat dong kinh doanh",
+    "bao cao ket qua kinh doanh",
+    "bao cao luu chuyen tien te",
 )
+NOTES_TITLE_FOLDS = (
+    "thuyet minh bao cao tai chinh",
+    "ban thuyet minh bao cao tai chinh",
+    "thuyet minh ve bao cao tai chinh",
+    "thuyet minh bctc",
+)
+NOTES_CONT_TOKENS = ("tiep theo", "continued")
+TOC_TOKENS = ("muc luc", "noi dung trang", "table of contents")
 
 
 @dataclass
@@ -36,16 +46,202 @@ class NotesScope:
         return asdict(self)
 
 
+@dataclass
+class _TitleCandidate:
+    line_no: int
+    raw: str
+    normalized: str
+    score: float
+    evidence: list[str]
+    rejected: bool = False
+    reject_reason: Optional[str] = None
+
+
 def _fold(value: Any) -> str:
     s = "" if value is None else str(value)
+    s = unicodedata.normalize("NFKC", s)
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = s.replace("đ", "d").replace("Đ", "D").lower()
     return " ".join(re.sub(r"[^a-z0-9]+", " ", s).split())
 
 
+def _strip_inline_markdown(value: str) -> str:
+    """Presentation normalization for scope/title detection only.
+
+    Deliberately removes Markdown decoration without changing source/provenance.
+    Handles real corpus variants such as:
+      **THUYẾT MINH BÁO CÁO TÀI CHÍNH HỢP NHẤT**
+      __THUYẾT MINH ...__
+      # THUYẾT MINH ...
+      > **THUYẾT MINH ...**
+      plain text title
+    """
+    s = unicodedata.normalize("NFKC", value or "").replace("\u00a0", " ")
+    s = BLOCKQUOTE_PREFIX_RE.sub("", s)
+    s = HEADING_PREFIX_RE.sub("", s)
+    s = BULLET_PREFIX_RE.sub("", s)
+    s = re.sub(r"\*\*(.*?)\*\*", r"\1", s)
+    s = re.sub(r"__(.*?)__", r"\1", s)
+    s = re.sub(r"(?<!\*)\*(?!\*)(.*?)\*(?!\*)", r"\1", s)
+    s = re.sub(r"(?<!_)_(?!_)(.*?)_(?!_)", r"\1", s)
+    s = re.sub(r"`(.*?)`", r"\1", s)
+    s = s.replace(r"\*", "*").replace(r"\_", "_")
+    return re.sub(r"\s+", " ", s).strip(" |:#-–—\t")
+
+
+def _normalized_title_line(raw: str) -> str:
+    return _fold(_strip_inline_markdown(raw))
+
+
+def _is_notes_title(raw: str) -> bool:
+    f = _normalized_title_line(raw)
+    if not f:
+        return False
+    return any(f.startswith(tok) for tok in NOTES_TITLE_FOLDS)
+
+
+def _is_notes_continuation(raw: str) -> bool:
+    f = _normalized_title_line(raw)
+    return _is_notes_title(raw) and any(tok in f for tok in NOTES_CONT_TOKENS)
+
+
+def _is_primary_title(raw: str) -> bool:
+    f = _normalized_title_line(raw)
+    return any(f.startswith(tok) for tok in PRIMARY_TITLE_FOLDS)
+
+
+def _next_nonblank(lines: list[str], idx0: int, limit: int = 5) -> list[tuple[int, str]]:
+    out: list[tuple[int, str]] = []
+    j = idx0 + 1
+    while j < len(lines) and len(out) < limit:
+        raw = lines[j]
+        if raw.strip():
+            out.append((j + 1, raw.strip()))
+        j += 1
+    return out
+
+
+def _prev_nonblank(lines: list[str], idx0: int, limit: int = 12) -> list[tuple[int, str]]:
+    out: list[tuple[int, str]] = []
+    j = idx0 - 1
+    while j >= 0 and len(out) < limit:
+        raw = lines[j]
+        if raw.strip():
+            out.append((j + 1, raw.strip()))
+        j -= 1
+    return out
+
+
+def _near_toc(lines: list[str], idx0: int) -> bool:
+    # Look backwards for a nearby TOC heading, but stop treating the area as TOC
+    # once a real primary-statement title has started. This avoids rejecting the
+    # actual Notes title merely because a short test/report has a TOC a few lines above.
+    lo = max(0, idx0 - 20)
+    toc_idx = None
+    for j in range(idx0 - 1, lo - 1, -1):
+        f = _fold(_strip_inline_markdown(lines[j]))
+        if any(tok in f for tok in TOC_TOKENS):
+            toc_idx = j
+            break
+    if toc_idx is None:
+        return False
+    for j in range(toc_idx + 1, idx0):
+        if _is_primary_title(lines[j]):
+            return False
+    return True
+
+
+def _statement_list_reference(lines: list[str], idx0: int, raw: str) -> bool:
+    """Detect audit-report/front-matter lists enumerating the statements audited.
+
+    Example real corpus:
+      * Bảng cân đối kế toán hợp nhất
+      * Báo cáo kết quả hoạt động kinh doanh hợp nhất
+      * Báo cáo lưu chuyển tiền tệ hợp nhất
+      * Bản thuyết minh báo cáo tài chính hợp nhất
+    """
+    if not BULLET_PREFIX_RE.match(raw):
+        return False
+    lo = max(0, idx0 - 8)
+    hi = min(len(lines), idx0 + 3)
+    primary_siblings = sum(1 for j in range(lo, hi) if j != idx0 and _is_primary_title(lines[j]))
+    return primary_siblings >= 2
+
+
+def _numbered_toc_reference(lines: list[str], idx0: int, raw: str) -> bool:
+    # Common OCR shape:
+    #   7. Bản thuyết minh báo cáo tài chính hợp nhất ...
+    #      - Trang: 15-78
+    if not re.match(r"^\s*\d{1,2}[.)]\s+", raw):
+        return False
+    for _, nxt in _next_nonblank(lines, idx0, 3):
+        clean = _strip_inline_markdown(nxt)
+        nf = _fold(clean)
+        if re.match(r"^(?:trang|page)\s*:?\s*\d{1,3}(?:\s*[-–—]\s*\d{1,3})?$", clean, re.I):
+            return True
+        if re.search(r"\b(?:trang|page)\s*:?\s*\d{1,3}(?:\s*[-–—]\s*\d{1,3})?\s*$", clean, re.I):
+            return True
+        # Folded fallback because OCR/normalization may turn punctuation into spaces.
+        if re.fullmatch(r"(?:trang|page)\s+\d{1,3}(?:\s+\d{1,3})?", nf):
+            return True
+        if nf and not PAGE_RANGE_ONLY_RE.fullmatch(nxt):
+            break
+    return False
+
+
+def _looks_like_toc_candidate(lines: list[str], idx0: int, raw: str) -> tuple[bool, Optional[str]]:
+    """Reject table-of-contents references without requiring a formal TOC heading.
+
+    Important real-corpus case:
+      Thuyết minh báo cáo tài chính hợp nhất
+      12 - 86
+    """
+    if _statement_list_reference(lines, idx0, raw):
+        return True, "statement_list_reference"
+    if _numbered_toc_reference(lines, idx0, raw):
+        return True, "numbered_toc_reference"
+    if _near_toc(lines, idx0):
+        return True, "near_toc_heading"
+
+    stripped = _strip_inline_markdown(raw)
+    if MARKDOWN_TABLE_RE.match(raw):
+        cells = [x.strip() for x in raw.strip().strip("|").split("|")]
+        if any(_is_notes_title(x) for x in cells):
+            numeric_cells = [x for x in cells if PAGE_RANGE_ONLY_RE.fullmatch(x)]
+            if numeric_cells:
+                return True, "toc_table_row_with_page_number"
+
+    # Same-line page suffix: "Thuyết minh ... 12 - 86"
+    if TRAILING_PAGE_RANGE_RE.search(stripped) and len(_normalized_title_line(raw).split()) > 4:
+        # Avoid rejecting a year embedded in a real title; page ranges are short and trailing.
+        m = re.search(r"\b(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\s*$", stripped)
+        if m and int(m.group(1)) < 200:
+            return True, "title_with_trailing_page_number"
+
+    # Page number/range on one of the immediate following nonblank lines.
+    for _, nxt in _next_nonblank(lines, idx0, 3):
+        if PAGE_RANGE_ONLY_RE.fullmatch(nxt):
+            return True, "next_line_is_page_number_or_range"
+        # Stop once content looks like the actual note body/heading.
+        nf = _normalized_title_line(nxt)
+        if nf and not nf.startswith(("trang", "page")):
+            break
+
+    # Typical TOC context has another statement title very nearby with a page number.
+    prev = _prev_nonblank(lines, idx0, 4)
+    nxt = _next_nonblank(lines, idx0, 4)
+    neighborhood = prev + nxt
+    title_like = sum(1 for _, x in neighborhood if _is_primary_title(x) or _is_notes_title(x))
+    page_like = sum(1 for _, x in neighborhood if PAGE_RANGE_ONLY_RE.fullmatch(x))
+    if _near_toc(lines, idx0) and title_like >= 1 and page_like >= 1:
+        return True, "toc_neighborhood_signature"
+
+    return False, None
+
+
 def _frontmatter_notes_ranges(lines: list[str]) -> list[tuple[int, int, int | None]]:
-    """Return line ranges whose page frontmatter explicitly says statement_type: notes."""
+    """Return content ranges whose page frontmatter explicitly says statement_type: notes."""
     ranges: list[tuple[int, int, int | None]] = []
     i = 0
     n = len(lines)
@@ -76,56 +272,122 @@ def _frontmatter_notes_ranges(lines: list[str]) -> list[tuple[int, int, int | No
     return ranges
 
 
-def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> NotesScope:
-    """Detect one sticky Notes scope.
+def _title_candidates(lines: list[str]) -> list[_TitleCandidate]:
+    candidates: list[_TitleCandidate] = []
+    for idx0, raw in enumerate(lines):
+        if not _is_notes_title(raw):
+            continue
+        score = 10.0
+        evidence = ["normalized_notes_title:+10"]
+        stripped = raw.strip()
 
-    Once Notes starts, report-like headings inside the Notes area do not terminate the
-    scope. This is deliberate: audited reports often repeat primary-statement names in
-    explanatory note headings and test fixtures intentionally contain such decoys.
+        if HEADING_PREFIX_RE.match(raw):
+            score += 2.0
+            evidence.append("markdown_heading:+2")
+        if re.match(r"^\s*(?:\*\*|__).*?(?:\*\*|__)\s*$", stripped):
+            score += 1.5
+            evidence.append("markdown_bold_title:+1.5")
+        if _is_notes_continuation(raw):
+            score -= 1.0
+            evidence.append("continuation_title:-1")
+
+        reject, reason = _looks_like_toc_candidate(lines, idx0, raw)
+        candidates.append(_TitleCandidate(
+            line_no=idx0 + 1,
+            raw=raw,
+            normalized=_normalized_title_line(raw),
+            score=score if not reject else -100.0,
+            evidence=evidence + ([f"toc_rejected:{reason}"] if reject else []),
+            rejected=reject,
+            reject_reason=reason,
+        ))
+    return candidates
+
+
+def _scanner_notes_start(scanner_result: Optional[dict]) -> Optional[tuple[int, float]]:
+    if not scanner_result:
+        return None
+    note_ranges = [
+        r for r in scanner_result.get("ranges", [])
+        if str(r.get("statement_type")) == "NOTES"
+    ]
+    if not note_ranges:
+        return None
+    r = min(note_ranges, key=lambda x: int(x.get("start_line") or 10**9))
+    return int(r.get("start_line") or 1), float(r.get("confidence") or 0.90)
+
+
+def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> NotesScope:
+    """Detect one sticky Notes scope with scanner validation.
+
+    v23 policy:
+      1. explicit page metadata is strongest;
+      2. normalized Notes titles support heading/bold/plain presentation;
+      3. TOC references are rejected using local page-number signatures;
+      4. project scanner is corroborating evidence, not unquestioned authority;
+      5. once Notes starts, primary-looking headings inside Notes never terminate scope.
     """
     lines = text.splitlines()
     evidence: list[str] = []
 
-    # 1) Prefer an already-detected NOTES range from the project's statement scanner.
-    if scanner_result:
-        note_ranges = [
-            r for r in scanner_result.get("ranges", [])
-            if str(r.get("statement_type")) == "NOTES"
-        ]
-        if note_ranges:
-            r = min(note_ranges, key=lambda x: int(x.get("start_line") or 10**9))
-            start = int(r.get("start_line") or 1)
-            # Sticky policy: scanner end is only a lower bound. Notes extends to document end.
-            evidence.append("project_statement_scanner:NOTES")
-            return NotesScope(True, start, len(lines), float(r.get("confidence") or 0.90), evidence)
-
-    # 2) Explicit page metadata is strongest when present.
+    # 1) Page metadata is authoritative when OCR/frontmatter explicitly labels Notes pages.
     meta_ranges = _frontmatter_notes_ranges(lines)
     if meta_ranges:
         start = min(x[0] for x in meta_ranges)
         evidence.append("page_frontmatter:statement_type=notes")
+        scanner = _scanner_notes_start(scanner_result)
+        if scanner and abs(scanner[0] - start) <= 8:
+            evidence.append("project_statement_scanner:corroborated")
         return NotesScope(True, start, len(lines), 0.995, evidence)
 
-    # 3) Heading-based fallback. Reject likely TOC lines and require the first real title.
-    starts = []
-    for idx, raw in enumerate(lines, start=1):
-        if not NOTES_TITLE_RE.search(raw):
-            continue
-        folded = _fold(raw)
-        if "muc luc" in _fold("\n".join(lines[max(0, idx-8):idx+3])):
-            continue
-        if re.search(r"\b\d+\s*[-–]\s*\d+\s*$", raw):
-            continue
-        starts.append(idx)
+    candidates = _title_candidates(lines)
+    valid = [c for c in candidates if not c.rejected]
+    scanner = _scanner_notes_start(scanner_result)
 
-    if not starts:
-        return NotesScope(False, None, None, 0.0, ["notes_title_not_found"])
+    # 2) Prefer the earliest valid real title. Real reports may repeat it on continuation pages.
+    if valid:
+        start_cand = min(valid, key=lambda c: c.line_no)
+        confidence = min(0.995, 0.90 + max(0.0, start_cand.score - 8.0) / 50.0)
+        evidence.extend(start_cand.evidence)
+        evidence.append(f"normalized_title_line:{start_cand.line_no}")
 
-    start = starts[0]
-    evidence.append("notes_title_heading")
-    if any(NOTES_CONT_RE.search(lines[x-1]) for x in starts[1:]):
-        evidence.append("notes_continuation_heading")
-    return NotesScope(True, start, len(lines), 0.94, evidence)
+        if scanner:
+            scanner_line, scanner_conf = scanner
+            if scanner_line == start_cand.line_no or abs(scanner_line - start_cand.line_no) <= 4:
+                evidence.append("project_statement_scanner:corroborated")
+                confidence = max(confidence, min(0.995, scanner_conf))
+            elif scanner_line < start_cand.line_no:
+                # This is the important ABB/NVB/NAB case: scanner opened on TOC.
+                scanner_raw = lines[scanner_line - 1] if 1 <= scanner_line <= len(lines) else ""
+                scanner_is_toc, reason = _looks_like_toc_candidate(lines, scanner_line - 1, scanner_raw)
+                if scanner_is_toc or any(c.line_no == scanner_line and c.rejected for c in candidates):
+                    evidence.append(f"project_statement_scanner:rejected_toc_start:{scanner_line}")
+                else:
+                    evidence.append(f"project_statement_scanner:disagrees:{scanner_line}")
+            else:
+                evidence.append(f"project_statement_scanner:later_candidate:{scanner_line}")
+
+        if any(_is_notes_continuation(lines[c.line_no - 1]) for c in valid[1:]):
+            evidence.append("notes_continuation_heading")
+        return NotesScope(True, start_cand.line_no, len(lines), confidence, evidence)
+
+    # 3) Last-resort scanner fallback only if its own line is not recognizably TOC.
+    if scanner:
+        scanner_line, scanner_conf = scanner
+        raw = lines[scanner_line - 1] if 1 <= scanner_line <= len(lines) else ""
+        reject, reason = _looks_like_toc_candidate(lines, scanner_line - 1, raw)
+        if not reject:
+            return NotesScope(
+                True, scanner_line, len(lines), min(0.90, scanner_conf),
+                ["project_statement_scanner:fallback_validated"],
+            )
+        evidence.append(f"project_statement_scanner:rejected:{reason}")
+
+    rejected_count = sum(1 for c in candidates if c.rejected)
+    if rejected_count:
+        evidence.append(f"rejected_title_candidates:{rejected_count}")
+    evidence.append("notes_title_not_found")
+    return NotesScope(False, None, None, 0.0, evidence)
 
 
 def primary_heading_decoys_in_scope(text: str, scope: NotesScope) -> list[dict]:
@@ -135,6 +397,17 @@ def primary_heading_decoys_in_scope(text: str, scope: NotesScope) -> list[dict]:
     out = []
     for idx in range(scope.start_line, (scope.end_line or len(lines)) + 1):
         raw = lines[idx - 1]
-        if PRIMARY_HEADING_RE.search(raw):
-            out.append({"line": idx, "text": raw.strip(), "classification": "note_internal_decoy"})
+        if _is_primary_title(raw):
+            out.append({
+                "line": idx,
+                "text": raw.strip(),
+                "normalized": _normalized_title_line(raw),
+                "classification": "note_internal_decoy",
+            })
     return out
+
+
+def explain_notes_scope_candidates(text: str) -> list[dict]:
+    """Public diagnostic helper used by the v23 coverage evaluator."""
+    lines = text.splitlines()
+    return [asdict(c) for c in _title_candidates(lines)]

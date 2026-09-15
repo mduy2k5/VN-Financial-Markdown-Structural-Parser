@@ -1,2 +1,2 @@
-v22.5.0-notes-foundation
-Additive Generic Note IR, sticky Notes scope, multi-dimensional note tables, sector profiles, explicit-reference linking and non-destructive PRIMARY > NOTES reconciliation.
+v23.0.0-notes-scope-coverage
+Notes Scope & Coverage Patch: presentation-normalized Notes title detection, TOC rejection, scanner validation, sticky scope preservation, and 57-file batch coverage evaluator. PRIMARY > NOTES remains non-destructive.

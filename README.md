@@ -2,7 +2,7 @@
 
 Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
 
-Phiên bản phát hành: **Release v22.4.2** — **171 / 171 statements đạt tiêu chí release**, với row-level matching accuracy tổng thể **99.80%** trên toàn bộ tập dữ liệu 57 doanh nghiệp lớn thuộc 4 khối ngành tài chính và **100.0%** (183/183 dòng) trên bộ 3 tệp kiểm thử mở rộng (BID, FPT, VNM). Toàn bộ 171 báo cáo và 11.190 node đều có đơn vị tính chuẩn xác (100.0% Unit Completeness).
+Phiên bản phát hành: **Release v23.0.0** — **Notes Scope & Coverage Patch**: Đạt tỷ lệ phát hiện phạm vi Thuyết minh BCTC **57/57 tệp (100.0%)** trên toàn bộ corpus tham chiếu chính thức. Giữ vững **171 / 171 primary statements đạt tiêu chuẩn release** (B01, B02, B03), nguyên tắc `PRIMARY > NOTES` bảo toàn $100\%$ không gây hồi quy (Zero Regression), độ chính xác khớp dòng đạt **99.80%** (3.398/3.408 dòng) và **100.0%** (406/406 dòng trên bộ 3 tệp kiểm thử mở rộng BID, FPT, VNM).
 
 ## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
 
@@ -142,13 +142,15 @@ Flatten/
 ├── md_reports/                        # [Input] 57 tệp BCTC Markdown từ Vision-LLM
 ├── output/                            # [Output] Kết quả chuẩn hóa và đối soát
 ├── ground_truth/                      # 57 tệp baseline Ground Truth
+├── evaluation_57/                     # Báo cáo đánh giá phạm vi & độ phủ Thuyết minh 57 BCTC
 ├── tests/                             # Unit tests hiện hành
 │   └── legacy/                        # Tests v0.4.x (archived)
 ├── samples/                           # Dữ liệu mẫu kiểm thử
 ├── scripts/                           # Script tiện ích
 │   ├── rebuild_universal_guide.py
 │   ├── rebuild_guide.ps1
-│   └── build_coverage_report.py
+│   ├── build_coverage_report.py
+│   └── evaluate_notes_coverage.py     # Đánh giá inventory & độ phủ Thuyết minh trên 57 BCTC
 │
 ├── README.md
 ├── VERSION.txt
