@@ -98,10 +98,12 @@ Công cụ của chúng ta giải quyết triệt để bài toán này bằng k
 
 ```text
 Flatten/
-├── pipeline.py                        # [Entry Point] Pipeline thống nhất cả 3 BCTC
+├── pipeline.py                        # [Entry Point] Pipeline thống nhất 3 BCTC + Thuyết minh (Notes IR)
 ├── run_debug.py                       # [Debug Tool] CLI cho flat_parser (FP only, A/B compare)
+├── run_notes.py                       # [Notes Tool] CLI độc lập cho subsystem Thuyết minh BCTC
 │
 ├── src/                               # [Core Business Logic]
+│   ├── notes/                         # [Subsystem] Trích xuất & cấu trúc Thuyết minh BCTC (Generic Note IR)
 │   ├── value_semantics.py             # Nhận diện & kế thừa đơn vị tính toàn diện (Unit Propagation)
 │   ├── income_mapper.py               # Engine ánh xạ Kết quả Hoạt động Kinh doanh
 │   ├── income_formula_validation.py   # Kiểm toán dấu kế toán & công thức 4 ngành KQKD

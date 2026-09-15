@@ -1,2 +1,2 @@
-v22.4.2
-Cash Flow Fidelity & Comprehensive Unit Propagation: support CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE (code 62), preserve dash period alignment, document-level and cross-statement currency propagation with zero arithmetic scaling.
+v22.5.0-notes-foundation
+Additive Generic Note IR, sticky Notes scope, multi-dimensional note tables, sector profiles, explicit-reference linking and non-destructive PRIMARY > NOTES reconciliation.

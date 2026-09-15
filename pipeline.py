@@ -34,6 +34,11 @@ from pipeline_metrics import (
     build_cashflow_metrics,
 )
 
+try:
+    from notes.pipeline import NotesPipeline
+except ImportError:
+    from src.notes.pipeline import NotesPipeline
+
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
@@ -296,7 +301,7 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024, fallback_
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
 
-def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str, fp_index: FinancialPositionIndex):
+def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str, fp_index: FinancialPositionIndex, enable_notes: bool = True):
     base = stem_base(md_path)
     source_text = md_path.read_text(encoding="utf-8", errors="ignore")
     doc_unit_ctx = detect_document_unit(source_text)
@@ -353,6 +358,33 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     if fp.get("canonical") is not None:
         write_json(fp_path, fp["canonical"])
 
+    # v22.5 Notes Foundation: additive, non-destructive.
+    # Primary statements stay authoritative; Notes is emitted as a separate Generic Note IR.
+    notes_ir = None
+    notes_path = output_dir / f"{base}.notes.ir.json"
+    if enable_notes:
+        notes_sector = inc.get("sector") or cf.get("sector") or "enterprise"
+        primary_for_notes = {
+            "financial_position": {"canonical": fp.get("canonical") or {}},
+            "income_statement": {"canonical": inc.get("canonical") or {}},
+            "cash_flow_statement": {"canonical": cf.get("canonical") or {}},
+        }
+        notes_ir = NotesPipeline(
+            current_year=current_year,
+            previous_year=previous_year,
+        ).parse_text(
+            source_text,
+            source_name=md_path.name,
+            sector=notes_sector,
+            primary=primary_for_notes,
+        )
+        if (notes_ir.get("diagnostics") or {}).get("notes_found"):
+            write_json(notes_path, notes_ir)
+        elif notes_path.exists():
+            notes_path.unlink()
+    elif notes_path.exists():
+        notes_path.unlink()
+
     merged = deepcopy(existing)
     merged.setdefault("source_name", md_path.name)
     merged.setdefault("mapping_strategy", "legacy")
@@ -368,6 +400,22 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "v01": cf["metrics"],
         "canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
     }
+    if notes_ir is not None:
+        nd = notes_ir.get("diagnostics") or {}
+        merged["notes"] = {
+            "schema_id": notes_ir.get("schema_id"),
+            "schema_version": notes_ir.get("schema_version"),
+            "status": "parsed" if nd.get("notes_found") else "not_detected",
+            "ir_file": notes_path.name if nd.get("notes_found") else None,
+            "scope_start": notes_ir.get("scope_start_line"),
+            "scope_end": notes_ir.get("scope_end_line"),
+            "sections": nd.get("section_count", 0),
+            "tables": nd.get("table_count", 0),
+            "rows": nd.get("row_count", 0),
+            "links": nd.get("link_count", 0),
+            "high_confidence_links": nd.get("high_confidence_links", 0),
+            "policy": "PRIMARY_GT_NOTES_non_destructive_v1",
+        }
     merged_path = output_dir / f"{base}.comparison.json"
     write_json(merged_path, merged)
 
@@ -414,11 +462,20 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "comparison_file": merged_path.name,
         "canonical_file": income_path.name if inc["canonical"] is not None else None,
         "cashflow_canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
+        "notes_status": (
+            "parsed" if notes_ir is not None and (notes_ir.get("diagnostics") or {}).get("notes_found")
+            else ("not_detected" if enable_notes else "disabled")
+        ),
+        "notes_sections": ((notes_ir or {}).get("diagnostics") or {}).get("section_count", 0),
+        "notes_tables": ((notes_ir or {}).get("diagnostics") or {}).get("table_count", 0),
+        "notes_rows": ((notes_ir or {}).get("diagnostics") or {}).get("row_count", 0),
+        "notes_links": ((notes_ir or {}).get("diagnostics") or {}).get("link_count", 0),
+        "notes_ir_file": notes_path.name if notes_ir is not None and (notes_ir.get("diagnostics") or {}).get("notes_found") else None,
     }
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Integrated 3-statement mapper: Financial Position + Income + Cash Flow.")
+    ap = argparse.ArgumentParser(description="Integrated mapper: Financial Position + Income + Cash Flow + additive Notes IR.")
     ap.add_argument("input", help="Markdown file or folder")
     ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json")
     ap.add_argument("--financial-position-dir", help="Folder containing completed <base>.canonical.json Financial Position outputs. If omitted, nearby workspace folders are auto-scanned.")
@@ -427,6 +484,12 @@ def main():
     ap.add_argument("--previous-year", type=int, default=2024)
     ap.add_argument("--sector", choices=["auto", "bank", "enterprise", "securities", "insurance"], default="auto",
                     help="Income override only; Cash Flow sector is independently detected from its own scope.")
+    ap.add_argument(
+        "--notes",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable/disable v22.5 additive Notes IR extraction. Primary statements remain authoritative.",
+    )
     args = ap.parse_args()
 
     input_path = Path(args.input)
@@ -456,7 +519,7 @@ def main():
     rows = []
     for p in md_files:
         try:
-            r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector, fp_index)
+            r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector, fp_index, enable_notes=args.notes)
             rows.append(r)
             print(
                 f"[OK] {p.name}: fp={r['financial_position_status']} nodes={r['financial_position_value_nodes']} "
@@ -486,7 +549,8 @@ def main():
         "financial_position_previous_nodes","financial_position_recovered_rows",
         "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
         "financial_position_canonical_file","financial_position_preserved",
-        "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file","error"
+        "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file",
+        "notes_status","notes_sections","notes_tables","notes_rows","notes_links","notes_ir_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")

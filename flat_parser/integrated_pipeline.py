@@ -8,22 +8,28 @@ from .preprocess import filter_noise
 from .statement_scanner import (
     STATEMENT_FINANCIAL_POSITION,
     STATEMENT_OFF_BALANCE,
+    STATEMENT_NOTES,
     scan_statements,
 )
 from .textnorm import normalize_lines
 from .resource_adapter import build_income_compatible_resources
 
+try:
+    from src.notes.pipeline import NotesPipeline
+except ImportError:
+    try:
+        from notes.pipeline import NotesPipeline
+    except ImportError:
+        NotesPipeline = None
+
 
 class IntegratedFinancialPipeline:
     """Route one Markdown financial report into statement-specific resources.
 
-    v0.5.0 intentionally enables only:
-      - FINANCIAL_POSITION -> existing B02/B01 universal schema
-    - OFF_BALANCE(bank) -> OFF_BALANCE Alias Pack v1.3
-    - INCOME_STATEMENT -> Universal Income Statement v1
-
-    Cash-flow ranges are detected and exposed in scanner metadata but are not
-    parsed until its canonical resource pack exists.
+    v22.5 Notes integration is strictly additive:
+      - existing financial position/off-balance/income behavior is preserved;
+      - Notes is parsed by a separate Generic Note IR subsystem;
+      - Notes never overwrites primary canonical values.
     """
 
     def __init__(
@@ -39,6 +45,7 @@ class IntegratedFinancialPipeline:
         allow_fuzzy=False,
         allow_unknown_structure=False,
         mapping_strategy="legacy",
+        enable_notes=True,
     ):
         self.financial = FlatParserPipeline(
             schema_path=financial_schema_path,
@@ -50,6 +57,8 @@ class IntegratedFinancialPipeline:
             mapping_strategy=mapping_strategy,
         )
         self.mapping_strategy = mapping_strategy
+        self.enable_notes = bool(enable_notes)
+
         self.off_balance = FlatParserPipeline(
             schema_path=off_balance_schema_path,
             aliases_path=off_balance_aliases_path,
@@ -59,6 +68,7 @@ class IntegratedFinancialPipeline:
             allow_unknown_structure=allow_unknown_structure,
             mapping_strategy=mapping_strategy,
         )
+
         self._income_resource_dir = tempfile.TemporaryDirectory(prefix="flat-income-")
         income_schema = Path(self._income_resource_dir.name) / "schema.json"
         income_aliases = Path(self._income_resource_dir.name) / "aliases.json"
@@ -74,6 +84,7 @@ class IntegratedFinancialPipeline:
             allow_unknown_structure=allow_unknown_structure,
             mapping_strategy=mapping_strategy,
         )
+        self.notes = NotesPipeline() if self.enable_notes and NotesPipeline is not None else None
 
     @staticmethod
     def _range(scanner: dict, statement_type: str):
@@ -164,9 +175,46 @@ class IntegratedFinancialPipeline:
                 "status": "not_detected",
             })
 
+        notes_range = self._range(scanner, STATEMENT_NOTES)
+        if self.notes is not None and notes_range:
+            # Pass already-parsed primary statements for link/reconciliation evidence.
+            note_ir = self.notes.parse_text(
+                raw_text,
+                source_name=source_name,
+                sector=sector,
+                scanner_result=scanner,
+                primary=statements,
+            )
+            statements["notes"] = note_ir
+            routing.append({
+                "statement_type": STATEMENT_NOTES,
+                "status": "parsed",
+                "resource_profile": "generic_note_ir_v1",
+                "range": [notes_range["start_line"], note_ir.get("scope_end_line")],
+            })
+        elif notes_range:
+            routing.append({
+                "statement_type": STATEMENT_NOTES,
+                "status": "detected_not_enabled",
+                "range": [notes_range["start_line"], notes_range["end_line"]],
+            })
+        else:
+            routing.append({
+                "statement_type": STATEMENT_NOTES,
+                "status": "not_detected",
+            })
+
+        enabled = {
+            STATEMENT_FINANCIAL_POSITION,
+            STATEMENT_OFF_BALANCE,
+            "INCOME_STATEMENT",
+        }
+        if self.notes is not None:
+            enabled.add(STATEMENT_NOTES)
+
         detected_unparsed = []
         for r in scanner.get("ranges", []):
-            if r.get("statement_type") not in {STATEMENT_FINANCIAL_POSITION, STATEMENT_OFF_BALANCE, "INCOME_STATEMENT"}:
+            if r.get("statement_type") not in enabled:
                 detected_unparsed.append({
                     "statement_type": r.get("statement_type"),
                     "range": [r.get("start_line"), r.get("end_line")],
@@ -185,4 +233,7 @@ class IntegratedFinancialPipeline:
 
     def parse_file(self, path):
         path = Path(path)
-        return self.parse_text(path.read_text(encoding="utf-8-sig"), source_name=path.name)
+        return self.parse_text(
+            path.read_text(encoding="utf-8-sig"),
+            source_name=path.name,
+        )
