@@ -104,14 +104,18 @@ Flatten/
 ├── src/                               # [Core Business Logic]
 │   ├── value_semantics.py             # Nhận diện & kế thừa đơn vị tính toàn diện (Unit Propagation)
 │   ├── income_mapper.py               # Engine ánh xạ Kết quả Hoạt động Kinh doanh
+│   ├── income_formula_validation.py   # Kiểm toán dấu kế toán & công thức 4 ngành KQKD
 │   ├── income_observation_patch.py    # Fallback & hàn gắn ngắt dòng KQKD
+│   ├── income_scope_selector.py       # Định vị phạm vi & xếp hạng ứng viên BCTC KQKD
 │   ├── cashflow_mapper.py             # Engine ánh xạ Lưu chuyển Tiền tệ
 │   ├── cashflow_observation_patch.py  # Phân loại LCTT (Trực tiếp / Gián tiếp)
 │   ├── financial_position_bridge.py   # Cầu nối tích hợp Bảng CĐKT
+│   ├── pipeline_metrics.py            # Tính toán metrics, tỷ lệ phủ & chất lượng bóc tách
 │   ├── period_identity_repair.py      # Sửa lỗi nhận diện niên độ
 │   ├── source_observation_layer.py    # Tầng quan sát dữ liệu gốc
 │   ├── source_reconciliation.py       # Đối soát và bảo toàn giá trị gốc
 │   ├── source_statement_recovery.py   # Khôi phục dòng bị phân mảnh
+│   ├── source_canonical_hydrator.py   # Đối soát, bù đắp mã số biểu mẫu & hợp nhất canonical
 │   └── analyze_income_summary.py      # Phân tích và phân loại điểm sai lệch
 │
 ├── flat_parser/                       # Engine trích xuất cấu trúc Bảng CĐKT
