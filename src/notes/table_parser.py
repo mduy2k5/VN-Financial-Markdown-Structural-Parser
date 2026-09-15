@@ -6,51 +6,39 @@ from typing import Optional
 from .note_ir import NoteBlock, NoteRow, NoteValue
 from .sectionizer import fold_text
 
-
-SEP_CELL_RE = re.compile(r"^:?-{3,}:?$")
-NUM_RE = re.compile(r"^\(?\s*[-+]?\d[\d.,\s]*\)?$")
-DASHES = {"-", "–", "—", "−"}
+SEP_CELL_RE = re.compile(r'^:?-{3,}:?$')
+DASHES = {'-', '–', '—', '−'}
 
 
 def split_pipe_cells(raw: str) -> list[str]:
     s = raw.strip()
-    if s.startswith("|"):
-        s = s[1:]
-    if s.endswith("|"):
-        s = s[:-1]
-    return [x.strip() for x in s.split("|")]
+    if s.startswith('|'): s = s[1:]
+    if s.endswith('|'): s = s[:-1]
+    return [x.strip() for x in s.split('|')]
 
 
 def is_separator_row(cells: list[str]) -> bool:
     return len(cells) >= 2 and all((not c) or SEP_CELL_RE.fullmatch(c) for c in cells)
 
 
+def _strip_md(s: str) -> str:
+    return re.sub(r'[*_`]', '', s or '').strip()
+
+
 def parse_number(raw: str):
-    s = (raw or "").strip().replace("−", "-")
-    s = re.sub(r"[*_`]", "", s).strip()
-    if not s or s in DASHES:
-        return None
-    neg = s.startswith("(") and ")" in s
-    s = s.strip().strip("()").replace(" ", "")
-    if not re.fullmatch(r"-?\d[\d.,]*", s):
-        return None
+    s = _strip_md(raw).replace('−', '-').strip()
+    if not s or s in DASHES: return None
+    neg = s.startswith('(') and ')' in s
+    s = s.strip().strip('()').replace(' ', '')
+    if not re.fullmatch(r'-?\d[\d.,]*', s): return None
     try:
-        if re.fullmatch(r"-?\d{1,3}(?:\.\d{3})+", s):
-            x = int(s.replace(".", ""))
-        elif re.fullmatch(r"-?\d{1,3}(?:,\d{3})+", s):
-            x = int(s.replace(",", ""))
-        elif re.fullmatch(r"-?\d+", s):
-            x = int(s)
-        elif re.fullmatch(r"-?\d+[.,]\d+", s):
-            # Financial reports overwhelmingly use one separator as decimal only
-            # when the tail is not a 3-digit thousands group.
-            tail = re.split(r"[.,]", s)[-1]
-            if len(tail) == 3:
-                x = int(re.sub(r"[.,]", "", s))
-            else:
-                x = float(s.replace(",", "."))
-        else:
-            x = int(re.sub(r"[.,]", "", s))
+        if re.fullmatch(r'-?\d{1,3}(?:\.\d{3})+', s): x = int(s.replace('.', ''))
+        elif re.fullmatch(r'-?\d{1,3}(?:,\d{3})+', s): x = int(s.replace(',', ''))
+        elif re.fullmatch(r'-?\d+', s): x = int(s)
+        elif re.fullmatch(r'-?\d+[.,]\d+', s):
+            tail = re.split(r'[.,]', s)[-1]
+            x = int(re.sub(r'[.,]', '', s)) if len(tail) == 3 else float(s.replace(',', '.'))
+        else: x = int(re.sub(r'[.,]', '', s))
         return -abs(x) if neg else x
     except Exception:
         return None
@@ -58,108 +46,83 @@ def parse_number(raw: str):
 
 def _row_role(label: str) -> str:
     f = fold_text(label)
-    if any(x in f for x in ("tong cong", "cong", "tong doanh thu", "tong gia von", "tong chi phi")):
-        return "total"
-    if any(x in f for x in ("cuoi nam", "31 12", "so du cuoi")):
-        return "closing"
-    if any(x in f for x in ("dau nam", "01 01", "so du dau")):
-        return "opening"
-    if any(x in f for x in ("mua trong nam", "tang trong nam", "giam trong nam", "thanh ly", "khau hao trong nam", "trich lap", "hoan nhap")):
-        return "movement"
-    return "detail"
+    if any(x in f for x in ('tong cong', 'cong', 'tong doanh thu', 'tong gia von', 'tong chi phi')): return 'total'
+    if any(x in f for x in ('cuoi nam', '31 12', 'so du cuoi', 'tai ngay 31 thang 12 nam 2025')): return 'closing'
+    if any(x in f for x in ('dau nam', '01 01', 'so du dau', 'tai ngay 1 thang 1 nam 2025', 'tai ngay 31 thang 12 nam 2024')): return 'opening'
+    if any(x in f for x in ('mua trong nam', 'tang trong nam', 'giam trong nam', 'thanh ly', 'khau hao trong nam', 'trich lap', 'hoan nhap')): return 'movement'
+    return 'detail'
 
 
 def _infer_period_role(header: str) -> Optional[str]:
     f = fold_text(header)
-    # Opening-balance labels such as 01/01/2025 belong to the comparative/previous
-    # slot even though they contain the current calendar year. Resolve specific
-    # opening-period semantics before generic year tokens.
-    if any(x in f for x in ("01 01 2025", "dau nam", "nam truoc", "gia tri 2024", "2024")):
-        return "previous"
-    if any(x in f for x in ("31 12 2025", "cuoi nam", "nam nay", "gia tri 2025", "2025")):
-        return "current"
+    if any(x in f for x in ('01 01 2025', 'dau nam', 'nam truoc', 'gia tri 2024', '2024')): return 'previous'
+    if any(x in f for x in ('31 12 2025', 'cuoi nam', 'nam nay', 'gia tri 2025', '2025')): return 'current'
     return None
 
 
 def _infer_measure(header: str) -> Optional[str]:
     f = fold_text(header)
-    if "du phong" in f:
-        return "provision"
-    if "gia tri ghi so" in f or "gia tri thuan" in f or "con lai" in f:
-        return "carrying_amount"
-    if "gia goc" in f or "nguyen gia" in f:
-        return "cost"
-    if "gia tri" in f:
-        return "value"
+    if 'du phong' in f: return 'provision'
+    if 'gia tri ghi so' in f or 'gia tri thuan' in f or 'con lai' in f: return 'carrying_amount'
+    if 'gia goc' in f or 'nguyen gia' in f: return 'cost'
+    if 'gia tri' in f: return 'value'
     return None
 
 
+def _is_data_row(cells: list[str]) -> bool:
+    if len(cells) < 2: return False
+    numeric = sum(1 for x in cells[1:] if parse_number(x) is not None or _strip_md(x) in DASHES)
+    return numeric >= max(1, (len(cells) - 1 + 1) // 2)
+
+
+def _compose_headers(header_rows: list[list[str]], width: int) -> list[str]:
+    out = []
+    for col in range(width):
+        parts = []
+        for row in header_rows:
+            val = _strip_md(row[col] if col < len(row) else '')
+            if not val: continue
+            # Unit-only rows are retained in header provenance but do not become semantic header labels.
+            if fold_text(val) in {'trieu dong', 'dong', 'vnd', 'nghin dong'}: continue
+            if not parts or fold_text(parts[-1]) != fold_text(val): parts.append(val)
+        out.append(' / '.join(parts))
+    return out
+
+
 def parse_markdown_tables(section_text: str, base_line: int, block_prefix: str) -> list[NoteBlock]:
-    lines = section_text.splitlines()
-    out: list[NoteBlock] = []
-    i = 0
-    block_no = 0
+    lines = section_text.splitlines(); out=[]; i=0; block_no=0
     while i < len(lines):
-        if "|" not in lines[i]:
-            i += 1
-            continue
-
-        # A Markdown table requires a separator on the immediately following row.
-        if i + 1 >= len(lines):
-            i += 1
-            continue
-        header = split_pipe_cells(lines[i])
-        sep = split_pipe_cells(lines[i + 1])
-        if not is_separator_row(sep):
-            i += 1
-            continue
-
-        rows_raw = []
-        j = i + 2
-        while j < len(lines) and "|" in lines[j]:
-            cells = split_pipe_cells(lines[j])
-            if cells and not is_separator_row(cells):
-                rows_raw.append((j, cells))
+        if '|' not in lines[i] or i+1 >= len(lines): i += 1; continue
+        first = split_pipe_cells(lines[i]); sep = split_pipe_cells(lines[i+1])
+        if not is_separator_row(sep): i += 1; continue
+        raw_rows=[]; j=i+2
+        while j < len(lines) and '|' in lines[j]:
+            cells=split_pipe_cells(lines[j])
+            if cells and not is_separator_row(cells): raw_rows.append((j,cells))
             j += 1
-
+        width=max([len(first)] + [len(c) for _,c in raw_rows])
+        header_rows=[first]
+        data_start=0
+        # Multi-row headers: consume leading non-data rows after separator.
+        for ridx, (_, cells) in enumerate(raw_rows):
+            if _is_data_row(cells):
+                data_start=ridx; break
+            header_rows.append(cells); data_start=ridx+1
+        headers=_compose_headers(header_rows,width)
         block_no += 1
-        block = NoteBlock(
-            block_id=f"{block_prefix}:table_{block_no}",
-            form="table",
-            semantic_shape="unknown",
-            source_start_line=base_line + i,
-            source_end_line=base_line + max(i + 1, j - 1),
-            headers_raw=header,
-            headers_normalized=[fold_text(x) for x in header],
-            rows=[],
-            metadata={"parser": "markdown_pipe_table_v1"},
-        )
-
-        value_headers = header[1:]
-        for local_idx, cells in rows_raw:
-            if not cells:
-                continue
-            label = re.sub(r"[*_`]", "", cells[0]).strip()
-            values = []
+        block=NoteBlock(block_id=f'{block_prefix}:table_{block_no}', form='table', semantic_shape='unknown',
+            source_start_line=base_line+i, source_end_line=base_line+max(i+1,j-1), headers_raw=headers,
+            headers_normalized=[fold_text(x) for x in headers], rows=[],
+            metadata={'parser':'markdown_pipe_table_v23_1','raw_header_rows':header_rows})
+        for local_idx,cells in raw_rows[data_start:]:
+            if not _is_data_row(cells): continue
+            label=_strip_md(cells[0]); values=[]
             for cidx, raw in enumerate(cells[1:], start=1):
-                hdr = value_headers[cidx - 1] if cidx - 1 < len(value_headers) else ""
-                values.append(NoteValue(
-                    raw=raw,
-                    normalized=parse_number(raw),
-                    period_label=hdr or None,
-                    period_role=_infer_period_role(hdr),
-                    measure=_infer_measure(hdr),
-                    source_line=base_line + local_idx,
-                    source_column=cidx,
-                ))
-            block.rows.append(NoteRow(
-                label_raw=label,
-                label_normalized=fold_text(label),
-                values=values,
-                row_role=_row_role(label),
-                source_line=base_line + local_idx,
-                raw_cells=cells,
-            ))
-        out.append(block)
-        i = j
+                hdr=headers[cidx] if cidx < len(headers) else ''
+                values.append(NoteValue(raw=raw, normalized=parse_number(raw), period_label=hdr or None,
+                    period_role=_infer_period_role(hdr), measure=_infer_measure(hdr), source_line=base_line+local_idx, source_column=cidx))
+            block.rows.append(NoteRow(label_raw=label,label_normalized=fold_text(label),values=values,row_role=_row_role(label),
+                source_line=base_line+local_idx,raw_cells=cells))
+        if block.rows: out.append(block)
+        i=j
     return out

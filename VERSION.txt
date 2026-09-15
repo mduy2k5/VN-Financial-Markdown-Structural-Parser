@@ -1,2 +1,2 @@
-v23.0.1-notes-rows-output
-v23 Notes Scope & Coverage + row-level Notes export folder (CSV/JSON) without changing extraction/canonical semantics.
+v23.1.0-structural-notes-extraction
+Structural Notes extraction for Markdown multi-row tables and bullet/plain OCR key-value layouts; row-level output preserved.

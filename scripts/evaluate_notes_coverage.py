@@ -15,7 +15,6 @@ if str(ROOT) not in sys.path:
 from src.notes.pipeline import NotesPipeline
 from src.notes.scanner import detect_notes_scope, explain_notes_scope_candidates
 
-
 try:
     from flat_parser.preprocess import filter_noise
     from flat_parser.textnorm import normalize_lines

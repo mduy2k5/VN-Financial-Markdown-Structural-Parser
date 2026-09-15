@@ -1,5 +1,6 @@
 # Local generated outputs and source datasets
 output/
+output_notes/
 ground_truth/
 REGRESSION_LOCAL.json
 LOCAL_SMOKE.json
