@@ -70,6 +70,7 @@ def _candidate_from_line(raw:str):
     intentionally excluded so data lines like `* Số cuối năm:` cannot open sections.
     """
     if BULLET_PREFIX_RE.match(raw): return None
+    indent = len(raw) - len(raw.lstrip(' '))
     hm=HEADING_RE.match(raw)
     level=len(hm.group(1)) if hm else 0
     body=_strip_md(hm.group(2) if hm else raw)
@@ -83,10 +84,21 @@ def _candidate_from_line(raw:str):
         if not title: return None
         # Reject long prose sentences accidentally starting with a number.
         if len(title)>220 and level==0: return None
-        return (nm.group('id'),title,level or 2,'numbered')
+        stripped = raw.strip()
+        if level:
+            style = 'markdown_heading'
+        elif re.match(r'^\s*(?:\*\*|__)', raw) and re.search(r'(?:\*\*|__)\s*$', raw):
+            style = 'full_bold'
+        elif re.match(r'^\s*\d[^)]*[.)-]?\s+(?:\*\*|__).*?(?:\*\*|__)\s*$', raw):
+            style = 'numbered_full_title_bold'
+        elif '**' in raw or '__' in raw:
+            style = 'inline_markup'
+        else:
+            style = 'plain'
+        return (nm.group('id'),title,level or 2,'numbered',style,indent,stripped)
     rm=ROMAN_SECTION_RE.match(body)
     if rm:
-        return (rm.group('id'),rm.group('title').strip(),level or 1,'roman')
+        return (rm.group('id'),rm.group('title').strip(),level or 1,'roman','markdown_heading' if level else 'plain',indent,raw.strip())
     return None
 
 
@@ -98,8 +110,47 @@ def sectionize_notes(text:str,scope:NotesScope)->list[NoteSection]:
     for line_no in range(start,end+1):
         c=_candidate_from_line(lines[line_no-1])
         if c:
-            nid,title,level,kind=c
-            candidates.append((line_no,nid,title,level,kind))
+            candidates.append((line_no,*c))
+    filtered=[]
+    for candidate in candidates:
+        line_no,nid,title,level,kind,style,indent,stripped=candidate
+        if kind == 'numbered':
+            # A full-line bold numbered title is the strongest non-heading form
+            # used by the source corpus (for example `**8.1. Theo ...**`). Keep it
+            # even when its title is title case rather than uppercase.
+            if style == 'full_bold':
+                filtered.append(candidate)
+                continue
+            prev_line = lines[filtered[-1][0]-1] if filtered else ''
+            prev_blank = not prev_line.strip()
+            title_folded = fold_text(title)
+            title_is_upper = title == title.upper() and any(ch.isalpha() for ch in title)
+            prev_id = filtered[-1][1] if filtered else None
+            current_id = normalize_note_id(nid)
+            is_nested = indent > 0 and not (prev_id and current_id.startswith(normalize_note_id(prev_id) + '.'))
+            has_colon = ':' in title
+            if re.match(r'^\s*\d+\)', stripped) or has_colon or style == 'inline_markup' or is_nested:
+                continue
+            if style == 'numbered_full_title_bold' and prev_id and current_id == normalize_note_id(prev_id):
+                continue
+            # A numbered, fully-bold child such as `2. **Công ty liên doanh**`
+            # commonly follows a top-level numeric note and is a disclosure list
+            # item. Real numbered Notes use a new page/heading style in this case;
+            # the exception for a Roman parent keeps forms such as `V. ...` ->
+            # `1. **Tiền...**` working.
+            if (
+                style == 'numbered_full_title_bold'
+                and prev_id
+                and re.fullmatch(r'\d+(?:\.[0-9A-Za-z()]+)*', normalize_note_id(prev_id) or '')
+                and re.fullmatch(r'\d+', current_id or '')
+            ):
+                continue
+            if indent > 0 and not (prev_id and current_id.startswith(normalize_note_id(prev_id) + '.')):
+                continue
+            if indent == 0 and not (prev_blank or title_is_upper or 'tiep theo' in title_folded or (style == 'numbered_full_title_bold' and (not prev_id or current_id != normalize_note_id(prev_id)))):
+                continue
+        filtered.append(candidate)
+    candidates=filtered
     if not candidates:
         pages=sorted({page_map.get(x) for x in range(start,end+1) if page_map.get(x) is not None})
         return [NoteSection(note_id_raw=None,note_id_normalized=None,title_raw='Thuyết minh Báo cáo tài chính',title_normalized=fold_text('Thuyết minh Báo cáo tài chính'),source_start_line=start,source_end_line=end,pages=pages,metadata={'sectionizer':'whole_scope_fallback'})]
@@ -107,8 +158,10 @@ def sectionize_notes(text:str,scope:NotesScope)->list[NoteSection]:
     # Keep source order. A numbered candidate starts a new section; Roman headings are
     # retained too because they represent major disclosure families.
     sections=[]
-    for i,(line_no,nid,title,level,kind) in enumerate(candidates):
+    for i,(line_no,nid,title,level,kind,style,indent,stripped) in enumerate(candidates):
         next_line=candidates[i+1][0]-1 if i+1<len(candidates) else end
         pages=sorted({page_map.get(x) for x in range(line_no,next_line+1) if page_map.get(x) is not None})
-        sections.append(NoteSection(note_id_raw=nid,note_id_normalized=normalize_note_id(nid),title_raw=title,title_normalized=fold_text(title),source_start_line=line_no,source_end_line=next_line,pages=pages,metadata={'heading_level':level,'sectionizer':'structural_heading_v23_1','heading_kind':kind}))
+        logical_id=normalize_note_id(nid)
+        instance_id=f"{logical_id or 'LINE'}@L{line_no}"
+        sections.append(NoteSection(note_id_raw=nid,note_id_normalized=logical_id,title_raw=title,title_normalized=fold_text(title),source_start_line=line_no,source_end_line=next_line,section_instance_id=instance_id,pages=pages,metadata={'heading_level':level,'sectionizer':'structural_heading_v23_1','heading_kind':kind,'heading_style':style,'indent':indent}))
     return sections

@@ -7,7 +7,9 @@ from flat_parser.semantic_catalog import SemanticCatalog
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "resources" / "universal_financial_position_schema_v1_6.json"
-ALIASES = ROOT / "resources" / "universal_financial_position_aliases_v1_6.json"
+_cand_aliases = ROOT / "resources" / "universal_financial_position_aliases_v1_6.json"
+ALIASES = _cand_aliases if _cand_aliases.exists() else ROOT / "resources" / "universal_financial_position_aliases_v1_6_1.json"
+
 
 
 def test_schema_alias_v16_sets_identical_and_has_extensions():

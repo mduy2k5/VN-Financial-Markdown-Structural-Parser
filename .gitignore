@@ -1,6 +1,14 @@
 # Local generated outputs and source datasets
 output/
 output_notes/
+output_notes_linked/
+output_notes_linked_audited/
+output_notes_linked_v2/
+output_notes_linked_specialized/
+output_notes_linked_specialized_v4/
+demo_run/
+demo_output/
+reconciliation_review_v2/
 ground_truth/
 REGRESSION_LOCAL.json
 LOCAL_SMOKE.json

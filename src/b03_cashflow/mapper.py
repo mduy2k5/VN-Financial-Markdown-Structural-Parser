@@ -8,10 +8,18 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Optional
 
-_parent = Path(__file__).resolve().parent
-ROOT = _parent if (_parent / "resources").exists() else _parent.parent
+def _find_root(start: Path) -> Path:
+    cur = start.resolve()
+    for _ in range(5):
+        if (cur / "resources").exists():
+            return cur
+        cur = cur.parent
+    return start.resolve().parents[1]
+
+ROOT = _find_root(Path(__file__))
 DEFAULT_SCHEMA = ROOT / "resources" / "cash_flow_schema.json"
 DEFAULT_ALIASES = ROOT / "resources" / "cash_flow_aliases.json"
+
 
 
 def strip_md(s: Any) -> str:

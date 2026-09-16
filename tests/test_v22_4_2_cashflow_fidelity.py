@@ -2,10 +2,9 @@ from pathlib import Path
 import json
 import tempfile
 
-from cashflow_observation_patch import extract_cashflow_fallback
-from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
-from source_statement_recovery import extract_generic_statement_rows
-from income_mapper import parse_number as parse_income_number
+from src.b03_cashflow import CashFlowMapper, adapt_cashflow_row, extract_cashflow_fallback
+from src.common import extract_generic_statement_rows
+from src.b02_income.mapper import parse_number as parse_income_number
 
 
 def test_dash_is_null_not_zero():

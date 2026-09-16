@@ -14,9 +14,35 @@ RECON_TOKENS = (
 )
 AGING_TOKENS = ("qua han", "chua qua han", "duoi 30", "30 90", "90 180", "tren 180")
 
+MOVEMENT_ROLE_PATTERNS = (
+    ("opening", ("dau nam", "dau ky", "so du dau")),
+    ("addition", ("mua trong nam", "tang trong nam", "phat sinh", "bo sung", "ghi nhan")),
+    ("disposal", ("thanh ly", "nhuong ban", "giam trong nam", "xoa so")),
+    ("depreciation", ("khau hao", "hao mon", "phan bo")),
+    ("closing", ("cuoi nam", "cuoi ky", "so du cuoi")),
+    ("reversal", ("hoan nhap",)),
+)
+
+
+def infer_movement_role(label: str | None) -> str | None:
+    folded = fold_text(label or "")
+    for role, tokens in MOVEMENT_ROLE_PATTERNS:
+        if any(token in folded for token in tokens):
+            return role
+    return None
+
 
 def infer_dimensions(block: NoteBlock) -> NoteBlock:
     if block.form != "table":
+        period_members = []
+        seen = set()
+        for row in block.rows:
+            for value in row.values:
+                if value.period_role and value.period_role not in seen:
+                    period_members.append({"role": value.period_role, "label": value.period_label})
+                    seen.add(value.period_role)
+        if period_members:
+            block.dimensions = [{"kind": "period", "members": period_members}]
         return block
 
     headers = [fold_text(x) for x in block.headers_raw]

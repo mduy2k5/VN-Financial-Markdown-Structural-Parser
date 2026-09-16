@@ -4,7 +4,10 @@ import collections
 import hashlib
 from typing import Any
 
-from source_statement_recovery import clean, fold
+try:
+    from .source_recovery import clean, fold
+except ImportError:
+    from source_recovery import clean, fold
 
 
 def _value_key(v: Any):

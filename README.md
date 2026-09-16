@@ -4,6 +4,18 @@ Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện
 
 Phiên bản phát hành: **Release v23.1.0** — **Structural Notes Extraction**: Bóc tách cấu trúc Thuyết minh BCTC mở rộng từ Markdown đa dòng (multi-row table headers) và định dạng OCR dạng bullet/cặp niên độ (current/previous bullet pairs). Đạt độ phủ **57/57 tệp (100.0%)**, trích xuất thành công **27.542 dòng Thuyết minh có cấu trúc** (tăng đột biến từ 1.588 dòng ở v23.0.1, tiêu biểu ABB: 567 dòng, ACB: 307 dòng, ANV: 419 dòng). Giữ vững **171 / 171 primary statements đạt tiêu chuẩn release** (B01, B02, B03), bảo toàn nguyên tắc `PRIMARY > NOTES` $100\%$ không gây hồi quy (Zero Regression), độ chính xác khớp dòng đạt **99.80%** (3.398/3.408 dòng) và **100.0%** (406/406 dòng trên bộ 3 tệp kiểm thử mở rộng BID, FPT, VNM).
 
+## Cập nhật kỹ thuật gần nhất
+
+Mã nguồn đã hoàn tất migration sang cấu trúc module theo ba báo cáo chính. Các forwarding shim cũ ở gốc `src/` đã được loại bỏ sau khi toàn bộ test và import nội bộ được chuyển sang package mới:
+
+- `src/b01_financial_position/`: Bảng cân đối kế toán.
+- `src/b02_income/`: KQKD, chọn phạm vi, trích xuất, ánh xạ và kiểm tra công thức.
+- `src/b03_cashflow/`: Lưu chuyển tiền tệ.
+- `src/common/`: đơn vị tiền tệ, kỳ báo cáo, source recovery, reconciliation và hydrator dùng chung.
+- `src/notes/`: Thuyết minh BCTC.
+
+`pytest.ini` chỉ chạy bộ test được hỗ trợ; `tests/legacy/` vẫn được lưu để tham khảo nhưng không thuộc regression suite. Tại lần đánh giá cục bộ mới nhất, scan đủ 57/57 báo cáo không tạo lỗi runtime, giá trị canonical B01/B02/B03 không thay đổi so với batch trước migration, và subset Notes gold khớp 1.177/1.177 dòng. Artifact đánh giá là dữ liệu cục bộ bị Git bỏ qua; có thể tái tạo bằng `python .\scripts\run_demo.py`.
+
 ## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
 
 ### 1.1. Nguồn Gốc & Bối Cảnh Đầu Vào (Input Origin)
@@ -103,22 +115,12 @@ Flatten/
 ├── run_notes.py                       # [Notes Tool] CLI độc lập cho subsystem Thuyết minh BCTC
 │
 ├── src/                               # [Core Business Logic]
-│   ├── notes/                         # [Subsystem] Trích xuất & cấu trúc Thuyết minh BCTC (Generic Note IR)
-│   ├── value_semantics.py             # Nhận diện & kế thừa đơn vị tính toàn diện (Unit Propagation)
-│   ├── income_mapper.py               # Engine ánh xạ Kết quả Hoạt động Kinh doanh
-│   ├── income_formula_validation.py   # Kiểm toán dấu kế toán & công thức 4 ngành KQKD
-│   ├── income_observation_patch.py    # Fallback & hàn gắn ngắt dòng KQKD
-│   ├── income_scope_selector.py       # Định vị phạm vi & xếp hạng ứng viên BCTC KQKD
-│   ├── cashflow_mapper.py             # Engine ánh xạ Lưu chuyển Tiền tệ
-│   ├── cashflow_observation_patch.py  # Phân loại LCTT (Trực tiếp / Gián tiếp)
-│   ├── financial_position_bridge.py   # Cầu nối tích hợp Bảng CĐKT
-│   ├── pipeline_metrics.py            # Tính toán metrics, tỷ lệ phủ & chất lượng bóc tách
-│   ├── period_identity_repair.py      # Sửa lỗi nhận diện niên độ
-│   ├── source_observation_layer.py    # Tầng quan sát dữ liệu gốc
-│   ├── source_reconciliation.py       # Đối soát và bảo toàn giá trị gốc
-│   ├── source_statement_recovery.py   # Khôi phục dòng bị phân mảnh
-│   ├── source_canonical_hydrator.py   # Đối soát, bù đắp mã số biểu mẫu & hợp nhất canonical
-│   └── analyze_income_summary.py      # Phân tích và phân loại điểm sai lệch
+│   ├── b01_financial_position/        # B01: adapter và tích hợp Bảng cân đối
+│   ├── b02_income/                    # B02: scope, extractor, mapper, validator
+│   ├── b03_cashflow/                  # B03: extractor và mapper LCTT
+│   ├── common/                         # Unit/period/source recovery và reconciliation dùng chung
+│   ├── notes/                          # Trích xuất & cấu trúc Thuyết minh BCTC
+│   └── pipeline_metrics.py             # Metrics, tỷ lệ phủ & chất lượng bóc tách
 │
 ├── flat_parser/                       # Engine trích xuất cấu trúc Bảng CĐKT
 │   ├── runner_cli.py                  # Unified CLI (v05 / flow / hybrid / compare modes)
@@ -245,5 +247,9 @@ Mỗi chỉ tiêu trong tệp `.canonical.json` tuân thủ cấu trúc minh b�
 python -m compileall -q .
 
 # Chạy unit tests
-python -m pytest tests/ -q
+python -m pytest -q
 ```
+
+## 9. Demo tổng hợp
+
+Chạy `python .\scripts\run_demo.py` để quét 57 báo cáo trong `md_reports/` và lưu artifact parser theo từng báo cáo: canonical ba bảng chính, Notes IR/rows và summary/manifest. Demo không chạy benchmark, audit hay reconciliation. Xem [DEMO_GUIDE.md](DEMO_GUIDE.md) để biết cấu trúc output.

@@ -58,10 +58,14 @@ def _period_role_and_priority(label: str, current_year: int, previous_year: int)
     f = re.sub(r"\s+", " ", f).strip()
     cumulative = any(x in f for x in ("lũy kế", "luỹ kế", "luy ke", "từ đầu năm", "tu dau nam"))
     if cumulative:
-        if str(current_year) in f or "năm nay" in f or "ky nay" in f or "kỳ này" in f or "cuối quý" in f:
-            return "current", 30
+        # A comparative cumulative label normally still contains the generic
+        # phrase "cuối quý" (for example, "Luỹ kế ... đến cuối quý trước").
+        # Resolve the explicit comparative cue first so it cannot be mistaken
+        # for the current cumulative column merely because of that phrase.
         if str(previous_year) in f or "năm trước" in f or "ky truoc" in f or "kỳ trước" in f or "quý trước" in f:
             return "previous", 30
+        if str(current_year) in f or "năm nay" in f or "ky nay" in f or "kỳ này" in f or "cuối quý" in f:
+            return "current", 30
     if str(current_year) in f or "năm nay" in f:
         return "current", 20
     if str(previous_year) in f or "năm trước" in f:

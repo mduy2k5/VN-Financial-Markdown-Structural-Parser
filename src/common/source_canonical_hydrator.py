@@ -5,12 +5,12 @@ import re
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from .source_statement_recovery import RecoveredRow
+    from .source_recovery import RecoveredRow
 
 try:
-    from .source_statement_recovery import clean, fold, parse_number
+    from .source_recovery import clean, fold, parse_number
 except ImportError:
-    from source_statement_recovery import clean, fold, parse_number
+    from source_recovery import clean, fold, parse_number
 
 
 def _source_id(statement: str, label: str, code: str, line: Optional[int], hierarchy_path: str = "") -> str:

@@ -15,18 +15,19 @@ for _p in (str(ROOT), str(SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from income_observation_patch import extract_income_fallback, strip_md
-from income_mapper import IncomeMapper, adapt_row, auto_sector
-from cashflow_observation_patch import extract_cashflow_fallback, detect_method as detect_cf_method
-from cashflow_mapper import CashFlowMapper, adapt_cashflow_row
-from financial_position_bridge import FinancialPositionIndex, integrate_financial_position
-from source_observation_layer import augment_from_rows
-from source_statement_recovery import (
-    extract_generic_statement_rows, augment_canonical_with_recovered_rows,
-    extract_code_period_table, hydrate_canonical_by_form_code,
+from src.b01_financial_position import FinancialPositionIndex, integrate_financial_position
+from src.b02_income import extract_income_fallback, strip_md, IncomeMapper, adapt_row, auto_sector
+from src.b03_cashflow import extract_cashflow_fallback, detect_method as detect_cf_method, CashFlowMapper, adapt_cashflow_row
+from src.common import (
+    augment_from_rows,
+    extract_generic_statement_rows,
+    augment_canonical_with_recovered_rows,
+    extract_code_period_table,
+    hydrate_canonical_by_form_code,
+    reconcile_source_observations,
+    detect_document_unit,
+    fold_text,
 )
-from source_reconciliation import reconcile_source_observations
-from value_semantics import detect_document_unit, fold_text
 from pipeline_metrics import (
     _scope_text,
     detect_sector_from_scope,
@@ -35,13 +36,14 @@ from pipeline_metrics import (
 )
 
 try:
-    from notes.pipeline import NotesPipeline
-except ImportError:
     from src.notes.pipeline import NotesPipeline
-try:
-    from notes.row_exporter import export_note_rows
 except ImportError:
+    from notes.pipeline import NotesPipeline
+try:
     from src.notes.row_exporter import export_note_rows
+except ImportError:
+    from notes.row_exporter import export_note_rows
+
 
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
@@ -222,6 +224,28 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
     mapper = IncomeMapper(schema_path=SCHEMA, aliases_path=ALIASES, sector=sector, regex_fallback=True,
                           regex_min_score=0.93, regex_gap=0.08)
     mapped = mapper.map_rows(rows)
+    # `SP_INCOME_CODE_LED_MIXED` is a recovery-oriented pattern.  On a layout
+    # that was already captured by a stronger structural pattern it can cross a
+    # neighbouring bullet boundary and contribute a contradictory duplicate.
+    # Keep it when it is the only evidence for a semantic node; otherwise the
+    # complete non-recovery observation is the authoritative parser result.
+    complete_primary_nodes = {
+        row.node_id
+        for row in mapped
+        if row.mapping_status == "mapped"
+        and row.node_id
+        and row.pattern != "SP_INCOME_CODE_LED_MIXED"
+        and row.current is not None
+        and row.previous is not None
+    }
+    mapped = [
+        row for row in mapped
+        if not (
+            row.pattern == "SP_INCOME_CODE_LED_MIXED"
+            and row.mapping_status == "mapped"
+            and row.node_id in complete_primary_nodes
+        )
+    ]
     stmt_unit = ext.get("unit") or fallback_unit
     if stmt_unit == "unknown":
         stmt_unit = None

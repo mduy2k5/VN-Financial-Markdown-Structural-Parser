@@ -21,6 +21,7 @@ class NoteValue:
     movement_role: Optional[str] = None
     measure: Optional[str] = None
     unit: Optional[str] = None
+    unit_canonical: Optional[str] = None
     source_line: Optional[int] = None
     source_column: Optional[int] = None
 
@@ -61,6 +62,7 @@ class NoteBlock:
     text: Optional[str] = None
     unit_raw: Optional[str] = None
     unit: Optional[str] = None
+    unit_canonical: Optional[str] = None
     source_page: Optional[int] = None
     dimensions: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -112,9 +114,11 @@ class NoteSection:
     title_normalized: str
     source_start_line: int
     source_end_line: int
+    section_instance_id: Optional[str] = None
     pages: list[int] = field(default_factory=list)
     unit_raw: Optional[str] = None
     unit: Optional[str] = None
+    unit_canonical: Optional[str] = None
     blocks: list[NoteBlock] = field(default_factory=list)
     links: list[NoteLink] = field(default_factory=list)
     sector_topic: Optional[str] = None
@@ -122,12 +126,16 @@ class NoteSection:
 
     @property
     def ref(self) -> str:
+        if self.section_instance_id:
+            return f"NOTE:{self.section_instance_id}"
         nid = self.note_id_normalized or self.note_id_raw or f"LINE{self.source_start_line}"
-        return f"NOTE:{nid}"
+        return f"NOTE:{nid}@L{self.source_start_line}"
 
     def to_dict(self) -> dict:
         return {
             **asdict(self),
+            "logical_note_id": self.note_id_normalized,
+            "section_ref": self.ref,
             "blocks": [x.to_dict() for x in self.blocks],
             "links": [x.to_dict() for x in self.links],
         }

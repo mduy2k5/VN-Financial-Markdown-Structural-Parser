@@ -32,6 +32,7 @@ ROW_FIELDS = [
     "row_note_ref",
     "row_source_line",
     "row_unit",
+    "row_unit_canonical",
     "current_raw",
     "current_normalized",
     "previous_raw",
@@ -91,6 +92,12 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                         row_unit = value.get("unit")
                         break
                 row_unit = row_unit or block.get("unit") or section.get("unit")
+                row_unit_canonical = None
+                for value in values:
+                    if value.get("unit_canonical"):
+                        row_unit_canonical = value.get("unit_canonical")
+                        break
+                row_unit_canonical = row_unit_canonical or block.get("unit_canonical") or section.get("unit_canonical")
 
                 rows.append({
                     "source_name": source_name,
@@ -118,6 +125,7 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                     "row_note_ref": row.get("note_ref"),
                     "row_source_line": row.get("source_line"),
                     "row_unit": row_unit,
+                    "row_unit_canonical": row_unit_canonical,
                     "current_raw": current.get("raw"),
                     "current_normalized": current.get("normalized"),
                     "previous_raw": previous.get("raw"),

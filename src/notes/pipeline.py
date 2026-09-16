@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from value_semantics import detect_document_unit, detect_statement_unit
+    from ..common import detect_document_unit, detect_statement_unit
 except ImportError:
-    from src.value_semantics import detect_document_unit, detect_statement_unit
+    from common import detect_document_unit, detect_statement_unit
 
 from .block_classifier import extract_blocks
 from .diagnostics import build_diagnostics
@@ -16,6 +16,8 @@ from .scanner import detect_notes_scope
 from .sectionizer import sectionize_notes
 from .sector_profile import classify_topic
 from .reconciliation import reconcile_notes
+from .unit_normalization import canonical_unit
+from .dimension_inference import infer_movement_role
 
 
 class NotesPipeline:
@@ -59,6 +61,7 @@ class NotesPipeline:
             )
             section.unit = getattr(unit_ctx, "unit", None)
             section.unit_raw = getattr(unit_ctx, "source", None)
+            section.unit_canonical = canonical_unit(section.unit)
             section.sector_topic = classify_topic(section.title_raw, sector)
             section.blocks = extract_blocks(
                 section_text,
@@ -68,10 +71,15 @@ class NotesPipeline:
             for block in section.blocks:
                 if not block.unit:
                     block.unit = section.unit
+                block.unit_canonical = canonical_unit(block.unit)
                 for row in block.rows:
+                    movement_role = infer_movement_role(row.label_raw)
                     for value in row.values:
                         if not value.unit:
                             value.unit = section.unit
+                        value.unit_canonical = canonical_unit(value.unit)
+                        if block.semantic_shape == "movement" and not value.movement_role:
+                            value.movement_role = movement_role
 
         doc.sections = sections
         link_notes_to_primary(doc, primary=primary)

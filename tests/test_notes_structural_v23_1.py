@@ -48,3 +48,27 @@ THUYẾT MINH BÁO CÁO TÀI CHÍNH
     assert len(rows)==1
     assert rows[0]['label_normalized']=='cho vay khach hang'
     assert len(rows[0]['values'])==5
+
+
+def test_numbered_disclosure_items_do_not_open_note_sections_and_refs_are_unique():
+    text='''
+THUYẾT MINH BÁO CÁO TÀI CHÍNH
+## 1. ĐẶC ĐIỂM HOẠT ĐỘNG
+1. **Tên công ty:** Công ty thử nghiệm
+    * **Được thành lập theo:** một quyết định
+2. **Công ty liên doanh**
+    * **STT:** 1
+## 2. CHÍNH SÁCH KẾ TOÁN
+    2.1. Cơ sở lập báo cáo
+        * Theo nguyên tắc giá gốc.
+'''
+    ir = parse_notes(text, source_name='identity.md', sector='enterprise')
+    sections = ir['sections']
+    titles = {s['title_raw'] for s in sections}
+
+    assert 'Tên công ty: Công ty thử nghiệm' not in titles
+    assert 'Công ty liên doanh' not in titles
+    assert any(s['note_id_normalized'] == '2.1' for s in sections)
+    assert len({s['section_ref'] for s in sections}) == len(sections)
+    block_ids = [b['block_id'] for s in sections for b in s['blocks']]
+    assert len(set(block_ids)) == len(block_ids)

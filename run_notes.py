@@ -20,6 +20,14 @@ def main():
     ap.add_argument("input", help="Markdown file or folder")
     ap.add_argument("--output", default="output_notes")
     ap.add_argument("--sector", choices=["enterprise", "bank", "securities", "insurance", "auto"], default="auto")
+    ap.add_argument(
+        "--primary-dir",
+        help="Optional folder containing <report-stem>.baseline.json or canonical primary artifacts for Notes linking.",
+    )
+    ap.add_argument(
+        "--primary-audit-report",
+        help="Optional audit.json. Baselines with audit findings are quarantined from linking/reconciliation.",
+    )
     ap.add_argument("--current-year", type=int, default=2025)
     ap.add_argument("--previous-year", type=int, default=2024)
     ap.add_argument(
@@ -49,6 +57,14 @@ def main():
     pipe = NotesPipeline(current_year=args.current_year, previous_year=args.previous_year)
     summary = []
     all_rows = []
+    quarantined_primary_files = set()
+    if args.primary_audit_report:
+        audit = json.loads(Path(args.primary_audit_report).read_text(encoding="utf-8-sig"))
+        quarantined_primary_files = {
+            report["baseline"]
+            for report in audit.get("reports", [])
+            if report.get("issues") or not report.get("source_hash_matches", False)
+        }
 
     for path in files:
         text = path.read_text(encoding="utf-8-sig", errors="replace")
@@ -64,11 +80,26 @@ def main():
         elif sector == "auto":
             sector = "enterprise"
 
+        primary = None
+        primary_file = None
+        primary_status = "not_requested"
+        if args.primary_dir:
+            candidate = Path(args.primary_dir) / f"{path.stem}.baseline.json"
+            if candidate.name in quarantined_primary_files:
+                primary_status = "quarantined_by_audit"
+            elif candidate.exists():
+                primary = json.loads(candidate.read_text(encoding="utf-8-sig"))
+                primary_file = str(candidate)
+                primary_status = "loaded"
+            else:
+                primary_status = "missing"
+
         result = pipe.parse_text(
             text,
             source_name=path.name,
             sector=sector,
             scanner_result=scanner,
+            primary=primary,
         )
         d = result.get("diagnostics") or {}
 
@@ -91,6 +122,11 @@ def main():
             "rows_csv": f"notes_rows/{export['csv_file']}",
             "rows_json": f"notes_rows/{export['json_file']}" if export["json_file"] else None,
             "ir_file": ir_file,
+            "primary_file": primary_file,
+            "primary_status": primary_status,
+            "links": d.get("link_count", 0),
+            "high_confidence_links": d.get("high_confidence_links", 0),
+            "reconciliation": d.get("reconciliation", {}),
         })
         print(
             f"[NOTES] {path.name}: sections={summary[-1]['sections']} "

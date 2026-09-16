@@ -1,6 +1,11 @@
-from src.value_semantics import detect_statement_unit, is_note_reference, arithmetic_value
-from src.source_statement_recovery import parse_number, extract_financial_position_source_rows
-from src.income_observation_patch import extract_income_fallback
+from src.common import (
+    arithmetic_value,
+    detect_statement_unit,
+    extract_financial_position_source_rows,
+    is_note_reference,
+    parse_number,
+)
+from src.b02_income import extract_income_fallback, parse_period_line
 
 
 def test_dash_is_null_and_zero_is_zero():
@@ -22,9 +27,18 @@ def test_unit_detection_no_conversion():
     # Mixed declaration where currency must take precedence over %
     assert detect_statement_unit("**Đơn vị tính:** triệu đồng, %").unit == "million_vnd"
     assert detect_statement_unit("Không có đơn vị", fallback_unit="million_vnd").unit == "million_vnd"
-    from src.value_semantics import detect_document_unit
+    from src.common import detect_document_unit
     doc_sample = "# BÁO CÁO TÀI CHÍNH KIỂM TOÁN\nĐơn vị tính: VND\nNội dung báo cáo..."
     assert detect_document_unit(doc_sample).unit == "vnd"
+
+
+def test_cumulative_quarter_previous_is_not_current_period():
+    assert parse_period_line("Luỹ kế từ đầu năm đến cuối quý: 22.356.378", 2025, 2024) == (
+        "current", 30, "22.356.378"
+    )
+    assert parse_period_line("Luỹ kế từ đầu năm đến cuối quý trước: 17.411.707", 2025, 2024) == (
+        "previous", 30, "17.411.707"
+    )
 
 
 def test_fpt_extreme_if_fixture_present():

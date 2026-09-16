@@ -8,10 +8,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-_parent = Path(__file__).resolve().parent
-ROOT = _parent if (_parent / "resources").exists() else _parent.parent
+def _find_root(start: Path) -> Path:
+    cur = start.resolve()
+    for _ in range(5):
+        if (cur / "resources").exists():
+            return cur
+        cur = cur.parent
+    return start.resolve().parents[1]
+
+ROOT = _find_root(Path(__file__))
 DEFAULT_SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 DEFAULT_ALIASES = ROOT / "resources" / "income_statement_aliases.json"
+
 
 LABEL_KEYS = (
     "label", "source_label", "canonical_name", "name", "indicator",
@@ -718,7 +726,7 @@ def detect_special_sector(rows: list[IncomeRow]) -> Optional[str]:
 
 
 try:
-    from .income_formula_validation import (
+    from .validator import (
         BANK_ALWAYS_NEGATIVE_NODES,
         ENTERPRISE_PRESENTATION_MAGNITUDE_NODES,
         SECURITIES_ALWAYS_NEGATIVE_NODES,
@@ -734,7 +742,7 @@ try:
         validate_bank_formulas,
     )
 except ImportError:
-    from income_formula_validation import (
+    from b02_income_validator import (
         BANK_ALWAYS_NEGATIVE_NODES,
         ENTERPRISE_PRESENTATION_MAGNITUDE_NODES,
         SECURITIES_ALWAYS_NEGATIVE_NODES,
@@ -749,6 +757,7 @@ except ImportError:
         summarize_formula_checks,
         validate_bank_formulas,
     )
+
 
 def auto_sector(rows: list[IncomeRow], schema_path=DEFAULT_SCHEMA, aliases_path=DEFAULT_ALIASES) -> str:
     special = detect_special_sector(rows)

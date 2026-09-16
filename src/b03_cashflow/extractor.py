@@ -6,9 +6,13 @@ from dataclasses import dataclass, asdict
 from typing import Any, Optional
 
 try:
-    from .value_semantics import detect_statement_unit, row_unit_override
+    from src.common.value_semantics import detect_statement_unit, row_unit_override
 except ImportError:
-    from value_semantics import detect_statement_unit, row_unit_override
+    try:
+        from common.value_semantics import detect_statement_unit, row_unit_override
+    except ImportError:
+        from value_semantics import detect_statement_unit, row_unit_override
+
 
 
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")

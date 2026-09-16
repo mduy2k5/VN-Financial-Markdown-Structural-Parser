@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from src.income_observation_patch import extract_income_fallback
-from src.source_statement_recovery import extract_financial_position_source_rows
+from src.b02_income import extract_income_fallback
+from src.common import extract_financial_position_source_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -109,7 +109,8 @@ def detect_document_unit(full_text: Any) -> UnitContext:
 
     # Step 1: Search top 300 lines (cover, auditor's report, TOC, first statements)
     for line in lines[:300]:
-        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?|don\s*vi)\s*[:：]", line):
+        clean_line = clean_text(line)
+        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?|don\s*vi)\s*[:：]", clean_line):
             ctx = detect_unit(line, source="document_header")
             if ctx.unit in CURRENCY_UNITS:
                 return ctx
@@ -120,7 +121,8 @@ def detect_document_unit(full_text: Any) -> UnitContext:
 
     # Step 2: Search entire document for explicit currency declarations
     for line in lines:
-        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?)\s*[:：]", line):
+        clean_line = clean_text(line)
+        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?)\s*[:：]", clean_line):
             ctx = detect_unit(line, source="document_explicit")
             if ctx.unit in CURRENCY_UNITS:
                 return ctx
@@ -145,7 +147,8 @@ def detect_statement_unit(text: Any, fallback_unit: Optional[str] = None) -> Uni
 
     # Prefer explicit unit declaration.
     for line in lines:
-        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?|don\s*vi)\s*[:：]", line):
+        clean_line = clean_text(line)
+        if re.search(r"(?i)(?:đơn\s*vị(?:\s*tính|\s*tiền\s*tệ|\s*trình\s*bày)?|don\s*vi)\s*[:：]", clean_line):
             ctx = detect_unit(line, source="statement_header")
             if ctx.unit in CURRENCY_UNITS:
                 return ctx
@@ -189,4 +192,3 @@ def arithmetic_value(value: Any):
 def units_compatible(*units: Optional[str]) -> bool:
     known = [u for u in units if u and u != UNIT_UNKNOWN]
     return len(set(known)) <= 1
-

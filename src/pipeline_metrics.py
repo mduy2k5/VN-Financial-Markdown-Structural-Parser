@@ -8,9 +8,9 @@ SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
 
 try:
-    from .income_mapper import auto_sector
+    from .b02_income import auto_sector
 except ImportError:
-    from income_mapper import auto_sector
+    from b02_income import auto_sector
 
 
 def _scope_text(text: str, scope: dict) -> str:

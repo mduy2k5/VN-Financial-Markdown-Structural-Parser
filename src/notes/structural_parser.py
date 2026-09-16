@@ -39,6 +39,9 @@ def _split_numeric_unit(raw: str):
     if m:
         unit = m.group(0)
         s = (s[:m.start()] + s[m.end():]).strip()
+        # Removing a parenthesized unit (e.g. ``58.066 (triệu đồng)``) must
+        # not leave synthetic punctuation in the source-faithful raw value.
+        s = re.sub(r"\(\s*\)", "", s).strip()
     return s, unit
 
 
@@ -57,7 +60,11 @@ def _period_role(text: str):
 
 def _row_role(label: str):
     f = fold_text(label)
-    if any(x in f for x in ('tong cong', ' cong', 'cong ', 'tong ')):
+    # Do not treat every occurrence of ``cong`` as a total.  OCR labels such
+    # as ``Chuyển lỗ từ công ty con`` contain the same token but are detail
+    # rows.  A total is normally explicitly introduced by ``Tổng`` (or the
+    # standalone label ``Cộng``).
+    if f == 'cong' or f.startswith('tong '):
         return 'total'
     if any(x in f for x in ('so cuoi nam', 'cuoi nam', '31 12 2025')):
         return 'closing'

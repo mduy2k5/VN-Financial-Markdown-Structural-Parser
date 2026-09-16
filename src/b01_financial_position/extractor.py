@@ -7,10 +7,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from source_observation_layer import augment_financial_position
-from source_statement_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
-from source_reconciliation import reconcile_source_observations
-from period_identity_repair import repair_financial_position_period_identity
+try:
+    from src.common.source_observation import augment_financial_position
+    from src.common.source_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
+    from src.common.source_reconciler import reconcile_source_observations
+    from src.common.period_resolver import repair_financial_position_period_identity
+except ImportError:
+    from source_observation import augment_financial_position
+    from source_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
+    from source_reconciler import reconcile_source_observations
+    from period_resolver import repair_financial_position_period_identity
 
 
 FP_CANONICAL_SUFFIX = ".financial_position.canonical.json"

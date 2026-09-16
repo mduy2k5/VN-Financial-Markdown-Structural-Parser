@@ -46,7 +46,10 @@ def parse_number(raw: str):
 
 def _row_role(label: str) -> str:
     f = fold_text(label)
-    if any(x in f for x in ('tong cong', 'cong', 'tong doanh thu', 'tong gia von', 'tong chi phi')): return 'total'
+    # ``cong`` is not sufficient evidence for a total: ``cong ty`` and
+    # ``cong cu`` are ordinary business labels.  Prefer the explicit
+    # ``tong`` prefix and the standalone ``cong`` row.
+    if f == 'cong' or f.startswith('tong '): return 'total'
     if any(x in f for x in ('cuoi nam', '31 12', 'so du cuoi', 'tai ngay 31 thang 12 nam 2025')): return 'closing'
     if any(x in f for x in ('dau nam', '01 01', 'so du dau', 'tai ngay 1 thang 1 nam 2025', 'tai ngay 31 thang 12 nam 2024')): return 'opening'
     if any(x in f for x in ('mua trong nam', 'tang trong nam', 'giam trong nam', 'thanh ly', 'khau hao trong nam', 'trich lap', 'hoan nhap')): return 'movement'

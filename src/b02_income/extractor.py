@@ -5,12 +5,15 @@ import unicodedata
 from typing import Any, Optional
 
 try:
-    from .value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+    from src.common.value_semantics import detect_statement_unit, row_unit_override, is_note_reference
 except ImportError:
-    from value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+    try:
+        from common.value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+    except ImportError:
+        from value_semantics import detect_statement_unit, row_unit_override, is_note_reference
 
 try:
-    from .income_scope_selector import (
+    from .scope import (
         FORM_CODE_RE,
         HEADING_RE,
         NUM_RE,
@@ -30,7 +33,7 @@ try:
         strip_md,
     )
 except ImportError:
-    from income_scope_selector import (
+    from b02_income_scope import (
         FORM_CODE_RE,
         HEADING_RE,
         NUM_RE,
