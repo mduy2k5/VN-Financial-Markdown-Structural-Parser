@@ -6,12 +6,38 @@ from .table_parser import parse_markdown_tables
 from .structural_parser import parse_bullet_structures
 
 
-def extract_blocks(section_text: str, base_line: int, block_prefix: str) -> list[NoteBlock]:
-    tables=[infer_dimensions(x) for x in parse_markdown_tables(section_text,base_line,block_prefix)]
+def extract_blocks(
+    section_text: str,
+    base_line: int,
+    block_prefix: str,
+    *,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+) -> list[NoteBlock]:
+    tables = [
+        infer_dimensions(x, current_year=current_year, previous_year=previous_year)
+        for x in parse_markdown_tables(
+            section_text,
+            base_line,
+            block_prefix,
+            current_year=current_year,
+            previous_year=previous_year,
+        )
+    ]
     occupied=set()
     for b in tables:
         occupied.update(range(b.source_start_line,b.source_end_line+1))
-    bullets=[infer_dimensions(x) for x in parse_bullet_structures(section_text,base_line,block_prefix,occupied_lines=occupied)]
+    bullets = [
+        infer_dimensions(x, current_year=current_year, previous_year=previous_year)
+        for x in parse_bullet_structures(
+            section_text,
+            base_line,
+            block_prefix,
+            occupied_lines=occupied,
+            current_year=current_year,
+            previous_year=previous_year,
+        )
+    ]
     for b in bullets:
         occupied.update(range(b.source_start_line,b.source_end_line+1))
 

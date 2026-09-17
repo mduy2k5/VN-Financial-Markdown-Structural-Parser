@@ -5,8 +5,10 @@ from typing import Optional
 
 try:
     from ..common import detect_document_unit, detect_statement_unit
+    from ..common.report_period import resolve_report_years
 except ImportError:
     from common import detect_document_unit, detect_statement_unit
+    from common.report_period import resolve_report_years
 
 from .block_classifier import extract_blocks
 from .diagnostics import build_diagnostics
@@ -21,7 +23,7 @@ from .dimension_inference import infer_movement_role
 
 
 class NotesPipeline:
-    def __init__(self, *, current_year: int = 2025, previous_year: int = 2024):
+    def __init__(self, *, current_year: int | None = None, previous_year: int | None = None):
         self.current_year = current_year
         self.previous_year = previous_year
 
@@ -34,6 +36,14 @@ class NotesPipeline:
         scanner_result: Optional[dict] = None,
         primary: Optional[dict] = None,
     ) -> dict:
+        period = resolve_report_years(
+            text,
+            source_name=source_name,
+            current_year=self.current_year,
+            previous_year=self.previous_year,
+        )
+        current_year = period["current_year"]
+        previous_year = period["previous_year"]
         scope = detect_notes_scope(text, scanner_result=scanner_result)
         doc = NoteDocument(
             source_name=source_name,
@@ -45,7 +55,9 @@ class NotesPipeline:
 
         if not scope.found:
             doc.diagnostics = build_diagnostics(doc, text, scope)
-            return doc.to_dict()
+            result = doc.to_dict()
+            result["period"] = period
+            return result
 
         sections = sectionize_notes(text, scope)
         all_lines = text.splitlines()
@@ -67,6 +79,8 @@ class NotesPipeline:
                 section_text,
                 section.source_start_line,
                 section.ref,
+                current_year=current_year,
+                previous_year=previous_year,
             )
             for block in section.blocks:
                 if not block.unit:
@@ -85,7 +99,9 @@ class NotesPipeline:
         link_notes_to_primary(doc, primary=primary)
         reconcile_notes(doc, primary=primary)
         doc.diagnostics = build_diagnostics(doc, text, scope)
-        return doc.to_dict()
+        result = doc.to_dict()
+        result["period"] = period
+        return result
 
     def parse_file(
         self,
@@ -112,8 +128,8 @@ def parse_notes(
     sector: str = "enterprise",
     scanner_result: Optional[dict] = None,
     primary: Optional[dict] = None,
-    current_year: int = 2025,
-    previous_year: int = 2024,
+    current_year: int | None = None,
+    previous_year: int | None = None,
 ) -> dict:
     return NotesPipeline(current_year=current_year, previous_year=previous_year).parse_text(
         text,

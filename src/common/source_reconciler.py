@@ -34,15 +34,14 @@ def _period_votes(nodes: list[dict], period: str):
     weighting of the same evidence.
     """
     votes = collections.Counter()
-    support: dict[Any, list[tuple[int, int, int]]] = collections.defaultdict(list)
+    support: dict[Any, list[tuple[int, int]]] = collections.defaultdict(list)
     for n in nodes:
         nv = (n.get("value") or {}).get(period)
         if nv is not None:
             k = _value_key(nv)
             both = int((n.get("value") or {}).get("current") is not None and (n.get("value") or {}).get("previous") is not None)
-            code = int(bool(clean(n.get("form_code") or "")))
             votes[k] += 1
-            support[k].append((both, code, _source_line(n)))
+            support[k].append((both, _source_line(n)))
         seen_occ_values = set()
         for occ in (n.get("extraction_meta") or {}).get("occurrences") or []:
             ov = occ.get(period)
@@ -53,9 +52,8 @@ def _period_votes(nodes: list[dict], period: str):
                 continue
             seen_occ_values.add(k)
             both = int(occ.get("current") is not None and occ.get("previous") is not None)
-            code = int(bool(clean(occ.get("code") or occ.get("code_candidate") or n.get("form_code") or "")))
             votes[k] += 1
-            support[k].append((both, code, occ.get("source_line") or _source_line(n)))
+            support[k].append((both, occ.get("source_line") or _source_line(n)))
     return votes, support
 
 
@@ -77,8 +75,7 @@ def _resolve_period(nodes: list[dict], period: str):
         key=lambda k: (
             votes[k],
             max((x[0] for x in support[k]), default=0),
-            max((x[1] for x in support[k]), default=0),
-            -min((x[2] for x in support[k]), default=10**9),
+            -min((x[1] for x in support[k]), default=10**9),
         ),
         reverse=True,
     )
@@ -96,9 +93,8 @@ def _preferred_node(bucket: list[dict], current: Any, previous: Any) -> dict:
         exact = int((current is None or _value_key(v.get("current")) == _value_key(current)) and
                     (previous is None or _value_key(v.get("previous")) == _value_key(previous)))
         both = int(v.get("current") is not None and v.get("previous") is not None)
-        has_code = int(bool(clean(n.get("form_code") or "")))
         recovered = int(bool((n.get("extraction_meta") or {}).get("source_recovery")))
-        return (exact, both, has_code, recovered, -_source_line(n))
+        return (exact, both, recovered, -_source_line(n))
     return max(bucket, key=score)
 
 

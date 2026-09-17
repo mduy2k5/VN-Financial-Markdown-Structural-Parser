@@ -63,22 +63,49 @@ def detect_sector_from_scope(scope_text: str, rows, schema_path=SCHEMA, aliases_
     return sec, "row_catalog"
 
 
+def _is_source_observation_node(node: dict) -> bool:
+    """Identify additive source-evidence nodes without relying on report names.
+
+    Source observations are intentionally retained in canonical output for
+    traceability.  They are not independent semantic rows, though, so they
+    must not inflate the denominator of period coverage or source completeness.
+    """
+
+    return (
+        str(node.get("kind") or "").casefold() == "source_observation"
+        or str(node.get("node_id") or "").startswith("SOURCE.")
+    )
+
+
+def _value_nodes(nodes: list[dict]) -> tuple[list[dict], list[dict]]:
+    valued = [
+        n for n in nodes
+        if (n.get("value") or {}).get("current") is not None
+        or (n.get("value") or {}).get("previous") is not None
+    ]
+    coverage = [n for n in valued if not _is_source_observation_node(n)]
+    return valued, coverage
+
+
 def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method: str):
     nodes = canonical.get("nodes", [])
-    valued = [n for n in nodes if (n.get("value") or {}).get("current") is not None or (n.get("value") or {}).get("previous") is not None]
+    valued, coverage_valued = _value_nodes(nodes)
     cur = [n for n in nodes if (n.get("value") or {}).get("current") is not None]
     prev = [n for n in nodes if (n.get("value") or {}).get("previous") is not None]
+    coverage_cur = [n for n in coverage_valued if (n.get("value") or {}).get("current") is not None]
+    coverage_prev = [n for n in coverage_valued if (n.get("value") or {}).get("previous") is not None]
     mapped = [r for r in rows if getattr(r, "mapping_status", None) == "mapped"]
     unmapped = [r for r in rows if getattr(r, "mapping_status", None) != "mapped"]
     rate = len(mapped) / len(rows) if rows else 0.0
     valued_n = len(valued)
-    prev_cov = len(prev) / valued_n if valued_n else 0.0
-    cur_cov = len(cur) / valued_n if valued_n else 0.0
+    coverage_n = len(coverage_valued)
+    prev_cov = len(coverage_prev) / coverage_n if coverage_n else 0.0
+    cur_cov = len(coverage_cur) / coverage_n if coverage_n else 0.0
 
     canonical_status = canonical.get("status") or "ok"
     if not rows:
         status = "no_structural_rows"
-    elif valued_n == 0:
+    elif coverage_n == 0:
         status = "no_income_values"
     elif rate < 0.8:
         status = "partial_mapping"
@@ -106,8 +133,12 @@ def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method
             "unmapped_rows": len(unmapped),
             "mapping_rate": round(rate, 6) if rows else 0.0,
             "canonical_value_nodes": valued_n,
+            "coverage_value_nodes": coverage_n,
+            "source_observation_nodes": valued_n - coverage_n,
             "current_value_nodes": len(cur),
             "previous_value_nodes": len(prev),
+            "coverage_current_value_nodes": len(coverage_cur),
+            "coverage_previous_value_nodes": len(coverage_prev),
             "current_coverage": round(cur_cov, 6) if valued_n else 0.0,
             "previous_coverage": round(prev_cov, 6) if valued_n else 0.0,
             "accepted_occurrences": valued_n,
@@ -139,9 +170,11 @@ def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method
 
 def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector_method: str, method: str, method_method: str):
     nodes = canonical.get("nodes", []) if canonical else []
-    valued = [n for n in nodes if (n.get("value") or {}).get("current") is not None or (n.get("value") or {}).get("previous") is not None]
+    valued, coverage_valued = _value_nodes(nodes)
     cur = [n for n in valued if (n.get("value") or {}).get("current") is not None]
     prev = [n for n in valued if (n.get("value") or {}).get("previous") is not None]
+    coverage_cur = [n for n in coverage_valued if (n.get("value") or {}).get("current") is not None]
+    coverage_prev = [n for n in coverage_valued if (n.get("value") or {}).get("previous") is not None]
     mapped = [r for r in rows if getattr(r, "mapping_status", None) == "mapped"]
     unmapped = [r for r in rows if getattr(r, "mapping_status", None) != "mapped"]
     rate = len(mapped) / len(rows) if rows else 0.0
@@ -163,7 +196,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
 
     # Source-coverage gate: 100% of a tiny fragment is not a complete cash-flow statement.
     # Use semantic core anchors rather than requiring form codes/notes, because LLM Markdown can omit both.
-    valued_ids = {n.get("node_id") for n in valued}
+    valued_ids = {n.get("node_id") for n in coverage_valued}
     if sector == "enterprise":
         core = {
             "CASHFLOW.ENTERPRISE.OPERATING.NET_CASH",
@@ -197,7 +230,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
         core, min_nodes = set(), 0
     core_hits = len(core & valued_ids)
     core_total = len(core)
-    if canonical and status == "ok" and (len(valued) < min_nodes or (core_total and core_hits < 2)):
+    if canonical and status == "ok" and (len(coverage_valued) < min_nodes or (core_total and core_hits < 2)):
         status = "partial_source_coverage"
     return {
         "status": status,
@@ -208,9 +241,13 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "input_rows": len(rows), "mapped_rows": len(mapped), "unmapped_rows": len(unmapped),
             "mapping_rate": round(rate, 6) if rows else 0.0,
             "canonical_value_nodes": len(valued),
+            "coverage_value_nodes": len(coverage_valued),
+            "source_observation_nodes": len(valued) - len(coverage_valued),
             "current_value_nodes": len(cur), "previous_value_nodes": len(prev),
-            "current_coverage": round(len(cur)/len(valued), 6) if valued else 0.0,
-            "previous_coverage": round(len(prev)/len(valued), 6) if valued else 0.0,
+            "coverage_current_value_nodes": len(coverage_cur),
+            "coverage_previous_value_nodes": len(coverage_prev),
+            "current_coverage": round(len(coverage_cur)/len(coverage_valued), 6) if coverage_valued else 0.0,
+            "previous_coverage": round(len(coverage_prev)/len(coverage_valued), 6) if coverage_valued else 0.0,
         },
         "parser": {
             "statement_profile": "cash_flow_statement", "sector": sector, "sector_method": sector_method,

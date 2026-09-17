@@ -42,6 +42,26 @@ def stable_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def semantic_row(row: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        row.get("block_id"),
+        row.get("row_label_normalized") or row.get("row_label"),
+        row.get("row_role"),
+        row.get("row_code"),
+        row.get("current_normalized"),
+        row.get("previous_normalized"),
+        row.get("row_unit_canonical") or row.get("row_unit"),
+    )
+
+
+def value_row(row: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        row.get("block_id"),
+        row.get("current_normalized"),
+        row.get("previous_normalized"),
+    )
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -59,8 +79,16 @@ def compare_report(
 
     current_counter = Counter(stable_json(row) for row in current_rows)
     expected_counter = Counter(stable_json(row) for row in expected_rows)
+    current_semantic = Counter(stable_json(semantic_row(row)) for row in current_rows)
+    expected_semantic = Counter(stable_json(semantic_row(row)) for row in expected_rows)
+    current_values = Counter(stable_json(value_row(row)) for row in current_rows)
+    expected_values = Counter(stable_json(value_row(row)) for row in expected_rows)
     missing_rows = sum((expected_counter - current_counter).values())
     unexpected_rows = sum((current_counter - expected_counter).values())
+    semantic_missing = sum((expected_semantic - current_semantic).values())
+    semantic_unexpected = sum((current_semantic - expected_semantic).values())
+    value_missing = sum((expected_values - current_values).values())
+    value_unexpected = sum((current_values - expected_values).values())
 
     current_scope = ((current_ir.get("diagnostics") or {}).get("scope") or {})
     expected_scope = gt.get("scope") or {}
@@ -100,6 +128,12 @@ def compare_report(
         "ordered_rows_equal": ordered_rows_equal,
         "missing_rows": missing_rows,
         "unexpected_rows": unexpected_rows,
+        "semantic_rows_equal": semantic_missing == 0 and semantic_unexpected == 0,
+        "semantic_missing_rows": semantic_missing,
+        "semantic_unexpected_rows": semantic_unexpected,
+        "value_rows_equal": value_missing == 0 and value_unexpected == 0,
+        "value_missing_rows": value_missing,
+        "value_unexpected_rows": value_unexpected,
         "scope_equal": scope_equal,
         "sections_equal": sections_equal,
         "links_equal": links_equal,
@@ -114,7 +148,7 @@ def main() -> None:
         description="Compare current Notes output with source-grounded Notes baselines."
     )
     parser.add_argument("--ground-truth", default="ground_truth/notes")
-    parser.add_argument("--current", default="output_notes")
+    parser.add_argument("--current", default="output/notes/raw")
     parser.add_argument("--sources", default="md_reports")
     parser.add_argument(
         "--report",
@@ -166,6 +200,12 @@ def main() -> None:
         "current_rows": sum(item["current_row_count"] for item in comparisons),
         "missing_rows": sum(item["missing_rows"] for item in comparisons),
         "unexpected_rows": sum(item["unexpected_rows"] for item in comparisons),
+        "semantic_equal_reports": sum(item["semantic_rows_equal"] for item in comparisons),
+        "semantic_missing_rows": sum(item["semantic_missing_rows"] for item in comparisons),
+        "semantic_unexpected_rows": sum(item["semantic_unexpected_rows"] for item in comparisons),
+        "value_equal_reports": sum(item["value_rows_equal"] for item in comparisons),
+        "value_missing_rows": sum(item["value_missing_rows"] for item in comparisons),
+        "value_unexpected_rows": sum(item["value_unexpected_rows"] for item in comparisons),
         "source_hash_mismatches": sum(not item["source_hash_equal"] for item in comparisons),
         "scope_mismatches": sum(not item["scope_equal"] for item in comparisons),
         "section_mismatches": sum(not item["sections_equal"] for item in comparisons),

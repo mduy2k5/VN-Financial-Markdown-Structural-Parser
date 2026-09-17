@@ -5,6 +5,11 @@ import re
 import unicodedata
 from typing import Any, Iterable
 
+try:
+    from .structural_identity import occurrence_rank as _next_occurrence_rank, structural_identity
+except ImportError:
+    from structural_identity import occurrence_rank as _next_occurrence_rank, structural_identity
+
 
 def _clean(s: Any) -> str:
     s = "" if s is None else str(s)
@@ -47,8 +52,28 @@ def _number(v: Any):
         return None
 
 
-def _source_id(statement: str, label: str, section: str = "", code: str = "") -> str:
-    key = "|".join((_fold(label), section or "", code or ""))
+def _source_id(
+    statement: str,
+    label: str,
+    section: str = "",
+    code: str = "",
+    *,
+    parent_label: str = "",
+    hierarchy_path: str = "",
+    occurrence: int | None = None,
+) -> str:
+    # ``code`` remains an API-compatible argument, but deliberately does not
+    # participate in identity. Codes may be detached or may refer to a
+    # different document layer (the Notes section).
+    identity = structural_identity(
+        statement=statement,
+        label=label,
+        section=section,
+        parent_label=parent_label,
+        hierarchy_path=hierarchy_path,
+        occurrence_rank=occurrence,
+    )
+    key = "|".join(identity)
     h = hashlib.sha1(key.encode("utf-8")).hexdigest()[:14]
     return f"SOURCE.{statement}.{h}"
 
@@ -77,6 +102,7 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
     nodes = canonical.setdefault("nodes", [])
     semantic_labels = {_fold(n.get("canonical_name")) for n in nodes if n.get("kind") != "source_observation"}
     seen = set()
+    ranks: dict[tuple[str, ...], int] = {}
     added = 0
     for r in rows:
         label = _clean(getattr(r, "label", None) or getattr(r, "source_label", None))
@@ -87,28 +113,75 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
         if current is None and previous is None:
             continue
         section = _clean(getattr(r, "section", None) or "")
-        code = _clean(getattr(r, "code", None) or "")
-        key = (_fold(label), section, code, current, previous)
+        statement_code = _clean(
+            getattr(r, "statement_code", None) or getattr(r, "code", None) or ""
+        )
+        note_ref = _clean(
+            getattr(r, "note_ref", None) or getattr(r, "note", None) or ""
+        )
+        parent_label = _clean(getattr(r, "parent_label", None) or "")
+        hierarchy_path = _clean(getattr(r, "hierarchy_path", None) or "")
+        base_identity = structural_identity(
+            statement=statement,
+            label=label,
+            section=section,
+            parent_label=parent_label,
+            hierarchy_path=hierarchy_path,
+        )
+        # A repeated parser observation with a different code/note is still
+        # the same structural row.  Assign an occurrence rank only after this
+        # code-independent duplicate check.
+        duplicate_key = (base_identity, current, previous)
+        if duplicate_key in seen:
+            continue
+        rank = _next_occurrence_rank(
+            ranks,
+            statement=statement,
+            label=label,
+            section=section,
+            parent_label=parent_label,
+            hierarchy_path=hierarchy_path,
+        )
+        key = (structural_identity(
+            statement=statement,
+            label=label,
+            section=section,
+            parent_label=parent_label,
+            hierarchy_path=hierarchy_path,
+            occurrence_rank=rank,
+        ), current, previous)
         if key in seen:
             continue
-        seen.add(key)
+        seen.add(duplicate_key)
         # Materialize even mapped rows when source label differs from canonical wording.
         # Exact duplicates of a semantic canonical name add no evaluator/downstream value.
         if _fold(label) in semantic_labels:
             continue
         node = {
-            "node_id": _source_id(statement, label, section, code),
+            "node_id": _source_id(
+                statement,
+                label,
+                section,
+                statement_code,
+                parent_label=parent_label,
+                hierarchy_path=hierarchy_path,
+                occurrence=rank,
+            ),
             "canonical_name": label,
             "kind": "source_observation",
             "semantic_role": "supplemental_source_row",
             "sector": canonical.get("sector"),
             "method": canonical.get("method"),
             "section": section or None,
-            "form_code": code or None,
+            # Kept for compatibility with older consumers; it is metadata,
+            # never the source-observation identity.
+            "form_code": statement_code or None,
+            "statement_code": statement_code or None,
+            "note_ref": note_ref or None,
             "value": {
                 "current": current,
                 "previous": previous,
-                "note": _clean(getattr(r, "note", None)) or None,
+                "note": note_ref or None,
                 "unit": getattr(r, "unit", None),
                 "raw_text": label,
             },
@@ -122,9 +195,14 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
                     "pattern": getattr(r, "pattern", None),
                     "current": current,
                     "previous": previous,
-                    "code": code or None,
-                    "note": _clean(getattr(r, "note", None)) or None,
+                    "code": statement_code or None,
+                    "statement_code": statement_code or None,
+                    "note": note_ref or None,
+                    "note_ref": note_ref or None,
                     "section": section or None,
+                    "parent_label": parent_label or None,
+                    "hierarchy_path": hierarchy_path or None,
+                    "occurrence_rank": rank,
                 }],
             },
         }
@@ -152,6 +230,7 @@ def augment_financial_position(canonical: dict | None) -> dict | None:
     originals = list(nodes)
     semantic_labels = {_fold(n.get("canonical_name")) for n in originals if n.get("kind") != "source_observation"}
     seen = set()
+    ranks: dict[tuple[str, ...], int] = {}
     additions = []
     for n in originals:
         val = n.get("value") or {}
@@ -175,28 +254,64 @@ def augment_financial_position(canonical: dict | None) -> dict | None:
             prev = _number(prev) if prev is not None else base_prev
             if cur is None and prev is None:
                 continue
-            key = (_fold(label), cur, prev, _clean(occ.get("code_candidate")))
+            statement_code = _clean(occ.get("code_candidate"))
+            note_ref = _clean(occ.get("note_candidate"))
+            parent_label = _clean(occ.get("parent_label") or n.get("parent_label") or "")
+            hierarchy_path = _clean(occ.get("hierarchy_path") or n.get("hierarchy_path") or "")
+            base_identity = structural_identity(
+                statement="FINANCIAL_POSITION",
+                label=label,
+                parent_label=parent_label,
+                hierarchy_path=hierarchy_path,
+            )
+            duplicate_key = (base_identity, cur, prev)
+            if duplicate_key in seen:
+                continue
+            rank = _next_occurrence_rank(
+                ranks,
+                statement="FINANCIAL_POSITION",
+                label=label,
+                parent_label=parent_label,
+                hierarchy_path=hierarchy_path,
+            )
+            key = (structural_identity(
+                statement="FINANCIAL_POSITION",
+                label=label,
+                parent_label=parent_label,
+                hierarchy_path=hierarchy_path,
+                occurrence_rank=rank,
+            ), cur, prev)
             if key in seen:
                 continue
-            seen.add(key)
+            seen.add(duplicate_key)
             additions.append({
-                "node_id": _source_id("FINANCIAL_POSITION", label, "", _clean(occ.get("code_candidate"))),
+                "node_id": _source_id(
+                    "FINANCIAL_POSITION",
+                    label,
+                    "",
+                    statement_code,
+                    parent_label=parent_label,
+                    hierarchy_path=hierarchy_path,
+                    occurrence=rank,
+                ),
                 "canonical_name": label,
                 "kind": "source_observation",
                 "semantic_role": "supplemental_source_row",
                 "parent_semantic_node_id": n.get("node_id"),
                 "sector": n.get("sector"),
-                "form_code": _clean(occ.get("code_candidate")) or None,
+                "form_code": statement_code or None,
+                "statement_code": statement_code or None,
+                "note_ref": note_ref or None,
                 "value": {
                     "current": cur,
                     "previous": prev,
                     "additional": None,
-                    "note": _clean(occ.get("note_candidate")) or val.get("note"),
+                    "note": note_ref or val.get("note"),
                     "raw_text": label,
                 },
                 "extraction_meta": {
                     "source_preservation": True,
-                    "occurrences": [occ],
+                    "occurrences": [{**occ, "occurrence_rank": rank}],
                 },
             })
     nodes.extend(additions)

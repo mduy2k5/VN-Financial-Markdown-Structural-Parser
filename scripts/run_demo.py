@@ -1,8 +1,9 @@
-"""Scan the 57 Markdown financial reports and save their parser artifacts.
+"""Scan the Markdown financial reports and save fresh parser artifacts.
 
-This is intentionally a storage-oriented demo: it runs the integrated parser
-over the report corpus and writes one set of artifacts per report. It does
-not read benchmark/audit snapshots or present reconciliation as a conclusion.
+The default mode is source-only: every statement is parsed from the current
+Markdown corpus and no prior output, comparison, or ground-truth file is used.
+The seeded-demo mode is retained only for an explicit, provenance-validated
+compatibility demonstration.
 """
 
 from __future__ import annotations
@@ -19,8 +20,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = ROOT / "md_reports"
-DEFAULT_FP_DIR = ROOT / "output" / "comparisons" / "comparison_v22_4_unit"
-DEFAULT_OUTPUT = ROOT / "demo_output" / "scan_57"
+DEFAULT_OUTPUT = ROOT / "output" / "demo" / "scan_57"
 
 
 def _load(path: Path) -> Any:
@@ -89,6 +89,9 @@ def _snapshot(results_dir: Path, source_files: list[Path]) -> dict[str, Any]:
         reports.append({
             "source_name": row.get("source_name"),
             "status": row.get("status"),
+            "current_year": row.get("current_year"),
+            "previous_year": row.get("previous_year"),
+            "year_resolution": row.get("year_resolution"),
             "financial_position_status": row.get("financial_position_status"),
             "cashflow_status": row.get("cashflow_status"),
             "notes_status": row.get("notes_status"),
@@ -128,7 +131,12 @@ def _write_summary(path: Path, manifest: dict[str, Any]) -> None:
         "",
         f"Generated: `{manifest['generated_at_utc']}`",
         "",
-        "Demo này chỉ lưu kết quả parser quét từ tập Markdown đầu vào; không kèm benchmark, audit hoặc kết luận reconciliation.",
+        (
+            "Demo mặc định chạy source-only: chỉ quét Markdown đầu vào, không đọc output cũ, "
+            "comparison cũ hoặc ground truth."
+            if manifest["mode"] == "source-only"
+            else "Demo seeded chỉ dùng artifact B01 đã xác thực provenance; không dùng làm benchmark nghiệp vụ."
+        ),
         "",
         "## Kết quả lưu",
         "",
@@ -157,22 +165,31 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Folder of Markdown reports")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Folder for saved scan artifacts")
-    parser.add_argument("--financial-position-dir", type=Path, default=DEFAULT_FP_DIR)
-    parser.add_argument("--comparison-dir", type=Path, default=DEFAULT_FP_DIR)
+    parser.add_argument(
+        "--mode",
+        choices=["source-only", "seeded-demo"],
+        default="source-only",
+        help="source-only parses B01 from Markdown; seeded-demo requires validated B01 artifacts.",
+    )
+    parser.add_argument("--financial-position-dir", type=Path, default=None)
     parser.add_argument("--notes", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--current-year", type=int, default=None)
+    parser.add_argument("--previous-year", type=int, default=None)
     args = parser.parse_args()
 
     input_dir = _resolve(args.input)
     output_dir = _resolve(args.output)
-    fp_dir = _resolve(args.financial_position_dir)
-    comparison_dir = _resolve(args.comparison_dir)
+    fp_dir = _resolve(args.financial_position_dir) if args.financial_position_dir else None
 
     if not input_dir.is_dir():
         raise SystemExit(f"Input folder not found: {input_dir}")
-    if not fp_dir.is_dir():
-        raise SystemExit(f"Financial Position source folder not found: {fp_dir}")
-    if not comparison_dir.is_dir():
-        raise SystemExit(f"Comparison source folder not found: {comparison_dir}")
+    if args.mode == "source-only" and fp_dir is not None:
+        raise SystemExit("--financial-position-dir chỉ được dùng với --mode seeded-demo")
+    if args.mode == "seeded-demo":
+        if fp_dir is None:
+            raise SystemExit("--mode seeded-demo yêu cầu --financial-position-dir")
+        if not fp_dir.is_dir():
+            raise SystemExit(f"Financial Position source folder not found: {fp_dir}")
 
     source_files = _source_files(input_dir)
     if not source_files:
@@ -184,14 +201,18 @@ def main() -> int:
         sys.executable,
         str(ROOT / "pipeline.py"),
         str(input_dir),
-        "--financial-position-dir",
-        str(fp_dir),
-        "--comparison-dir",
-        str(comparison_dir),
+        "--mode",
+        args.mode,
         "--output",
         str(results_dir),
         "--notes" if args.notes else "--no-notes",
     ]
+    if args.current_year is not None:
+        command.extend(["--current-year", str(args.current_year)])
+    if args.previous_year is not None:
+        command.extend(["--previous-year", str(args.previous_year)])
+    if fp_dir is not None:
+        command[3:3] = ["--financial-position-dir", str(fp_dir)]
     run = _run_pipeline(command, output_dir)
     if run["status"] != "passed":
         raise SystemExit(f"Scan failed; see {output_dir / 'scan.log'}")
@@ -202,7 +223,8 @@ def main() -> int:
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "project_root": str(ROOT),
         "input": _relative(input_dir),
-        "financial_position_source": _relative(fp_dir),
+        "mode": args.mode,
+        "financial_position_source": _relative(fp_dir) if fp_dir else None,
         "notes_enabled": bool(args.notes),
         "run": run,
         "scan": scan,

@@ -80,6 +80,29 @@ def fold(s: Any) -> str:
     return " ".join(s.split())
 
 
+_SEMANTIC_VARIANTS = {
+    "tang", "giam", "thay", "doi", "bien", "dong",
+}
+
+
+def semantic_label_similarity(left: Any, right: Any) -> float:
+    """Match layout/OCR wording variants using concept tokens only.
+
+    Form codes and note references are intentionally excluded.  Exact aliases
+    and the bounded regex fallback remain preferred; this path only accepts a
+    clear overlap of at least three non-directional tokens.
+    """
+    left_tokens = set(fold(left).split()) - _SEMANTIC_VARIANTS
+    right_tokens = set(fold(right).split()) - _SEMANTIC_VARIANTS
+    if len(left_tokens) < 3 or len(right_tokens) < 3:
+        return 0.0
+    shared = len(left_tokens & right_tokens)
+    coverage = shared / min(len(left_tokens), len(right_tokens)) if shared else 0.0
+    if shared < 3 or coverage < 0.80:
+        return 0.0
+    return min(0.96, 0.90 + 0.06 * coverage)
+
+
 
 
 def clean_source_label_and_code(label: Any, code: Any = None):
@@ -401,8 +424,16 @@ def discover_rows(root: Any, current_year=None, previous_year=None) -> list[Inco
 def dedupe_rows(rows: list[IncomeRow]) -> list[IncomeRow]:
     best = {}
     for r in rows:
-        key = (r.source_line, fold(r.label), json.dumps(r.code, ensure_ascii=False, sort_keys=True) if isinstance(r.code, (dict,list)) else str(r.code or ''), json.dumps(r.note, ensure_ascii=False, sort_keys=True) if isinstance(r.note, (dict,list)) else str(r.note or ''))
-        score = int(r.current is not None) + int(r.previous is not None) + int(bool(r.code)) + int(bool(r.note))
+        # Code/note columns are provenance.  Duplicate source rows are
+        # identified by source location, semantic label/context and periods.
+        key = (
+            r.source_line,
+            fold(r.label),
+            fold(r.parent_context or ""),
+            r.current,
+            r.previous,
+        )
+        score = int(r.current is not None) + int(r.previous is not None)
         if key not in best or score > best[key][0]:
             best[key] = (score, r)
     return [v[1] for v in sorted(best.values(), key=lambda z: ((z[1].source_line or 0), fold(z[1].label)))]
@@ -419,7 +450,6 @@ class IncomeMapper:
         self.regex_gap = regex_gap
         self.nodes = {n["node_id"]: n for n in self.schema["nodes"] if n.get("sector") == sector}
         self.exact = {}
-        self.code_index = {}
         for nid, n in self.nodes.items():
             labels = [n["canonical_name"]]
             node_alias = self.aliases.get("nodes", {}).get(nid, {})
@@ -438,8 +468,6 @@ class IncomeMapper:
                 labels += legacy_alias.get("aliases", [])
             for lab in labels:
                 self.exact.setdefault(fold(lab), []).append(nid)
-            if n.get("form_code"):
-                self.code_index.setdefault(str(n["form_code"]).strip().upper(), []).append(nid)
 
     def map_row(self, row: IncomeRow) -> IncomeRow:
         fl = fold(row.label)
@@ -451,12 +479,6 @@ class IncomeMapper:
             if len(set(pcands)) == 1:
                 cands = pcands
                 method = "parent_total"
-
-        if not cands and row.code:
-            cc = self.code_index.get(str(row.code).strip().upper(), [])
-            if len(cc) == 1:
-                cands = cc
-                method = "form_code"
 
         if not cands and self.regex_fallback and len(fl) >= 8:
             scored = []
@@ -478,6 +500,22 @@ class IncomeMapper:
                     cands = [top[1]]
                     method = "regex_fallback"
 
+        if not cands and len(fl) >= 8:
+            scored = []
+            for lab, nids in self.exact.items():
+                score = semantic_label_similarity(fl, lab)
+                if score:
+                    for nid in nids:
+                        scored.append((score, nid, lab))
+            scored.sort(reverse=True)
+            if scored and scored[0][0] >= 0.90:
+                top = scored[0]
+                second = scored[1][0] if len(scored) > 1 else 0.0
+                top_ids = {x[1] for x in scored if abs(x[0] - top[0]) < 1e-9}
+                if len(top_ids) == 1 and top[0] - second >= self.regex_gap:
+                    cands = [top[1]]
+                    method = "semantic_tokens"
+
         ids = list(dict.fromkeys(cands))
         if len(ids) == 1:
             nid = ids[0]
@@ -485,7 +523,7 @@ class IncomeMapper:
             row.node_id = nid
             row.canonical_name = n["canonical_name"]
             row.mapping_method = method
-            row.mapping_confidence = 1.0 if method in {"exact_alias", "form_code", "parent_total"} else 0.93
+            row.mapping_confidence = 1.0 if method in {"exact_alias", "parent_total"} else 0.93
             row.mapping_status = "mapped"
         elif len(ids) > 1:
             row.mapping_status = "ambiguous"
@@ -771,8 +809,6 @@ def auto_sector(rows: list[IncomeRow], schema_path=DEFAULT_SCHEMA, aliases_path=
             fl = fold(r.label)
             if fl in m.exact:
                 score += 2
-            if r.code and str(r.code).strip().upper() in m.code_index:
-                score += 1
         scores[sector] = score
     if all(v == 0 for v in scores.values()):
         return "unknown"

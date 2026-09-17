@@ -6,6 +6,7 @@ from pathlib import Path
 
 from src.notes.pipeline import NotesPipeline
 from src.notes.row_exporter import export_note_rows, write_aggregate_rows
+from src.common import infer_report_year_pair
 
 try:
     from flat_parser.preprocess import filter_noise
@@ -18,7 +19,7 @@ except Exception:
 def main():
     ap = argparse.ArgumentParser(description="v23 Notes runner with row-level export")
     ap.add_argument("input", help="Markdown file or folder")
-    ap.add_argument("--output", default="output_notes")
+    ap.add_argument("--output", default="output/notes/raw")
     ap.add_argument("--sector", choices=["enterprise", "bank", "securities", "insurance", "auto"], default="auto")
     ap.add_argument(
         "--primary-dir",
@@ -28,8 +29,8 @@ def main():
         "--primary-audit-report",
         help="Optional audit.json. Baselines with audit findings are quarantined from linking/reconciliation.",
     )
-    ap.add_argument("--current-year", type=int, default=2025)
-    ap.add_argument("--previous-year", type=int, default=2024)
+    ap.add_argument("--current-year", type=int, default=None)
+    ap.add_argument("--previous-year", type=int, default=None)
     ap.add_argument(
         "--write-ir",
         action=argparse.BooleanOptionalAction,
@@ -54,7 +55,6 @@ def main():
     if args.write_ir:
         ir_dir.mkdir(parents=True, exist_ok=True)
 
-    pipe = NotesPipeline(current_year=args.current_year, previous_year=args.previous_year)
     summary = []
     all_rows = []
     quarantined_primary_files = set()
@@ -68,6 +68,16 @@ def main():
 
     for path in files:
         text = path.read_text(encoding="utf-8-sig", errors="replace")
+        year_resolution = infer_report_year_pair(
+            text,
+            source_name=path.name,
+            current_year=args.current_year,
+            previous_year=args.previous_year,
+        )
+        pipe = NotesPipeline(
+            current_year=year_resolution["current_year"],
+            previous_year=year_resolution["previous_year"],
+        )
         scanner = None
         sector = args.sector
         if scan_statements is not None:
@@ -114,6 +124,9 @@ def main():
 
         summary.append({
             "source_name": path.name,
+            "current_year": year_resolution["current_year"],
+            "previous_year": year_resolution["previous_year"],
+            "year_resolution": year_resolution,
             "sector": sector,
             "notes_found": bool(d.get("notes_found")),
             "sections": d.get("section_count", 0),

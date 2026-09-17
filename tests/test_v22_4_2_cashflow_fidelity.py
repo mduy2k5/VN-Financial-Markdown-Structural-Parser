@@ -55,3 +55,20 @@ def test_translation_difference_is_reconciliation_and_maps(tmp_path: Path):
     r62 = next(r for r in mapped if r.code == '62')
     assert r62.mapping_status == 'mapped'
     assert r62.mapped_node_id == 'CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE'
+
+
+def test_short_ma_field_keeps_bullet_cashflow_row():
+    text = '''
+# BÁO CÁO LƯU CHUYỂN TIỀN TỆ HỢP NHẤT
+(Theo phương pháp gián tiếp)
+Mẫu B 03 - DN/HN
+* **I. LƯU CHUYỂN TIỀN TỆ TỪ HOẠT ĐỘNG KINH DOANH**
+* **1. Lợi nhuận trước thuế**
+    * Mã: 01
+    * Năm nay: 396.844.169.100
+    * Năm trước: 595.916.748.469
+'''
+    ext = extract_cashflow_fallback(text, 2025, 2024, fallback_unit='vnd')
+    row = next(r for r in ext['rows'] if r['code'] == '01')
+    assert row['source_label'] == 'Lợi nhuận trước thuế'
+    assert (row['current'], row['previous']) == (396844169100, 595916748469)

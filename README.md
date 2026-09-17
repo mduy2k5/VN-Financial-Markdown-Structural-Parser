@@ -1,255 +1,402 @@
 # VN-Financial-Markdown-Structural-Parser
 
-Hệ thống bóc tách, chuẩn hóa ngữ nghĩa và hợp nhất toàn diện 3 Báo cáo Tài chính: **Bảng Cân đối Kế toán (Financial Position)**, **Báo cáo Kết quả Hoạt động Kinh doanh (Income Statement)** và **Báo cáo Lưu chuyển Tiền tệ (Cash Flow Statement)** từ dữ liệu BCTC định dạng Markdown do các mô hình LLM/OCR quét từ tài liệu PDF của các công ty niêm yết tại Việt Nam.
+> Parser deterministic, source-first để trích xuất và chuẩn hóa Báo cáo tài chính Việt Nam từ Markdown được tạo bởi OCR/Vision-LLM.
 
-Phiên bản phát hành: **Release v23.1.0** — **Structural Notes Extraction**: Bóc tách cấu trúc Thuyết minh BCTC mở rộng từ Markdown đa dòng (multi-row table headers) và định dạng OCR dạng bullet/cặp niên độ (current/previous bullet pairs). Đạt độ phủ **57/57 tệp (100.0%)**, trích xuất thành công **27.542 dòng Thuyết minh có cấu trúc** (tăng đột biến từ 1.588 dòng ở v23.0.1, tiêu biểu ABB: 567 dòng, ACB: 307 dòng, ANV: 419 dòng). Giữ vững **171 / 171 primary statements đạt tiêu chuẩn release** (B01, B02, B03), bảo toàn nguyên tắc `PRIMARY > NOTES` $100\%$ không gây hồi quy (Zero Regression), độ chính xác khớp dòng đạt **99.80%** (3.398/3.408 dòng) và **100.0%** (406/406 dòng trên bộ 3 tệp kiểm thử mở rộng BID, FPT, VNM).
+Dự án xử lý đồng thời ba báo cáo chính:
 
-## Cập nhật kỹ thuật gần nhất
+- **B01 — Financial Position:** Bảng cân đối kế toán.
+- **B02 — Income Statement:** Báo cáo kết quả hoạt động kinh doanh (KQKD).
+- **B03 — Cash Flow:** Báo cáo lưu chuyển tiền tệ (LCTT).
+- **Notes:** Thuyết minh báo cáo tài chính, được xuất thành Notes IR và các dòng phẳng để kiểm tra.
 
-Mã nguồn đã hoàn tất migration sang cấu trúc module theo ba báo cáo chính. Các forwarding shim cũ ở gốc `src/` đã được loại bỏ sau khi toàn bộ test và import nội bộ được chuyển sang package mới:
+Bản parser hiện tại là **v23.1.0 — structural notes extraction**. Pipeline chạy trực tiếp trên Markdown nguồn, ghi lại provenance, suy luận niên độ theo từng báo cáo và không lấy output cũ làm dữ liệu đầu vào trong chế độ mặc định.
 
-- `src/b01_financial_position/`: Bảng cân đối kế toán.
-- `src/b02_income/`: KQKD, chọn phạm vi, trích xuất, ánh xạ và kiểm tra công thức.
-- `src/b03_cashflow/`: Lưu chuyển tiền tệ.
-- `src/common/`: đơn vị tiền tệ, kỳ báo cáo, source recovery, reconciliation và hydrator dùng chung.
-- `src/notes/`: Thuyết minh BCTC.
+## Trạng thái hiện tại
 
-`pytest.ini` chỉ chạy bộ test được hỗ trợ; `tests/legacy/` vẫn được lưu để tham khảo nhưng không thuộc regression suite. Tại lần đánh giá cục bộ mới nhất, scan đủ 57/57 báo cáo không tạo lỗi runtime, giá trị canonical B01/B02/B03 không thay đổi so với batch trước migration, và subset Notes gold khớp 1.177/1.177 dòng. Artifact đánh giá là dữ liệu cục bộ bị Git bỏ qua; có thể tái tạo bằng `python .\scripts\run_demo.py`.
+Kết quả lần chạy 57 báo cáo gần nhất:
 
-## 1. Bản Chất Input Đầu Vào & Thách Thức Xử Lý Dữ Liệu LLM-OCR
+| Hạng mục | Kết quả |
+| :--- | ---: |
+| Markdown đầu vào | **57** |
+| Báo cáo đã xử lý | **57/57** |
+| Source hash khớp baseline | **57/57** |
+| B01 | **57/57 `ok`** |
+| B03 | **55 `ok`**, 1 `partial_mapping`, 1 `partial_source_coverage` |
+| Notes | **57/57 `parsed`** |
+| Regression tests | **82 passed** |
 
-### 1.1. Nguồn Gốc & Bối Cảnh Đầu Vào (Input Origin)
+Đối chiếu với baseline parser-assisted ở chế độ `eligible`:
 
-Trong các hệ thống phân tích tài chính hiện đại (FinTech, RAG Pipeline, Quantitative Modeling), việc số hóa hàng triệu trang tài liệu Báo cáo Tài chính (BCTC) kiểm toán định dạng PDF là bước khởi đầu bắt buộc. Dữ liệu đầu vào của dự án (`md_reports/*.md`) xuất phát từ quy trình:
+| Bảng | Numeric pair match | Value-only coverage |
+| :--- | ---: | ---: |
+| B01 — Financial Position | **96,90%** | **98,22%** |
+| B02 — Income Statement | **99,60%** | **99,60%** |
+| B03 — Cash Flow | **95,33%** | **96,90%** |
+
+Các chỉ số trên đo mức bao phủ bằng chứng `nhãn + kỳ + giá trị` hoặc chỉ `giá trị`. Ground truth hiện là **parser-assisted baseline**, chưa phải gold standard đã được con người xác nhận hoàn toàn; các dòng mơ hồ vẫn phải đi qua review queue trước khi dùng cho kết luận nghiệp vụ.
+
+Resolver niên độ nhận diện 56 báo cáo theo cặp `2025/2024` và một báo cáo CMG theo cặp `2026/2025` do nội dung có ngày kết thúc 31/03/2026. Xung đột giữa tên file CMG và ngày trong nội dung được giữ lại trong provenance để audit, không bị che giấu.
+
+## 1. Nguyên tắc thiết kế
+
+### Source-first
+
+Chế độ mặc định `source-only` chỉ đọc các file Markdown trong thư mục input. Pipeline không tự quét project root, `output/`, ground truth hoặc các kết quả của lần chạy trước. Mỗi output mang theo:
+
+- `source_name` và `source_sha256`;
+- dòng nguồn và đoạn text gốc khi có thể;
+- phương pháp mapping và độ tin cậy;
+- `year_resolution` gồm bằng chứng, confidence và conflict.
+
+### Không fix cứng theo báo cáo
+
+- `current_year` và `previous_year` mặc định là `None`; mỗi file được suy luận độc lập.
+- Năm được chọn từ ngày kết thúc kỳ, cột kỳ hiện tại/kỳ trước và các câu dẫn báo cáo. Năm trong tên file chỉ là bằng chứng bổ trợ hoặc candidate khi khác nội dung.
+- Các ngày hành chính, ngày kiểm toán, ngày phát hành và ngày trong phần pháp lý bị giảm trọng số.
+- Ngày đầu tháng 1 được nhận diện là số đầu kỳ; kỳ quý/YTD được phân loại riêng, không tự động coi là kỳ trước.
+- Mã số biểu mẫu và số Thuyết minh không được dùng làm khóa identity, join, dedupe hoặc reconciliation. Chúng chỉ là metadata/provenance.
+
+Các script audit/repair chuyên biệt có thể chứa fixture tên báo cáo để phục vụ kiểm định baseline. Những script này chạy offline, không được gọi trong pipeline production và không quyết định mapping cho báo cáo mới.
+
+### Primary statements là nguồn chính
+
+B01, B02 và B03 được parse trực tiếp từ source Markdown. Notes là lớp bổ sung: có thể link/reconcile với primary nhưng không ghi đè giá trị primary nếu không có bằng chứng nguồn phù hợp.
+
+## 2. Flow xử lý
 
 ```text
-[BCTC PDF Gốc (Scan/Vector)]
-         │
-         ▼
-[Mô hình Vision-LLM / Document AI (Gemini Vision, GPT-4o, MinerU, Nougat, Docling)]
-         │
-         ▼
-[Tệp Markdown Thô (.md) lưu trữ tại S3 Data Lake (raw-data/du-lieu-co-phieu-production/...)]
+md_reports/*.md
+      │
+      ▼
+Discovery + đọc Markdown + SHA-256
+      │
+      ▼
+Resolver niên độ/kỳ báo cáo theo từng file
+      │
+      ├── B01: structural recovery → semantic nodes → canonical
+      ├── B02: scope/sector → row extraction → alias/semantic mapping → validation
+      ├── B03: layout/sector detection → row extraction → cash-flow mapping
+      └── Notes: scope → sections → blocks/table/bullet → Notes IR → row export
+      │
+      ▼
+Source recovery + hydration + reconciliation + provenance
+      │
+      ▼
+Canonical JSON theo từng báo cáo + summary CSV/JSON + manifest
 ```
 
-Mỗi tệp Markdown đầu vào mang theo metadata từng trang (`page`, `s3_key`, `year`, `symbol`, `page_ocr_status`) cùng phần nội dung text Markdown (`## Content`) được mô hình AI tái tạo lại từ hình ảnh trang sách.
+Mỗi báo cáo có một resolver context chung để mọi engine dùng cùng current/previous period. Điều này tránh việc parser và evaluator suy luận hai cặp năm khác nhau.
 
-### 1.2. Các Dị Tật Cấu Trúc Của Dữ Liệu Markdown Thô
+## 3. Các engine
 
-Mặc dù các mô hình Vision-LLM thế hệ mới có năng lực nhận dạng chữ rất cao, nhưng khi đối mặt với bảng biểu tài chính nhiều cột, nhiều cấp chỉ tiêu và ngắt trang liên tục, dữ liệu Markdown đầu ra thường xuyên gặp các lỗi cấu trúc nghiêm trọng:
+### B01 — Bảng cân đối kế toán
 
-1. **Thoái hóa cấu trúc bảng (Table Degeneration into Bullet Points):**
-   Rất nhiều trang BCTC bị mô hình LLM phân rã hoàn toàn khỏi định dạng bảng (`| col1 | col2 |`) thành danh sách gạch đầu dòng lồng nhau sâu 3-5 cấp (điển hình tại ACB, HPG). Ví dụ:
-   ```markdown
-   *   **I. Tiền mặt, vàng bạc, đá quý**
-       *   Thuyết minh: 4
-       *   Tại ngày 31.12.2025: 8.624.548 triệu VND
-       *   Tại ngày 31.12.2024: 5.696.449 triệu VND
-   ```
+B01 xử lý cả bảng Markdown thông thường, bảng bị tách cột và cấu trúc bullet/OCR. Lớp structural recovery phục hồi section, parent/hierarchy, nhãn và hai slot kỳ trước khi ánh xạ sang semantic node. Kết quả được hydrate/reconcile từ source observation nhưng giữ lại raw text để kiểm toán.
 
-2. **Đứt gãy liên kết Nhãn - Số liệu (Label & Value Decoupling):**
-   Khi một bảng biểu trải dài qua nhiều cột hoặc bị ngắt trang, LLM thường xuất toàn bộ tên chỉ tiêu ra dạng văn bản tự do ở phía trên, sau đó kẻ một bảng Markdown riêng biệt ở phía dưới chỉ gồm `Mã số` và các con số tiền mà không có nhãn. Parser thông thường hoàn toàn bất lực trước hiện tượng này.
+Thư mục chính: `src/b01_financial_position/` và `flat_parser/`.
 
-3. **Gãy dòng văn bản do OCR (Line-Wrapping & Text Splits):**
-   Do độ rộng trang in giới hạn, tên chỉ tiêu kế toán dài bị ngắt đôi xuống dòng, khiến các công cụ bóc tách nhầm lẫn dòng thứ hai là một mục mới hoặc làm thất lạc mã số chỉ tiêu.
+`flat_parser` có các chế độ debug:
 
-4. **Hỗn loạn định dạng số học và quy ước kế toán:**
-   - Số âm kế toán viết trong ngoặc đơn: `(163.476)` hoặc `(7.624.729)`.
-   - Giá trị rỗng hoặc bằng 0 thể hiện bằng dấu gạch ngang: `-` hoặc `—`.
-   - Đơn vị tiền tệ bị ghép trực tiếp vào số: `8.624.548 triệu VND`.
+- `v05`: pipeline hai lượt, tạo cây cấu trúc rồi ánh xạ ngữ nghĩa.
+- `flow`: chuỗi pattern structural P1–P34.
+- `hybrid`: dùng v05 làm nền và Flow fill các vị trí còn thiếu.
+- `compare`: chạy và so sánh ba engine.
 
-5. **Xung đột mã số biểu mẫu và thuật ngữ đồng nghĩa:**
-   Các ngân hàng thương mại tái sử dụng cùng mã số (như mã `01`, `02`) qua từng bảng biểu nghiệp vụ khác nhau; các doanh nghiệp sử dụng các cách diễn đạt tương đương đa dạng.
+Các engine debug này phục vụ phân tích B01; pipeline thống nhất vẫn là `pipeline.py --mode source-only`.
 
-### 1.3. Yêu Cầu Đặt Ra Cho Hệ Thống Chuẩn Hóa
+### B02 — KQKD
 
-Để dữ liệu này có thể sử dụng được cho phân tích định lượng, thuật toán hoặc lưu trữ cơ sở dữ liệu quan hệ, hệ thống bóc tách phải đáp ứng:
-- **Chuẩn hóa cấu trúc (Canonical Schema):** Chuyển đổi mọi định dạng (bảng, bullet, text) về một cấu trúc phẳng hoặc cây chuẩn mực thống nhất.
-- **Làm sạch số học (Numeric Standardization):** Chuyển đổi toàn bộ chuỗi số về giá trị thực (`float`), phục hồi đúng dấu âm cho các chỉ tiêu trong ngoặc đơn, chuẩn hóa đơn vị về đồng bộ.
-- **Nhận diện niên độ thông minh:** Tự động phát hiện niên độ báo cáo (`current_year`, `previous_year`) dựa trên tiêu đề cột biến thiên theo thời gian.
-- **Bảo tồn tính vẹn toàn kiểm toán (Auditability & Provenance):** Lưu giữ nguồn gốc truy vết (`source_line`, `raw_text`), bảo đảm giá trị số không bị "bịa đặt" hay làm sai lệch (`canonical_mutated: false`).
+B02 trước hết xác định phạm vi báo cáo và sector (`bank`, `enterprise`, `securities`, `insurance`). Sau đó extractor thu các dòng từ bảng/bullet/plain OCR, mapper chuẩn hóa nhãn bằng alias chính xác, regex có biên và semantic overlap có ngưỡng/margin. Validator kiểm tra cấu trúc và các quan hệ công thức khi có đủ dữ liệu.
 
-## 2. Tại Sao Dự Án Của Chúng Ta Là Giải Pháp Tối Ưu?
+Mapping không phụ thuộc ticker hoặc mã biểu mẫu; `form_code` chỉ được giữ để truy vết.
 
-### 2.1. Giới Hạn Của Việc Tiếp Tục Dùng Prompt LLM Trực Tiếp
+Thư mục chính: `src/b02_income/`.
 
-Nhiều giải pháp tiếp cận bằng cách gửi tiếp toàn bộ Markdown thô cho một mô hình LLM với prompt yêu cầu "hãy xuất ra JSON chuẩn". Cách làm này gặp phải các tử huyệt trong môi trường tài chính chuyên nghiệp:
-- **Ảo giác số liệu (Hallucination):** LLM sinh chữ theo xác suất nên có thể tự ý làm tròn, làm rớt dấu trừ hoặc bịa số khi dòng biểu bị mờ/khuyết.
-- **Chi phí đắt đỏ & Độ trễ cao:** Một bộ BCTC đầy đủ dài từ 50 đến 100 trang. Việc gọi LLM API qua hàng trăm trang tiêu tốn chi phí token rất lớn.
-- **Thiếu tính tất định (Non-deterministic):** Cùng một tệp BCTC, hai lần gọi LLM khác nhau có thể trả về hai cấu trúc JSON khác nhau, không thể đưa vào quy trình kiểm toán tự động.
+### B03 — LCTT
 
-### 2.2. Kiến Trúc Hybrid Của Tool: Rule-Based Deterministic + Semantic Layer
+B03 tự phát hiện scope/sector từ chính phần LCTT, phân biệt dòng tiền statutory với supplemental/customer/broker sections và phục hồi các layout column-major. Extractor lấy giá trị theo hai vector kỳ, mapper dùng schema/alias LCTT và giữ riêng các nhóm có cùng mã biểu mẫu nhưng khác ngữ nghĩa.
 
-Công cụ của chúng ta giải quyết triệt để bài toán này bằng kiến trúc kết hợp:
-1. **Multi-Strategy Parser Engine:** Vừa hỗ trợ trích xuất bảng kẻ viền (Table Mode), vừa xử lý danh sách bullet phân cấp (Bullet Hierarchy Mode), vừa có bộ quét dòng tự do dựa trên biểu thức chính quy (Regex Fallback Mode).
-2. **Observation & Patch Layer:** Tự động nhận diện cấu trúc, phát hiện bảng bị phân mảnh và tự động hàn gắn dòng chữ bị ngắt đôi.
-3. **Single Source of Truth (Schemas & Aliases):** Bộ quy chuẩn ngữ nghĩa bao phủ 4 thông tư kế toán pháp định của Việt Nam với hơn 1.000 alias thực tế.
-4. **Bảo tồn nguyên bản & Kiểm toán được (Audit-ready):** Mọi con số đều được ánh xạ trực tiếp từ dòng text gốc kèm số dòng (`source_line`), tuyệt đối không nội suy số liệu.
+Thư mục chính: `src/b03_cashflow/`.
 
-## 3. Bằng Chứng Thực Nghiệm & Kết Quả Đối Soát (Ground Truth Benchmark)
+### Notes — Thuyết minh
 
-### 3.1. Bảng Tổng Hợp Độ Phủ Toàn Hệ Thống (Release v22.4.2)
+Notes pipeline gồm các lớp:
 
-| Báo Cáo Tài Chính | Số Báo Cáo Đạt Chuẩn | Tỷ Lệ Pass Rate | Số Dòng Khớp Thực Tế | Tỷ Lệ Khớp Dòng |
-| :--- | :---: | :---: | :---: | :---: |
-| **Bảng Cân Đối Kế Toán (Financial Position)** | **57 / 57 Báo cáo** | **100.0%** | 100% Statutory Nodes | **100.00%** |
-| **Báo Cáo Kết Quả KD (Income Statement)** | **57 / 57 Báo cáo** | **100.0%** | 1.607 / 1.610 dòng | **99.81%** |
-| **Báo Cáo Lưu Chuyển Tiền Tệ (Cash Flow)** | **57 / 57 Báo cáo** | **100.0%** | 1.791 / 1.798 dòng | **99.61%** |
-| **TỔNG CỘNG TOÀN BỘ HỆ THỐNG** | **171 / 171 Báo cáo** | **100.0%** | **3.398 / 3.408 dòng** | **99.80%** |
+1. `scanner` tìm phạm vi Thuyết minh.
+2. `sectionizer` chia theo đề mục.
+3. `block_classifier` nhận diện bảng, bullet, plain OCR và movement block.
+4. `table_parser`/`structural_parser` tách nhãn, hierarchy, đơn vị và các slot kỳ.
+5. `linker` liên kết với primary khi có bằng chứng; `reconciliation` chỉ tạo đề xuất có provenance.
+6. `row_exporter` xuất dòng phẳng CSV/JSON để review và xây ground truth.
 
-### 3.2. Phân Bố Theo Khối Ngành & Chuẩn Mực Kế Toán
+Bullet được xử lý như cấu trúc cây: thụt đầu dòng tạo parent/child context, dòng `Thuyết minh` là metadata của node, còn các dòng `Tại ngày`, `Năm nay`, `Năm trước` được tách thành giá trị theo period. Nếu layout bị tách thành nhiều cụm cột, parser chỉ ghép khi section, cấu trúc và số lượng slot nhất quán.
 
-| Khối Ngành | Chế Độ Kế Toán | Số Tệp | Cân Đối KT | Kết Quả KD | Lưu Chuyển TT |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Doanh nghiệp** | Thông tư 200/2014/TT-BTC | 27 | 27/27 OK | 27/27 OK | 27/27 OK |
-| **Ngân hàng** | TT 49/2014 & TT 27/2021 | 27 | 27/27 OK | 27/27 OK | 27/27 OK |
-| **Chứng khoán** | Thông tư 334/2016/TT-BTC | 2 | 2/2 OK | 2/2 OK | 2/2 OK |
-| **Bảo hiểm** | Thông tư 199/2014/TT-BTC | 1 | 1/1 OK | 1/1 OK | 1/1 OK |
+Thư mục chính: `src/notes/`.
 
-## 4. Cấu Trúc Mã Nguồn (Repository Layout)
+## 4. Cấu trúc repository
 
 ```text
 Flatten/
-├── pipeline.py                        # [Entry Point] Pipeline thống nhất 3 BCTC + Thuyết minh (Notes IR)
-├── run_debug.py                       # [Debug Tool] CLI cho flat_parser (FP only, A/B compare)
-├── run_notes.py                       # [Notes Tool] CLI độc lập cho subsystem Thuyết minh BCTC
-│
-├── src/                               # [Core Business Logic]
-│   ├── b01_financial_position/        # B01: adapter và tích hợp Bảng cân đối
-│   ├── b02_income/                    # B02: scope, extractor, mapper, validator
-│   ├── b03_cashflow/                  # B03: extractor và mapper LCTT
-│   ├── common/                         # Unit/period/source recovery và reconciliation dùng chung
-│   ├── notes/                          # Trích xuất & cấu trúc Thuyết minh BCTC
-│   └── pipeline_metrics.py             # Metrics, tỷ lệ phủ & chất lượng bóc tách
-│
-├── flat_parser/                       # Engine trích xuất cấu trúc Bảng CĐKT
-│   ├── runner_cli.py                  # Unified CLI (v05 / flow / hybrid / compare modes)
-│   ├── bullet_flow.py                 # P1-P34 structural patterns (BulletDebugFlow)
-│   ├── integrated_pipeline.py         # Engine v05 (2-pass semantic tree)
-│   ├── flow_mapped_pipeline.py        # Engine flow (pure P1-P34)
-│   ├── bullet_mapped_pipeline.py      # Engine hybrid (v05 + flow fill)
-│   └── ...                            # Các module hỗ trợ (alias_matcher, pipeline, qa, ...)
-│
-├── resources/                         # Single Source of Truth — Schema & Aliases
-│   ├── universal_financial_position_schema_v1_6.json
-│   ├── universal_financial_position_aliases_v1_6_1.json
-│   ├── universal_off_balance_bank_schema_v1_3.json
-│   ├── universal_off_balance_bank_aliases_v1_3.json
-│   ├── income_statement_schema.json
-│   ├── income_statement_aliases.json
-│   ├── cash_flow_schema.json
-│   ├── cash_flow_aliases.json
-│   └── universal_structural_guide_a1_a5.json
-│
-├── md_reports/                        # [Input] 57 tệp BCTC Markdown từ Vision-LLM
-├── output/                            # [Output] Kết quả chuẩn hóa và đối soát
-├── ground_truth/                      # 57 tệp baseline Ground Truth
-├── evaluation_57/                     # Báo cáo đánh giá phạm vi & độ phủ Thuyết minh 57 BCTC
-├── tests/                             # Unit tests hiện hành
-│   └── legacy/                        # Tests v0.4.x (archived)
-├── samples/                           # Dữ liệu mẫu kiểm thử
-├── scripts/                           # Script tiện ích
-│   ├── rebuild_universal_guide.py
-│   ├── rebuild_guide.ps1
-│   ├── build_coverage_report.py
-│   └── evaluate_notes_coverage.py     # Đánh giá inventory & độ phủ Thuyết minh trên 57 BCTC
-│
-├── README.md
+├── pipeline.py                         # Entry point cho B01 + B02 + B03 + Notes
+├── run_debug.py                        # Chạy/debug các engine B01
+├── run_notes.py                        # CLI riêng cho Notes
+├── src/
+│   ├── b01_financial_position/         # Bảng cân đối và source integration
+│   ├── b02_income/                     # Scope, extractor, mapper, validator
+│   ├── b03_cashflow/                   # Extractor và mapper LCTT
+│   ├── common/                          # Period, source recovery, identity, reconciliation
+│   └── notes/                           # Notes IR, structural parser, linking, export
+├── flat_parser/                        # Engine structural/debug cho B01
+├── resources/                          # Schema, alias và structural guide
+├── md_reports/                         # Markdown nguồn; mặc định 57 báo cáo
+├── ground_truth/                       # Baseline, Notes GT và review artifacts
+├── output/                             # Artifact chạy cục bộ, được gom theo nhóm
+├── scripts/                            # Demo, build GT, compare, audit/review
+├── tests/                              # Regression suite hiện hành
+│   └── legacy/                         # Test cũ, không chạy mặc định
+├── samples/                            # Fixture kiểm thử nhỏ
+├── DEMO_GUIDE.md
 ├── VERSION.txt
 └── requirements.txt
 ```
 
-## 5. Cài Đặt & Môi Trường
+Các schema/alias chính trong `resources/`:
 
-- **Yêu cầu Python:** Python 3.10 trở lên (khuyến nghị Python 3.11 hoặc 3.12).
-- **Hệ điều hành:** Độc lập nền tảng (Windows, macOS, Linux).
+- `universal_financial_position_schema_v1_6.json` và alias tương ứng;
+- `income_statement_schema.json` và `income_statement_aliases.json`;
+- `cash_flow_schema.json` và `cash_flow_aliases.json`;
+- schema/alias supplemental ngân hàng và `universal_structural_guide_a1_a5.json`.
+
+## 5. Cài đặt
+
+Yêu cầu Python 3.10 trở lên, khuyến nghị 3.11 hoặc 3.12.
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r .\requirements.txt
 ```
 
-## 6. Hướng Dẫn Sử Dụng
+`requirements.txt` hiện chỉ yêu cầu `pytest`; parser runtime sử dụng thư viện chuẩn Python và các resource JSON trong repository.
 
-### 6.1. Pipeline Thống Nhất Cả 3 Báo Cáo (Production)
+## 6. Chạy pipeline
+
+### Demo toàn bộ 57 báo cáo
+
+```powershell
+python .\scripts\run_demo.py
+```
+
+Lệnh mặc định tương đương:
+
+```powershell
+python .\scripts\run_demo.py `
+  --input .\md_reports `
+  --output .\output\demo\scan_57 `
+  --mode source-only
+```
+
+Chỉ định output khác hoặc tắt Notes:
+
+```powershell
+python .\scripts\run_demo.py `
+  --input .\md_reports `
+  --output .\output\demo\my_run `
+  --no-notes
+```
+
+Không cần truyền năm nếu muốn dùng resolver tự động. Có thể truyền `--current-year` và `--previous-year` cho một batch kiểm thử có kiểm soát; đây là override tường minh, không phải cấu hình mặc định.
+
+### Pipeline production trực tiếp
 
 ```powershell
 python .\pipeline.py .\md_reports `
-  --financial-position-dir .\output\comparisons\comparison_v11 `
-  --comparison-dir .\output\comparisons\comparison_v22_2 `
-  --output .\output\comparisons\comparison_v22_2 `
-  --current-year 2025 `
-  --previous-year 2024
+  --mode source-only `
+  --output .\output\comparisons\current_run `
+  --notes
 ```
 
-Kết quả xuất ra gồm:
-- `<ticker>.comparison.json` — Hợp nhất cả 3 BCTC
-- `<ticker>.financial_position.canonical.json`
-- `<ticker>.income.canonical.json`
-- `<ticker>.cashflow.canonical.json`
-- `comparison_summary.json` + `comparison_summary.csv`
+`--sector auto` là mặc định. Có thể dùng `--sector bank|enterprise|securities|insurance` để override sector cho B02; B03 vẫn phát hiện scope độc lập.
 
-### 6.2. Debug / Phân Tích Riêng Bảng CĐKT
+### Chế độ seeded demo
 
 ```powershell
-# Chạy engine hybrid (mặc định, Production)
-python .\run_debug.py .\md_reports --mode hybrid --output .\output\hybrid
-
-# So sánh 3 engine (debug)
-python .\run_debug.py .\md_reports --mode compare --output .\output\compare
-
-# Chạy từng engine độc lập
-python .\run_debug.py .\md_reports --mode v05 --output .\output\v05
-python .\run_debug.py .\md_reports --mode flow --output .\output\flow
+python .\pipeline.py .\md_reports `
+  --mode seeded-demo `
+  --financial-position-dir .\path\to\validated_b01_artifacts `
+  --output .\output\demo\seeded
 ```
 
-Các tùy chọn nâng cao:
-```powershell
-# Bật regex fallback cho alias matching
-python .\run_debug.py .\md_reports --mode hybrid --regex-fallback --output .\output
+Chế độ này chỉ dành cho demo tương thích với artifact B01 đã xác thực provenance. Nó không phải đường chạy production và không được dùng để kết luận chất lượng parser source-only.
 
-# So sánh mapping strategy: legacy vs regex
-python .\run_debug.py .\md_reports --mode mapping-compare --output .\output\mapping_compare
-
-# So sánh legacy vs alias+regex-fallback
-python .\run_debug.py .\md_reports --mode fallback-compare --output .\output\fallback
-```
-
-### 6.3. Build lại Universal Guide
+## 7. Debug engine B01
 
 ```powershell
-.\scripts\rebuild_guide.ps1
+# Chạy từng engine
+python .\run_debug.py .\md_reports --mode v05 --output .\output\demo\v05
+python .\run_debug.py .\md_reports --mode flow --output .\output\demo\flow
+python .\run_debug.py .\md_reports --mode hybrid --output .\output\demo\hybrid
+
+# So sánh engine
+python .\run_debug.py .\md_reports --mode compare --output .\output\demo\engine_compare
+
+# Bật strict regex fallback sau alias mapping
+python .\run_debug.py .\md_reports `
+  --mode hybrid `
+  --mapping-strategy alias-regex-fallback `
+  --output .\output\demo\mapping_fallback
 ```
 
-## 7. Cấu Trúc Dữ Liệu Đầu Ra (Canonical Output)
+## 8. Ground truth và đối chiếu
 
-Mỗi chỉ tiêu trong tệp `.canonical.json` tuân thủ cấu trúc minh bạch, sẵn sàng phục vụ kiểm toán:
+### Xây Notes ground truth
+
+```powershell
+python .\scripts\build_notes_ground_truth.py `
+  .\md_reports `
+  --output .\ground_truth\notes
+```
+
+Năm được suy luận theo từng source file nếu không truyền override.
+
+### Tạo gold-candidate và review queue
+
+```powershell
+python .\scripts\prepare_main_statement_gold.py `
+  --baselines .\ground_truth\main_statements_v3_specialized `
+  --source-dir .\md_reports `
+  --output .\output\evaluations\main_statement_gold_queue
+```
+
+Lệnh này không ghi đè baseline. Các observation thiếu giá trị, mơ hồ về kỳ/nhãn, supplemental hoặc có conflict được tách sang review queue.
+
+### So sánh ba bảng chính
+
+```powershell
+python .\scripts\compare_main_statement_ground_truth.py `
+  --ground-truth .\ground_truth\main_statements_v3_specialized `
+  --current .\output\demo\scan_57\results `
+  --ground-truth-mode eligible `
+  --sources .\md_reports `
+  --report .\output\evaluations\comparison_main_statements.json
+```
+
+Hai chế độ:
+
+- `raw`: giữ toàn bộ observation đã lưu trong baseline.
+- `eligible`: loại observation không đủ điều kiện hoặc cần review khỏi chỉ số chính.
+
+Comparator so sánh bằng chứng chuẩn hóa `label + period + value`, báo riêng `missing` và `unexpected`, đồng thời kiểm tra source hash. Kết quả không nên được đọc như tỷ lệ đúng tuyệt đối nếu baseline chưa được human-review.
+
+### Đánh giá Notes coverage
+
+```powershell
+python .\scripts\evaluate_notes_coverage.py .\md_reports `
+  --output .\output\evaluations\notes_coverage `
+  --write-per-file
+```
+
+## 9. Cấu trúc output
+
+Demo mặc định tạo:
+
+```text
+output/demo/scan_57/
+├── scan.log
+├── scan_summary.md
+├── scan_manifest.json
+└── results/
+    ├── run_metadata.json
+    ├── comparison_summary.json
+    ├── comparison_summary.csv
+    ├── <report>.comparison.json
+    ├── <report>.financial_position.canonical.json
+    ├── <report>.income.canonical.json
+    ├── <report>.cashflow.canonical.json
+    ├── <report>.notes.ir.json
+    └── notes_rows/<report>.notes_rows.csv
+```
+
+`scan_manifest.json` là chỉ mục trung tâm, ghi trạng thái từng báo cáo, cặp năm được suy luận và đường dẫn tới tất cả artifact. Các artifact đánh giá thường nằm tại `output/evaluations/`; snapshot cũ nằm trong `output/archive/` khi được lưu riêng.
+
+Ground truth được tổ chức độc lập với output chạy:
+
+```text
+ground_truth/
+├── main_statements_v3_specialized/     # Baseline ba bảng chính
+├── notes/                              # Notes ground truth theo báo cáo
+├── notes_gold/                         # Gold/candidate đã lọc nếu có
+└── ...                                 # Audit/review queues và snapshot
+```
+
+Output và ground truth sinh cục bộ được Git bỏ qua để tránh commit nhầm dữ liệu lớn. Có thể tái tạo chúng từ `md_reports/` bằng các lệnh ở trên.
+
+## 10. Canonical schema và provenance
+
+Ví dụ rút gọn một canonical statement:
 
 ```json
 {
-  "code": "IS_01",
-  "name_vi": "Doanh thu bán hàng và cung cấp dịch vụ",
-  "value_current": 140558000000.0,
-  "value_previous": 120412000000.0,
-  "unit": "VND",
-  "source_line": 352,
-  "raw_text": "1. Doanh thu bán hàng và cung cấp dịch vụ: 140.558 (2025) / 120.412 (2024)",
-  "canonical_mutated": false
+  "statement_type": "INCOME_STATEMENT",
+  "unit": "million_vnd",
+  "periods": {
+    "current": 2025,
+    "previous": 2024
+  },
+  "nodes": [
+    {
+      "node_id": "INCOME.BANK.NET_INTEREST_INCOME",
+      "canonical_name": "Thu nhập lãi thuần",
+      "value": {
+        "current": 5088792,
+        "previous": 3035257
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 3,
+            "source_label": "Thu nhập lãi thuần",
+            "mapping_method": "exact_alias"
+          }
+        ]
+      }
+    }
+  ],
+  "source_name": "<report>.md",
+  "source_sha256": "<sha256>"
 }
 ```
 
-- `source_line`: Vị trí dòng chính xác trong tệp Markdown nguồn — cho phép kiểm toán đối chiếu trực tiếp.
-- `canonical_mutated: false`: Giá trị nguyên bản 100% từ tài liệu gốc, không nội suy.
+Giá trị được chuẩn hóa dấu âm, dấu phân cách và đơn vị nhưng không nội suy số liệu. `source_line`, `raw_text`, occurrence và mapping metadata cho phép quay lại Markdown nguồn. `canonical_mutated`/hydration metadata nếu có phải được đọc cùng provenance để phân biệt giá trị gốc và giá trị được phục hồi cấu trúc.
 
-## 8. Kiểm Thử & Đảm Bảo Chất Lượng
+## 11. Kiểm thử
 
 ```powershell
-# Kiểm tra cú pháp toàn bộ repo
+# Unit/regression suite
+python -m pytest -q
+
+# Kiểm tra cú pháp
 python -m compileall -q .
 
-# Chạy unit tests
-python -m pytest -q
+# Kiểm tra whitespace trong diff
+git diff --check
 ```
 
-## 9. Demo tổng hợp
+Regression suite hiện hành gồm các nhóm: structural edge cases, identity không phụ thuộc mã, period/year inference, source-only integrity, B01 recovery, B02 semantics, B03 cash-flow fidelity và Notes structural/coverage.
 
-Chạy `python .\scripts\run_demo.py` để quét 57 báo cáo trong `md_reports/` và lưu artifact parser theo từng báo cáo: canonical ba bảng chính, Notes IR/rows và summary/manifest. Demo không chạy benchmark, audit hay reconciliation. Xem [DEMO_GUIDE.md](DEMO_GUIDE.md) để biết cấu trúc output.
+## 12. Quy trình review trước khi dùng nghiệp vụ
+
+1. Chạy pipeline `source-only` trên source Markdown mới.
+2. Kiểm tra `scan_manifest.json`: số file, status, source hash, period confidence và conflict.
+3. Đối chiếu `eligible` để phát hiện missing/unexpected theo từng bảng.
+4. Mở review queue và kiểm tra các dòng cần adjudication bằng raw text/source line.
+5. Chỉ sau khi các conflict trọng yếu được xác nhận mới dùng canonical output cho kết luận nghiệp vụ.
+
+Các báo cáo có `partial_mapping`, `partial_source_coverage`, confidence thấp hoặc conflict niên độ không nên tự động được coi là đã hoàn thiện.
+
+## 13. Tài liệu liên quan
+
+- [DEMO_GUIDE.md](DEMO_GUIDE.md): chạy demo và cấu trúc artifact.
+- [VERSION.txt](VERSION.txt): phiên bản và phạm vi release.
+- `scripts/`: các lệnh build ground truth, compare, audit và review.
+- `tests/`: regression suite hiện hành.

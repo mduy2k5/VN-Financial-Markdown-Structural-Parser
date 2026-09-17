@@ -3,6 +3,11 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
+try:
+    from src.common.report_period import resolve_report_years
+except ImportError:
+    from common.report_period import resolve_report_years
+
 HEADING_RE = re.compile(
     r"(?i)^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:BÁO CÁO|BẢNG)\s+KẾT QUẢ\s+HOẠT ĐỘNG(?:\s+KINH DOANH)?(?:\s+HỢP NHẤT|\s+TỔNG HỢP)?"
 )
@@ -267,7 +272,16 @@ def _candidate_viability(lines: list[str], cand: dict, current_year: int, previo
     return x
 
 
-def choose_income_scope(text: str, current_year: int = 2025, previous_year: int = 2024):
+def choose_income_scope(text: str, current_year: int | None = None, previous_year: int | None = None):
+    if current_year is None or previous_year is None:
+        period = resolve_report_years(
+            text,
+            source_name="input",
+            current_year=current_year,
+            previous_year=previous_year,
+        )
+        current_year = period["current_year"]
+        previous_year = period["previous_year"]
     lines = text.splitlines()
     raw = [c for c in _heading_candidates(lines, current_year, previous_year) if c["score"] > -1000]
     if not raw:

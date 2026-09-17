@@ -5,6 +5,12 @@ from typing import Optional
 
 from .note_ir import NoteBlock, NoteRow, NoteValue
 from .sectionizer import fold_text
+try:
+    from ..common.ground_truth_quality import period_role as quality_period_role
+    from ..common.report_period import resolve_report_years
+except ImportError:
+    from common.ground_truth_quality import period_role as quality_period_role
+    from common.report_period import resolve_report_years
 
 SEP_CELL_RE = re.compile(r'^:?-{3,}:?$')
 DASHES = {'-', '–', '—', '−'}
@@ -44,23 +50,23 @@ def parse_number(raw: str):
         return None
 
 
-def _row_role(label: str) -> str:
+def _row_role(label: str, *, current_year: int | None = None, previous_year: int | None = None) -> str:
     f = fold_text(label)
     # ``cong`` is not sufficient evidence for a total: ``cong ty`` and
     # ``cong cu`` are ordinary business labels.  Prefer the explicit
     # ``tong`` prefix and the standalone ``cong`` row.
     if f == 'cong' or f.startswith('tong '): return 'total'
-    if any(x in f for x in ('cuoi nam', '31 12', 'so du cuoi', 'tai ngay 31 thang 12 nam 2025')): return 'closing'
-    if any(x in f for x in ('dau nam', '01 01', 'so du dau', 'tai ngay 1 thang 1 nam 2025', 'tai ngay 31 thang 12 nam 2024')): return 'opening'
+    if any(x in f for x in ('cuoi nam', '31 12', 'so du cuoi', f'tai ngay 31 thang 12 nam {current_year}')): return 'closing'
+    if any(x in f for x in ('dau nam', '01 01', 'so du dau', f'tai ngay 1 thang 1 nam {current_year}', f'tai ngay 31 thang 12 nam {previous_year}')): return 'opening'
     if any(x in f for x in ('mua trong nam', 'tang trong nam', 'giam trong nam', 'thanh ly', 'khau hao trong nam', 'trich lap', 'hoan nhap')): return 'movement'
     return 'detail'
 
 
-def _infer_period_role(header: str) -> Optional[str]:
-    f = fold_text(header)
-    if any(x in f for x in ('01 01 2025', 'dau nam', 'nam truoc', 'gia tri 2024', '2024')): return 'previous'
-    if any(x in f for x in ('31 12 2025', 'cuoi nam', 'nam nay', 'gia tri 2025', '2025')): return 'current'
-    return None
+def _infer_period_role(header: str, *, current_year: int | None = None, previous_year: int | None = None) -> Optional[str]:
+    """Use the shared period policy, including a distinct YTD/quarter role."""
+
+    role = quality_period_role(header, current_year, previous_year)
+    return role if role in {"current", "previous", "quarter"} else None
 
 
 def _infer_measure(header: str) -> Optional[str]:
@@ -92,7 +98,23 @@ def _compose_headers(header_rows: list[list[str]], width: int) -> list[str]:
     return out
 
 
-def parse_markdown_tables(section_text: str, base_line: int, block_prefix: str) -> list[NoteBlock]:
+def parse_markdown_tables(
+    section_text: str,
+    base_line: int,
+    block_prefix: str,
+    *,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+) -> list[NoteBlock]:
+    if current_year is None or previous_year is None:
+        period = resolve_report_years(
+            section_text,
+            source_name="input",
+            current_year=current_year,
+            previous_year=previous_year,
+        )
+        current_year = period["current_year"]
+        previous_year = period["previous_year"]
     lines = section_text.splitlines(); out=[]; i=0; block_no=0
     while i < len(lines):
         if '|' not in lines[i] or i+1 >= len(lines): i += 1; continue
@@ -123,8 +145,8 @@ def parse_markdown_tables(section_text: str, base_line: int, block_prefix: str) 
             for cidx, raw in enumerate(cells[1:], start=1):
                 hdr=headers[cidx] if cidx < len(headers) else ''
                 values.append(NoteValue(raw=raw, normalized=parse_number(raw), period_label=hdr or None,
-                    period_role=_infer_period_role(hdr), measure=_infer_measure(hdr), source_line=base_line+local_idx, source_column=cidx))
-            block.rows.append(NoteRow(label_raw=label,label_normalized=fold_text(label),values=values,row_role=_row_role(label),
+                    period_role=_infer_period_role(hdr, current_year=current_year, previous_year=previous_year), measure=_infer_measure(hdr), source_line=base_line+local_idx, source_column=cidx))
+            block.rows.append(NoteRow(label_raw=label,label_normalized=fold_text(label),values=values,row_role=_row_role(label, current_year=current_year, previous_year=previous_year),
                 source_line=base_line+local_idx,raw_cells=cells))
         if block.rows: out.append(block)
         i=j

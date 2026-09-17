@@ -32,7 +32,7 @@ def infer_movement_role(label: str | None) -> str | None:
     return None
 
 
-def infer_dimensions(block: NoteBlock) -> NoteBlock:
+def infer_dimensions(block: NoteBlock, *, current_year: int | None = None, previous_year: int | None = None) -> NoteBlock:
     if block.form != "table":
         period_members = []
         seen = set()
@@ -58,7 +58,7 @@ def infer_dimensions(block: NoteBlock) -> NoteBlock:
             continue
         if any(x in h for x in ("du phong", "gia goc", "gia tri", "nguyen gia", "hao mon", "con lai")):
             measure_headers.append({"column": idx, "header": block.headers_raw[idx]})
-        if any(x in h for x in ("2024", "2025", "dau nam", "cuoi nam", "nam nay", "nam truoc", "01 01", "31 12")):
+        if any(x in h for x in (str(previous_year), str(current_year), "dau nam", "cuoi nam", "nam nay", "nam truoc", "01 01", "31 12")):
             period_headers.append({"column": idx, "header": block.headers_raw[idx]})
 
     block.dimensions = []

@@ -39,7 +39,7 @@ def _unit(row: dict | None) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--notes-output", type=Path, default=Path("output_notes_linked_audited"))
+    parser.add_argument("--notes-output", type=Path, default=Path("output/notes/linked_audited"))
     parser.add_argument("--baselines", type=Path, default=Path("ground_truth/main_statements"))
     parser.add_argument("--output", type=Path, default=Path("ground_truth/reconciliation_review"))
     args = parser.parse_args()

@@ -14,7 +14,7 @@ v23 sửa lớp phát hiện phạm vi Thuyết minh dựa trên corpus 57 báo 
 ## Chạy coverage 57 file
 ```bash
 python scripts/evaluate_notes_coverage.py md_reports \
-  --output output_notes_v23_eval \
+  --output output/notes/v23_eval \
   --write-per-file
 ```
 
@@ -45,7 +45,7 @@ Output:
 `run_notes.py` now creates:
 
 ```text
-output_notes/
+output/notes/raw/
 ├── notes_rows/
 │   ├── <report>.notes_rows.csv
 │   ├── <report>.notes_rows.json

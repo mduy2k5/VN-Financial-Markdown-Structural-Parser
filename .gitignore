@@ -1,13 +1,22 @@
 # Local generated outputs and source datasets
 output/
-output_notes/
-output_notes_linked/
-output_notes_linked_audited/
-output_notes_linked_v2/
-output_notes_linked_specialized/
-output_notes_linked_specialized_v4/
+!output/
+output/*
+# Keep the two previously versioned fixtures visible after consolidation.
+!output/evaluations/
+output/evaluations/*
+!output/evaluations/evaluation_57/
+!output/evaluations/evaluation_57/**
+!output/archive/
+output/archive/*
+!output/archive/sample_output/
+!output/archive/sample_output/**
 demo_run/
+sample_output/
 demo_output/
+# The versioned sample fixture now lives under output/archive.
+!output/archive/sample_output/
+!output/archive/sample_output/**
 reconciliation_review_v2/
 ground_truth/
 REGRESSION_LOCAL.json

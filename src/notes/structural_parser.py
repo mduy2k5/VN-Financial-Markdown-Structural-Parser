@@ -6,6 +6,10 @@ from collections import defaultdict
 from .note_ir import NoteBlock, NoteRow, NoteValue
 from .sectionizer import fold_text
 from .table_parser import parse_number
+try:
+    from ..common.ground_truth_quality import period_role as quality_period_role
+except ImportError:
+    from common.ground_truth_quality import period_role as quality_period_role
 
 BULLET_RE = re.compile(r'^(?P<indent>\s*)(?:\*|-|\+)\s+(?P<body>.+?)\s*$')
 KV_RE = re.compile(r'^(?P<label>.+?)\s*:\s*(?P<value>.+?)\s*$')
@@ -45,20 +49,16 @@ def _split_numeric_unit(raw: str):
     return s, unit
 
 
-def _period_role(text: str):
+def _period_role(text: str, *, current_year: int | None = None, previous_year: int | None = None):
     f = fold_text(_strip_md(text)).strip(' :')
     for key, role in PERIOD_CONTAINER.items():
         if f == key or f.startswith(key + ' '):
             return role
-    # explicit date/year carriers
-    if '31 12 2025' in f or f == '2025':
-        return 'current'
-    if '01 01 2025' in f or '31 12 2024' in f or f == '2024':
-        return 'previous'
-    return None
+    role = quality_period_role(f, current_year, previous_year)
+    return role if role in {'current', 'previous', 'quarter'} else None
 
 
-def _row_role(label: str):
+def _row_role(label: str, *, current_year: int | None = None, previous_year: int | None = None):
     f = fold_text(label)
     # Do not treat every occurrence of ``cong`` as a total.  OCR labels such
     # as ``Chuyển lỗ từ công ty con`` contain the same token but are detail
@@ -66,16 +66,24 @@ def _row_role(label: str):
     # standalone label ``Cộng``).
     if f == 'cong' or f.startswith('tong '):
         return 'total'
-    if any(x in f for x in ('so cuoi nam', 'cuoi nam', '31 12 2025')):
+    if any(x in f for x in ('so cuoi nam', 'cuoi nam', f'31 12 {current_year}')):
         return 'closing'
-    if any(x in f for x in ('so dau nam', 'dau nam', '01 01 2025', '31 12 2024')):
+    if any(x in f for x in ('so dau nam', 'dau nam', f'01 01 {current_year}', f'31 12 {previous_year}')):
         return 'opening'
     if any(x in f for x in ('tang trong nam', 'giam trong nam', 'mua trong nam', 'trich lap', 'hoan nhap', 'thanh ly', 'ghi nhan vao')):
         return 'movement'
     return 'detail'
 
 
-def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str, *, occupied_lines=None):
+def parse_bullet_structures(
+    section_text: str,
+    base_line: int,
+    block_prefix: str,
+    *,
+    occupied_lines=None,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+):
     """Extract generic bullet/key-value structures without sector semantics.
 
     Core shapes:
@@ -127,7 +135,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
     # A) Pair matching label:value rows across current/previous period containers.
     period_groups = []
     for pos, t in enumerate(toks):
-        role = _period_role(t['body'])
+        role = _period_role(t['body'], current_year=current_year, previous_year=previous_year)
         if not role:
             continue
         items = []
@@ -175,7 +183,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
             if p:
                 vals.append(NoteValue(raw=p[2], normalized=p[3], period_label='Số đầu năm', period_role='previous', unit=p[4], source_line=p[5]))
                 used.add(p[6]); source_lines.append(p[5])
-            rows.append(NoteRow(label_raw=src[1], label_normalized=key, values=vals, row_role=_row_role(src[1]), source_line=src[5], raw_cells=[src[1]] + [v.raw for v in vals]))
+            rows.append(NoteRow(label_raw=src[1], label_normalized=key, values=vals, row_role=_row_role(src[1], current_year=current_year, previous_year=previous_year), source_line=src[5], raw_cells=[src[1]] + [v.raw for v in vals]))
         for pos, _, _ in currents + previouses:
             used.add(pos); source_lines.append(toks[pos]['line'])
         block_no += 1
@@ -187,7 +195,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
 
     # B) Parent semantic row with direct current/previous children.
     for pos, t in enumerate(toks):
-        if pos in used or _period_role(t['body']) or KV_RE.match(t['body']):
+        if pos in used or _period_role(t['body'], current_year=current_year, previous_year=previous_year) or KV_RE.match(t['body']):
             continue
         vals = []
         child_positions = []
@@ -196,7 +204,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
             km = KV_RE.match(c['body'])
             if not km:
                 continue
-            role = _period_role(km.group('label'))
+            role = _period_role(km.group('label'), current_year=current_year, previous_year=previous_year)
             if not role:
                 continue
             raw_val, unit = _split_numeric_unit(km.group('value'))
@@ -207,7 +215,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
             child_positions.append(cp)
         if vals:
             block_no += 1
-            row = NoteRow(label_raw=t['body'], label_normalized=fold_text(t['body']), values=vals, row_role=_row_role(t['body']), source_line=t['line'], raw_cells=[t['body']] + [v.raw for v in vals])
+            row = NoteRow(label_raw=t['body'], label_normalized=fold_text(t['body']), values=vals, row_role=_row_role(t['body'], current_year=current_year, previous_year=previous_year), source_line=t['line'], raw_cells=[t['body']] + [v.raw for v in vals])
             blocks.append(NoteBlock(
                 block_id=f'{block_prefix}:bullet_row_{block_no}', form='bullet_list', semantic_shape='breakdown',
                 source_start_line=t['line'], source_end_line=max([t['line']] + [toks[x]['line'] for x in child_positions]), rows=[row],
@@ -224,7 +232,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
         if not km:
             continue
         label = _strip_md(km.group('label'))
-        if _period_role(label):
+        if _period_role(label, current_year=current_year, previous_year=previous_year):
             continue
         raw_val, unit = _split_numeric_unit(km.group('value'))
         num = parse_number(raw_val)
@@ -244,7 +252,7 @@ def parse_bullet_structures(section_text: str, base_line: int, block_prefix: str
         rows = [NoteRow(
             label_raw=lab, label_normalized=fold_text(lab),
             values=[NoteValue(raw=rv, normalized=num, unit=unit, source_line=t['line'])],
-            row_role=_row_role(lab), source_line=t['line'], raw_cells=[lab, rv]
+            row_role=_row_role(lab, current_year=current_year, previous_year=previous_year), source_line=t['line'], raw_cells=[lab, rv]
         ) for t, lab, rv, num, unit in singles]
         blocks.append(NoteBlock(
             block_id=f'{block_prefix}:bullet_single_{block_no}', form='bullet_list', semantic_shape='breakdown',

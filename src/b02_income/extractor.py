@@ -6,11 +6,14 @@ from typing import Any, Optional
 
 try:
     from src.common.value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+    from src.common.report_period import resolve_report_years
 except ImportError:
     try:
         from common.value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+        from common.report_period import resolve_report_years
     except ImportError:
         from value_semantics import detect_statement_unit, row_unit_override, is_note_reference
+        from report_period import resolve_report_years
 
 try:
     from .scope import (
@@ -66,6 +69,20 @@ def fold(s: Any) -> str:
     s = s.replace("đ", "d").replace("Đ", "D").lower()
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
+
+
+def _is_cumulative_period_label(value: Any) -> bool:
+    """Identify a year-to-date period without changing the public period API."""
+    label = fold(value)
+    return any(token in label for token in ("luy ke", "cumulative", "year to date", "ytd"))
+
+
+def _primary_period_priority(label: Any, current_year: int, previous_year: int):
+    """Rank primary quarter columns above cumulative columns for extraction."""
+    role, priority = _period_role_and_priority(label, current_year, previous_year)
+    if role and _is_cumulative_period_label(label):
+        priority = min(priority, 5)
+    return role, priority
 
 
 def is_non_item_header_or_noise(label: Any) -> bool:
@@ -148,7 +165,7 @@ def _row(indicator: str, current=None, previous=None, code=None, note=None, unit
 
 
 
-def extract_pipe_table(lines, start, end, current_year=2025, previous_year=2024):
+def extract_pipe_table(lines, start, end, current_year=None, previous_year=None):
     out = []
     header_period_order = None
     for i in range(start, end):
@@ -161,10 +178,13 @@ def extract_pipe_table(lines, start, end, current_year=2025, previous_year=2024)
         joined = " ".join(cells).casefold()
         if "chỉ tiêu" in joined or "năm nay" in joined or "năm trước" in joined or (str(current_year) in joined and str(previous_year) in joined):
             idx_cur = idx_prev = None
+            cur_prio = prev_prio = -1
             for idx, c in enumerate(cells):
-                role, _ = _period_role_and_priority(c, current_year, previous_year)
-                if role == "current": idx_cur = idx
-                elif role == "previous": idx_prev = idx
+                role, priority = _primary_period_priority(c, current_year, previous_year)
+                if role == "current" and priority >= cur_prio:
+                    idx_cur, cur_prio = idx, priority
+                elif role == "previous" and priority >= prev_prio:
+                    idx_prev, prev_prio = idx, priority
             if idx_cur is not None and idx_prev is not None:
                 header_period_order = (idx_cur, idx_prev)
             continue
@@ -228,6 +248,8 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
         pp = parse_period_line(txt, current_year, previous_year)
         if pp:
             role, prio, value = pp
+            if _is_cumulative_period_label(txt):
+                prio = min(prio, 5)
             if role == "current" and (cur_indent is None or ind2 < cur_indent or (ind2 == cur_indent and prio >= cur_prio)):
                 current, cur_prio, cur_indent = value, prio, ind2
             elif role == "previous" and (prev_indent is None or ind2 < prev_indent or (ind2 == prev_indent and prio >= prev_prio)):
@@ -257,7 +279,7 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
     return label, current, previous, code, note, raw
 
 
-def extract_period_children(lines, start, end, current_year=2025, previous_year=2024):
+def extract_period_children(lines, start, end, current_year=None, previous_year=None):
     out = []
     for i in range(start, end):
         bi = _bullet_info(lines[i])
@@ -321,7 +343,7 @@ def extract_positional_children(lines, start, end):
                                 pattern_id="SP_POSITIONAL_VALUE_CHILDREN", line_no=i+1,
                                 raw_lines=[lines[i]] + [x[2] for x in direct]))
                 continue
-        # Fallback: check if subsequent lines at the same indent are values (as in NVB OCR)
+                # Fallback: check if subsequent lines at the same indent are values in OCR output.
         same_indent_vals = []
         j = i + 1
         note = None
@@ -373,7 +395,7 @@ def extract_inline_period_rows(lines, start, end):
     return out
 
 
-def extract_heading_attribute_rows(lines, start, end, current_year=2025, previous_year=2024):
+def extract_heading_attribute_rows(lines, start, end, current_year=None, previous_year=None):
     """Non-bullet semantic heading followed by bullet attributes; common on continuation pages."""
     out = []
     for i in range(start, end):
@@ -405,6 +427,8 @@ def extract_heading_attribute_rows(lines, start, end, current_year=2025, previou
             pp = parse_period_line(txt, current_year, previous_year)
             if pp:
                 role, prio, value = pp
+                if _is_cumulative_period_label(txt):
+                    prio = min(prio, 5)
                 if role=="current" and prio>=cur_prio: current,cur_prio=value,prio
                 if role=="previous" and prio>=prev_prio: previous,prev_prio=value,prio
         if saw_attr and (current is not None or previous is not None):
@@ -544,7 +568,7 @@ def extract_plain_text_code_rows(lines, start, end):
             )
     return out
 
-def extract_column_major(lines, start, end, current_year=2025, previous_year=2024):
+def extract_column_major(lines, start, end, current_year=None, previous_year=None):
     labels, codes, current, previous = [], [], [], []
     mode = None
     for i in range(start, end):
@@ -574,7 +598,7 @@ def extract_column_major(lines, start, end, current_year=2025, previous_year=202
 
 
 
-def extract_code_led_mixed_rows(lines, start, end, current_year=2025, previous_year=2024):
+def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_year=None):
     """Handle OCR blocks led by `Mã số`, with attributes and semantic label in mixed bullet/non-bullet lines.
 
     Example:
@@ -671,11 +695,12 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=2025, previous_y
     return out
 
 
-def extract_year_section_rows(lines, start, end, current_year=2025, previous_year=2024):
+def extract_year_section_rows(lines, start, end, current_year=None, previous_year=None):
     """Handle layouts split into one complete current-year section and one previous-year section.
 
     Example: **Năm báo cáo: 2025 (VND)** followed by rows with `Số liệu: ...`,
-    then a matching 2024 section. Rows are joined by form code when available.
+    then a matching 2024 section. Rows are joined by normalized semantic label;
+    form code and note columns are retained only as provenance.
     """
     headers = []
     for i in range(start, end):
@@ -731,7 +756,7 @@ def extract_year_section_rows(lines, start, end, current_year=2025, previous_yea
     merged={}
     for year, arr in sections.items():
         for x in arr:
-            key=(str(x.get("code") or "").upper(), _norm_dedupe_label(x["label"]))
+            key=(_norm_dedupe_label(x["label"]),)
             z=merged.setdefault(key,{"label":x["label"],"code":x.get("code"),"note":x.get("note"),"current":None,"previous":None,"line":x["line"],"raw":[]})
             z["raw"] += x["raw"]
             if x.get("note") and not z.get("note"): z["note"]=x["note"]
@@ -740,7 +765,7 @@ def extract_year_section_rows(lines, start, end, current_year=2025, previous_yea
     return [_row(z["label"],z["current"],z["previous"],code=z["code"],note=z["note"],pattern_id="SP_INCOME_YEAR_SECTIONS",line_no=z["line"],raw_lines=z["raw"]) for z in merged.values() if z["current"] is not None or z["previous"] is not None]
 
 
-def extract_label_list_column_major(lines, start, end, current_year=2025, previous_year=2024):
+def extract_label_list_column_major(lines, start, end, current_year=None, previous_year=None):
     """Handle hierarchy/list of labels followed by separate `Năm 2025` and `Năm 2024` value lists."""
     cur_header = prev_header = None
     for i in range(start,end):
@@ -821,7 +846,15 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
     return dedupe(rows)
 
 
-def extract_income_fallback(markdown_text: str, current_year: int = 2025, previous_year: int = 2024, fallback_unit: Optional[str] = None):
+def extract_income_fallback(markdown_text: str, current_year: int | None = None, previous_year: int | None = None, fallback_unit: Optional[str] = None):
+    period = resolve_report_years(
+        markdown_text,
+        source_name="input",
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+    current_year = period["current_year"]
+    previous_year = period["previous_year"]
     lines, start, end, score = choose_income_scope(markdown_text, current_year, previous_year)
     rows = _extract_rows_for_scope(lines, start, end, current_year, previous_year)
 
@@ -855,7 +888,7 @@ def extract_income_fallback(markdown_text: str, current_year: int = 2025, previo
     }
 
 
-def augment_income_rows(markdown_text: str, existing_rows=None, current_year: int = 2025, previous_year: int = 2024):
+def augment_income_rows(markdown_text: str, existing_rows=None, current_year: int | None = None, previous_year: int | None = None):
     existing_rows = list(existing_rows or [])
     fallback = extract_income_fallback(markdown_text, current_year, previous_year)["rows"]
     return dedupe(existing_rows + fallback)

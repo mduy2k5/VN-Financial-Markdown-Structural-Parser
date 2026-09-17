@@ -357,7 +357,7 @@ def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> Note
                 evidence.append("project_statement_scanner:corroborated")
                 confidence = max(confidence, min(0.995, scanner_conf))
             elif scanner_line < start_cand.line_no:
-                # This is the important ABB/NVB/NAB case: scanner opened on TOC.
+                # Handle documents whose first scanned page is a table of contents.
                 scanner_raw = lines[scanner_line - 1] if 1 <= scanner_line <= len(lines) else ""
                 scanner_is_toc, reason = _looks_like_toc_candidate(lines, scanner_line - 1, scanner_raw)
                 if scanner_is_toc or any(c.line_no == scanner_line and c.rejected for c in candidates):

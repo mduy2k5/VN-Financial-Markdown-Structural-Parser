@@ -17,6 +17,31 @@ def _fold(v: Any) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", s)).strip()
 
 
+def period_role_for_date(
+    day: int,
+    month: int,
+    year: int,
+    current_year: int | None,
+    previous_year: int | None,
+) -> str | None:
+    """Map an explicit statement date to a comparative role.
+
+    The parser years represent the calendar years of the statement end dates,
+    not necessarily 31 December.  Therefore any date in the current end year
+    is current evidence, except a day-one opening date; a date in the previous
+    end year is prior evidence.  The caller remains responsible for restricting
+    this helper to statement-scope text so administrative dates are not used.
+    """
+
+    if current_year is not None and year == current_year:
+        if day == 1:
+            return "previous"
+        return "current"
+    if previous_year is not None and year == previous_year:
+        return "previous"
+    return None
+
+
 def _num(v: Any):
     if v is None or isinstance(v, bool):
         return None
@@ -51,7 +76,7 @@ def _num(v: Any):
         return None
 
 
-def _role_from_period_label(label: Any, current_year: int, previous_year: int):
+def _role_from_period_label(label: Any, current_year: int | None, previous_year: int | None):
     """Resolve FP current/previous from explicit statement semantics.
 
     Crucial rule: beginning-of-current-year (01/01/current_year) is the previous comparative
@@ -70,14 +95,9 @@ def _role_from_period_label(label: Any, current_year: int, previous_year: int):
         return "previous"
 
     # 1 January of current year == opening balance == previous comparative column.
-    if re.search(rf"(?:^| )0?1(?: | thang )0?1(?: | nam ){current_year}(?: |$)", f):
-        return "previous"
-    if re.search(rf"(?:^| )31(?: | thang )12(?: | nam ){current_year}(?: |$)", f):
-        return "current"
-    if re.search(rf"(?:^| )31(?: | thang )12(?: | nam ){previous_year}(?: |$)", f):
-        return "previous"
-
-    # compact slash/dot dates survive folding as spaces: 31 12 2025 / 1 1 2025
+    # Compact slash/dot dates and Vietnamese long dates survive folding as
+    # spaces: 31 03 2026 / 31 thang 3 nam 2026.  Do not special-case December;
+    # non-calendar fiscal years use the same year-relative rule.
     toks = re.findall(r"\d+", f)
     if len(toks) >= 3:
         for a, b, c in zip(toks, toks[1:], toks[2:]):
@@ -85,12 +105,9 @@ def _role_from_period_label(label: Any, current_year: int, previous_year: int):
                 d, m, y = int(a), int(b), int(c)
             except Exception:
                 continue
-            if y == current_year and d == 1 and m == 1:
-                return "previous"
-            if y == current_year and d == 31 and m == 12:
-                return "current"
-            if y == previous_year and d == 31 and m == 12:
-                return "previous"
+            role = period_role_for_date(d, m, y, current_year, previous_year)
+            if role:
+                return role
     # Bare fiscal-year labels are only safe when they explicitly say Năm/year.
     if re.search(rf"\bnam {current_year}\b|\byear {current_year}\b", f):
         return "current"
@@ -117,7 +134,7 @@ def _consensus(candidates):
     return raw, vals
 
 
-def repair_financial_position_period_identity(canonical: dict | None, current_year: int = 2025, previous_year: int = 2024):
+def repair_financial_position_period_identity(canonical: dict | None, current_year: int | None = None, previous_year: int | None = None):
     if not canonical:
         return canonical
     repaired = 0

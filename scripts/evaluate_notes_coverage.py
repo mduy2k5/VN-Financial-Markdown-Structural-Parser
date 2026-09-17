@@ -117,9 +117,9 @@ def evaluate_file(path: Path, pipe: NotesPipeline, per_file: Path | None = None)
 def main() -> None:
     ap = argparse.ArgumentParser(description="v23 Notes Scope & Coverage evaluator")
     ap.add_argument("input", help="Markdown/TXT file or folder")
-    ap.add_argument("--output", default="output_notes_v23_eval")
-    ap.add_argument("--current-year", type=int, default=2025)
-    ap.add_argument("--previous-year", type=int, default=2024)
+    ap.add_argument("--output", default="output/notes/v23_eval")
+    ap.add_argument("--current-year", type=int, default=None)
+    ap.add_argument("--previous-year", type=int, default=None)
     ap.add_argument("--write-per-file", action=argparse.BooleanOptionalAction, default=False)
     args = ap.parse_args()
 

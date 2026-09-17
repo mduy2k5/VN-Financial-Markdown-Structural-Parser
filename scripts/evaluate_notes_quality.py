@@ -82,8 +82,8 @@ def evaluate(output_dir: Path, linked_dir: Path | None = None) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("output_notes"))
-    parser.add_argument("--linked-output", type=Path, default=Path("output_notes_linked"))
+    parser.add_argument("--output", type=Path, default=Path("output/notes/raw"))
+    parser.add_argument("--linked-output", type=Path, default=Path("output/notes/linked"))
     parser.add_argument("--report", type=Path, default=Path("ground_truth/notes/quality_report_current.json"))
     args = parser.parse_args()
 

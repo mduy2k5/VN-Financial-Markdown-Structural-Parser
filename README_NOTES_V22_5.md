@@ -17,7 +17,7 @@ Thêm subsystem Thuyết minh BCTC độc lập, không phá B01/B02/B03 hiện 
 ## Cài đặt
 Copy `src/notes/` vào project.
 Có thể chạy độc lập:
-`python run_notes.py tests/md_test/FPT_BCTC_2025_extreme_stress_test.md --output output_notes`
+`python run_notes.py tests/md_test/FPT_BCTC_2025_extreme_stress_test.md --output output/notes/raw`
 
 Nếu dùng flat_parser integrated flow, thay file:
 `flat_parser/integrated_pipeline.py`

@@ -55,6 +55,38 @@ def fold(s: Any) -> str:
     return " ".join(s.split())
 
 
+# Grammatical/directional words that vary across report layouts.  These are
+# not statement codes or note references: the fallback compares the accounting
+# concepts carried by the remaining tokens.
+_SEMANTIC_VARIANTS = {
+    "tang", "giam", "thay", "doi", "bien", "dong",
+}
+
+
+def semantic_label_similarity(left: Any, right: Any) -> float:
+    """Compare accounting concepts for conservative OCR/layout variants.
+
+    Exact and ordinary fuzzy matching remain the primary paths.  This fallback
+    handles labels such as ``Các khoản phải thu`` versus ``Tăng, giảm các
+    khoản phải thu`` without consulting a form code.  It only accepts a clear
+    overlap with at least three non-variant tokens.
+    """
+    l_tokens = set(fold(left).split())
+    r_tokens = set(fold(right).split())
+    l_core = l_tokens - _SEMANTIC_VARIANTS
+    r_core = r_tokens - _SEMANTIC_VARIANTS
+    if len(l_core) < 3 or len(r_core) < 3:
+        return 0.0
+    shared = len(l_core & r_core)
+    if shared < 3:
+        return 0.0
+    coverage = shared / min(len(l_core), len(r_core))
+    if coverage < 0.80:
+        return 0.0
+    # Keep semantic fallback below exact labels, but above ordinary threshold.
+    return min(0.96, 0.90 + 0.06 * coverage)
+
+
 @dataclass
 class CFRow:
     label: str
@@ -64,6 +96,8 @@ class CFRow:
     method: Optional[str]
     code: Optional[str] = None
     note: Optional[str] = None
+    statement_code: Optional[str] = None
+    note_ref: Optional[str] = None
     source_line: Optional[int] = None
     pattern: Optional[str] = None
     unit: Optional[str] = None
@@ -72,14 +106,32 @@ class CFRow:
     mapping_method: Optional[str] = None
     mapping_confidence: float = 0.0
 
+    def __post_init__(self):
+        if self.statement_code is None:
+            self.statement_code = self.code
+        if self.code is None:
+            self.code = self.statement_code
+        if self.note_ref is None:
+            self.note_ref = self.note
+        if self.note is None:
+            self.note = self.note_ref
+
 
 def adapt_cashflow_row(obj: dict) -> CFRow:
+    statement_code = obj.get("statement_code")
+    if statement_code in (None, ""):
+        statement_code = obj.get("code")
+    note_ref = obj.get("note_ref")
+    if note_ref in (None, ""):
+        note_ref = obj.get("note")
     return CFRow(
         label=strip_md(obj.get("source_label") or obj.get("label")),
         current=obj.get("current"), previous=obj.get("previous"),
         section=obj.get("section"), method=obj.get("method"),
-        code=strip_md(obj.get("code")) if obj.get("code") not in (None, "") else None,
-        note=strip_md(obj.get("note")) if obj.get("note") not in (None, "") else None,
+        code=strip_md(statement_code) if statement_code not in (None, "") else None,
+        note=strip_md(note_ref) if note_ref not in (None, "") else None,
+        statement_code=strip_md(statement_code) if statement_code not in (None, "") else None,
+        note_ref=strip_md(note_ref) if note_ref not in (None, "") else None,
         source_line=obj.get("source_line"), pattern=obj.get("pattern"),
         unit=obj.get("unit"),
     )
@@ -109,12 +161,14 @@ class CashFlowMapper:
     def map_one(self, row: CFRow):
         flabel = fold(row.label)
         best = None
-        # Primary identity: section + method + label. Code is supporting evidence only.
+        # Primary identity: section + method + semantic label. Statement codes
+        # and note references are retained as metadata, never as identity or a
+        # rescue key.
         for node in self.nodes:
             aliases = self.alias_catalog[node["node_id"]]
             exact = bool(flabel and flabel in aliases)
             # Exact semantic label may repair a missing/wrong section emitted by LLM.
-            # Fuzzy/code rescue remains section-aware, especially important for bank where codes repeat.
+            # Fuzzy and token-semantic fallbacks remain section-aware.
             if not exact and not self._compatible(node, row):
                 continue
             if exact:
@@ -125,12 +179,10 @@ class CashFlowMapper:
                     sim = max((SequenceMatcher(None, flabel, a).ratio() for a in aliases), default=0.0)
                     if sim >= 0.90:
                         score, how = sim, "fuzzy_label"
-            ncode = str(node.get("form_code") or "").upper()
-            rcode = str(row.code or "").upper()
-            if rcode and ncode and rcode == ncode:
-                # code can rescue a weak/missing label only within method+section-compatible catalog
-                if score < 0.98:
-                    score, how = 0.98, "section_code"
+                    if score == 0.0:
+                        token_sim = max((semantic_label_similarity(flabel, a) for a in aliases), default=0.0)
+                        if token_sim >= 0.90:
+                            score, how = token_sim, "semantic_tokens"
             if best is None or score > best[0]:
                 best = (score, how, node)
         if best and best[0] >= 0.90:
@@ -143,7 +195,7 @@ class CashFlowMapper:
     def map_rows(self, rows):
         return [self.map_one(r) for r in rows]
 
-    def canonical(self, rows, source_name: str, current_year=2025, previous_year=2024, statement_unit: Optional[str] = None):
+    def canonical(self, rows, source_name: str, current_year=None, previous_year=None, statement_unit: Optional[str] = None):
         nodes_out = []
         conflicts = []
         grouped = {}

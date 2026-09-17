@@ -18,10 +18,10 @@ Mở rộng Notes Foundation từ pipe-table-only sang structural extraction cho
 - Row exporter giữ `values`, `headers`, `dimensions`, provenance.
 
 ## Output
-`python run_notes.py md_reports --output output_notes`
+`python run_notes.py md_reports --output output/notes/raw`
 
 ```text
-output_notes/
+output/notes/raw/
 ├── notes_rows/
 │   ├── <report>.notes_rows.csv
 │   ├── <report>.notes_rows.json

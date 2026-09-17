@@ -7,11 +7,14 @@ from typing import Any, Optional
 
 try:
     from src.common.value_semantics import detect_statement_unit, row_unit_override
+    from src.common.report_period import resolve_report_years
 except ImportError:
     try:
         from common.value_semantics import detect_statement_unit, row_unit_override
+        from common.report_period import resolve_report_years
     except ImportError:
         from value_semantics import detect_statement_unit, row_unit_override
+        from report_period import resolve_report_years
 
 
 
@@ -29,9 +32,11 @@ NOTES_RE = re.compile(
 )
 
 SECTION_PATTERNS = {
-    "operating": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+kinh\s+doanh"),
+    # ``kinh doanh tài chính`` is a financing heading in a few bank reports.
+    # Do not let the shorter operating prefix swallow that heading.
+    "operating": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+kinh\s+doanh(?!\s+t[àa]i\s+ch[íi]nh)"),
     "investing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+[đd][ầa]u\s+t[ưu]"),
-    "financing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+t[àa]i\s+ch[íi]nh"),
+    "financing": re.compile(r"(?i)l[ưu]u\s+chuy[ểeê]n\s+ti[ềeê]n(?:\s+t[ệe])?\s+(?:thu[ầa]n\s+)?t[ừu]\s+ho[ạa]t\s+[đd][ộo]ng\s+(?:t[àa]i\s+ch[íi]nh|kinh\s+doanh\s+t[àa]i\s+ch[íi]nh)"),
 }
 
 
@@ -44,9 +49,24 @@ class CashFlowObservation:
     method: Optional[str] = None
     code: Optional[str] = None
     note: Optional[str] = None
+    # Explicit semantic names. ``code``/``note`` remain compatibility aliases
+    # for older callers, but mapping must use statement_code only and never a
+    # note reference as a row identity.
+    statement_code: Optional[str] = None
+    note_ref: Optional[str] = None
     source_line: Optional[int] = None
     pattern: Optional[str] = None
     unit: Optional[str] = None
+
+    def __post_init__(self):
+        if self.statement_code is None:
+            self.statement_code = self.code
+        if self.code is None:
+            self.code = self.statement_code
+        if self.note_ref is None:
+            self.note_ref = self.note
+        if self.note is None:
+            self.note = self.note_ref
 
     def to_dict(self):
         return asdict(self)
@@ -340,7 +360,7 @@ def _extract_inline_periods(text: str, current_year: int, previous_year: int):
     for m in anno_matches:
         vals[int(m.group("year"))] = parse_number(m.group("val"))
 
-    # TCB-like layout: `Label: CURRENT triệu đồng (Năm 2024: PREVIOUS triệu đồng)`.
+    # Generic inline layout: `Label: CURRENT triệu đồng (Năm 2024: PREVIOUS triệu đồng)`.
     # If the previous period is explicit but the current period is not, take the last numeric token
     # between the first label colon and the annotation as current.
     if previous_year in vals and current_year not in vals and anno_matches:
@@ -388,7 +408,614 @@ def _emit(rows, label, current, previous, section, method, code, note, line_no, 
     ))
 
 
-def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, fallback_unit: Optional[str] = None):
+def _major_column_token(text: str):
+    """Return a numeric token from a detached column block, preserving dashes."""
+
+    value = strip_md(text).strip()
+    if value in {"-", "–", "—"}:
+        return True, None
+    if re.fullmatch(r"\(?-?[\d][\d., ]*\)?", value):
+        return True, parse_number(value)
+    return False, None
+
+
+def _short_statement_token(text: str) -> bool:
+    value = strip_md(text).strip()
+    return bool(re.fullmatch(r"\d{1,4}[A-Za-z]?", value))
+
+
+def _column_label_line(raw: str):
+    """Return (has_bullet_or_ordinal, label) for a detached label line."""
+
+    value = raw.strip()
+    marked = bool(re.match(r"^(?:[*+\-]|\d+[.)])\s+", value))
+    value = re.sub(r"^(?:[*+\-]|\d+[.)])\s+", "", value)
+    return marked, strip_md(value)
+
+
+def _is_column_section_heading(label: str) -> bool:
+    folded = fold(label)
+    return any(pattern.search(label) for pattern in SECTION_PATTERNS.values()) or folded in {
+        "dieu chinh cho cac khoan",
+        "dieu chinh cho cac khoan",
+    }
+
+
+def _looks_wrapped_column_label(previous: str, current: str) -> bool:
+    """Detect a wrapped label without relying on a report-specific row code."""
+
+    prev = fold(previous)
+    cur = fold(current)
+    if not prev or not cur:
+        return False
+    if prev.endswith(" va") and cur.startswith(("cac ", "duoc ", "phai ", "cua ", "tai san ")):
+        return True
+    if prev.endswith(" cua") and cur.startswith("don vi"):
+        return True
+    if prev.endswith(" truoc") and cur.startswith("thay doi"):
+        return True
+    if prev.endswith(" danh gia") and cur.startswith("cac khoan muc"):
+        return True
+    if prev.endswith(" khong ke") and cur.startswith("phai tra"):
+        return True
+    if prev.endswith(" hoat dong kinh") and cur == "doanh":
+        return True
+    if prev.endswith(" hoat dong dau") and cur.startswith("tu "):
+        return True
+    if prev.endswith(" cong cu no") and cur.startswith("cua don vi"):
+        return True
+    if prev.endswith(" phat hanh co phieu") and cur.startswith("nhan von gop"):
+        return True
+    if prev.endswith(" loi nhuan") and cur.startswith("duoc chia"):
+        return True
+    return prev.endswith(" lai vay") and cur.startswith("phai tra")
+
+
+def _is_report_noise_label(label: str) -> bool:
+    """Return true for document metadata that can sit next to a table.
+
+    This deliberately does not inspect statement or note codes.  Codes are
+    provenance fields and must never decide whether a line is a semantic row.
+    """
+
+    folded = fold(label)
+    if not folded:
+        return True
+    if re.match(r"^b\d{1,2}(?:\s|$)", folded):
+        return True
+    return folded.startswith((
+        "bao cao luu chuyen",
+        "cho nam tai chinh ket thuc",
+        "don vi tinh",
+        "thanh pho ",
+        "ngay ",
+        "nguoi lap",
+        "ke toan truong",
+    ))
+
+
+def _pipe_cells(raw: str) -> list[str]:
+    """Split a Markdown table row without losing empty structural cells."""
+
+    if "|" not in raw:
+        return []
+    return [strip_md(cell) for cell in raw.strip().strip("|").split("|")]
+
+
+def _period_header_columns(raw: str):
+    """Return semantic period columns from a pipe header, if present."""
+
+    cells = _pipe_cells(raw)
+    if not cells:
+        return None
+    roles = {}
+    for idx, cell in enumerate(cells):
+        folded = fold(cell)
+        if folded.startswith(("nam nay", "ky nay")):
+            roles["current"] = idx
+        elif folded.startswith(("nam truoc", "ky truoc")):
+            roles["previous"] = idx
+        elif folded in {"thuyet minh", "dien giai", "note", "notes"}:
+            roles["label"] = idx
+    if "current" not in roles or "previous" not in roles:
+        return None
+    return roles
+
+
+def _find_section_anchor(lines: list[str], end: int):
+    """Find the nearest cash-flow section heading before a table header."""
+
+    fallback = None
+    for idx in range(end - 1, -1, -1):
+        clean = _clean_bullet(lines[idx])
+        for section, pattern in SECTION_PATTERNS.items():
+            if pattern.search(clean):
+                if fallback is None:
+                    fallback = (idx, section)
+                raw = lines[idx].lstrip()
+                # A bullet-prefixed match is often a semantic total row, not
+                # the section heading itself.  Prefer Markdown headings or an
+                # unbulleted heading so the preceding rows stay in the same
+                # structural block.
+                if raw.startswith("#") or not re.match(r"^(?:[*+\-]|\d+[.)])\s+", raw):
+                    return idx, section
+                break
+    return fallback or (None, None)
+
+
+def _collect_column_label_slots(
+    lines: list[str],
+    start: int,
+    end: int,
+    initial_section: str = "operating",
+    include_semantic_section_totals: bool = False,
+):
+    """Build semantic row slots from the label block of a column-major table."""
+
+    slots = []
+    section = initial_section or "operating"
+    last_slot = None
+    last_label = ""
+
+    for idx in range(start, end):
+        raw = lines[idx]
+        marked, label = _column_label_line(raw)
+        if not label:
+            continue
+        folded = fold(label)
+        if _is_column_section_heading(label):
+            matched = next((name for name, pattern in SECTION_PATTERNS.items() if pattern.search(label)), None)
+            # A heading is normally unbulleted or Markdown-heading marked.
+            # A bullet-prefixed, non-ordinal ``... thuần từ hoạt động ...``
+            # line can instead be the semantic total row immediately before a
+            # detached value table; keep that row as a slot.
+            ordinal_heading = bool(re.match(r"^(?:[IVXLC]+|\d+)[.)]\s+", label, re.I))
+            keep_total_row = (
+                include_semantic_section_totals
+                and marked
+                and not ordinal_heading
+                and "thuan" in folded
+            )
+            if matched and not keep_total_row:
+                section = matched
+                continue
+        if (_looks_metadata_line(label)
+                or _is_report_noise_label(label)
+                or folded in {"chi tieu", "ma so", "thuyet minh", "nam nay", "nam truoc"}):
+            continue
+        # This is a structural subheading, not a row with a value.  Its children
+        # are collected normally below it.
+        if folded in {"dieu chinh cho cac khoan", "cac dieu chinh cho cac khoan"}:
+            continue
+
+        if last_slot is not None and _looks_wrapped_column_label(last_label, label):
+            last_slot["label"] = f"{last_slot['label']} {label}".strip()
+            last_label = last_slot["label"]
+            continue
+
+        slot_section = _section_from_label(label, section)
+        last_slot = {
+            "label": label,
+            "section": slot_section,
+            "source_line": idx + 1,
+        }
+        slots.append(last_slot)
+        last_label = label
+
+    return slots
+
+
+def _extract_detached_period_table_rows(
+    scoped_lines: list[str],
+    absolute_start_zero: int,
+    current_year: int,
+    previous_year: int,
+    method: str,
+):
+    """Recover a table whose labels and period values were flattened apart.
+
+    Some PDF-to-Markdown conversions emit semantic labels as ordinary lines,
+    followed by a pipe table containing only the two period vectors.  The
+    empty first cells in that table are structural evidence, not permission to
+    discard the values.  We accept the layout only when the label block and
+    data-row cardinalities agree inside the same cash-flow section.
+    """
+
+    for header_idx, raw_header in enumerate(scoped_lines):
+        columns = _period_header_columns(raw_header)
+        if not columns:
+            continue
+
+        current_idx = columns["current"]
+        previous_idx = columns["previous"]
+        # The two period columns must be distinct and follow a leading label or
+        # empty structural column.  This keeps ordinary inline text tables out
+        # of the detached-table path.
+        if current_idx == previous_idx or min(current_idx, previous_idx) == 0:
+            continue
+
+        anchor_idx, section = _find_section_anchor(scoped_lines, header_idx)
+        label_start = anchor_idx + 1 if anchor_idx is not None else max(0, header_idx - 80)
+        slots = _collect_column_label_slots(
+            scoped_lines,
+            label_start,
+            header_idx,
+            initial_section=section or "operating",
+            include_semantic_section_totals=True,
+        )
+        if not slots:
+            continue
+
+        data_rows = []
+        saw_data = False
+        for idx in range(header_idx + 1, min(len(scoped_lines), header_idx + 100)):
+            raw = scoped_lines[idx]
+            if "|" not in raw:
+                if saw_data:
+                    break
+                continue
+            cells = _pipe_cells(raw)
+            if max(current_idx, previous_idx) >= len(cells):
+                continue
+
+            # A detached row has no semantic text in the cells before the
+            # period values.  A normal row-wise table is left to CF_PIPE_TABLE.
+            leading_cells = cells[:min(current_idx, previous_idx)]
+            if any(re.search(r"[A-Za-zÀ-ỹ]", cell) for cell in leading_cells):
+                if saw_data:
+                    break
+                continue
+
+            current_raw = cells[current_idx]
+            previous_raw = cells[previous_idx]
+            current_is_value = current_raw in {"-", "–", "—"} or parse_number(current_raw) is not None
+            previous_is_value = previous_raw in {"-", "–", "—"} or parse_number(previous_raw) is not None
+            if not (current_is_value and previous_is_value):
+                # Unit and restatement rows are structural header material.
+                continue
+
+            data_rows.append({
+                "current": parse_number(current_raw),
+                "previous": parse_number(previous_raw),
+                "source_line": idx + 1,
+            })
+            saw_data = True
+
+        # Do not positionally zip an incomplete block.  This cardinality check
+        # is the guard that prevents a plausible but wrong cross-section join.
+        if not data_rows or len(data_rows) != len(slots):
+            continue
+
+        rows = []
+        for slot, values in zip(slots, data_rows):
+            rows.append(CashFlowObservation(
+                source_label=slot["label"],
+                current=values["current"],
+                previous=values["previous"],
+                section=slot["section"],
+                method=method,
+                code=None,
+                note=None,
+                statement_code=None,
+                note_ref=None,
+                source_line=absolute_start_zero + slot["source_line"],
+                pattern="CF_DETACHED_PERIOD_TABLE",
+            ))
+
+        return {
+            "rows": rows,
+            "detected": True,
+            "layout_type": "detached_period_table",
+            "header_line": absolute_start_zero + header_idx + 1,
+            "label_start_line": absolute_start_zero + label_start + 1,
+            "label_end_line": absolute_start_zero + header_idx,
+            "value_count": len(data_rows) * 2,
+            "row_slots": len(slots),
+            "vector_length": len(data_rows),
+            "column_roles": columns,
+            "current_year": current_year,
+            "previous_year": previous_year,
+        }
+
+    return {"rows": [], "detected": False, "reason": "no_detached_period_table"}
+
+
+def _extract_column_major_cashflow_rows(
+    scoped_lines: list[str],
+    absolute_start_zero: int,
+    current_year: int,
+    previous_year: int,
+    method: str,
+):
+    """Recover rows when a table is flattened as label/code/value blocks.
+
+    Detection is based on the table header and the monotonic structure of the
+    label/value runs.  The code and note columns, when present, are skipped as
+    metadata; they never determine row identity.
+    """
+
+    detached = _extract_detached_period_table_rows(
+        scoped_lines,
+        absolute_start_zero,
+        current_year,
+        previous_year,
+        method,
+    )
+    if detached.get("detected"):
+        return detached
+
+    header_candidates = []
+    for idx, raw in enumerate(scoped_lines):
+        if "|" in raw:
+            continue
+        folded = fold(raw)
+        if folded in {"chi tieu", "chi tieu items"} or "chi tieu" == folded:
+            window = " ".join(fold(x) for x in scoped_lines[idx:idx + 8])
+            if "ma so" in window and ("nam nay" in window or "nam truoc" in window):
+                header_candidates.append(idx)
+    if not header_candidates:
+        return {"rows": [], "detected": False, "reason": "no_detached_header"}
+
+    for header_idx in header_candidates:
+        # A detached label block ends at the first short numeric run.  We
+        # require several consecutive tokens so ordinary numbered labels do
+        # not trigger the detector.
+        numeric_start = None
+        for idx in range(header_idx + 1, len(scoped_lines)):
+            if "|" in scoped_lines[idx]:
+                continue
+            clean_value = strip_md(scoped_lines[idx]).strip()
+            if not _short_statement_token(clean_value):
+                continue
+            run = 0
+            j = idx
+            while j < len(scoped_lines) and run < 3:
+                candidate = strip_md(scoped_lines[j]).strip()
+                if not candidate:
+                    j += 1
+                    continue
+                if _short_statement_token(candidate):
+                    run += 1
+                    j += 1
+                    continue
+                break
+            if run >= 3:
+                numeric_start = idx
+                break
+        if numeric_start is None:
+            continue
+
+        slots = _collect_column_label_slots(scoped_lines, header_idx + 1, numeric_start)
+        if len(slots) < 4:
+            continue
+
+        values = []
+        for raw in scoped_lines[numeric_start:]:
+            if "|" in raw:
+                continue
+            token = strip_md(raw).strip()
+            if not token or _short_statement_token(token):
+                continue
+            is_value, value = _major_column_token(token)
+            if is_value:
+                values.append(value)
+
+        # A two-period detached table has two monotonic value vectors.  Equal
+        # vector lengths are accepted only when they cover the same row-slot
+        # count; otherwise the document remains reviewable instead of being
+        # force-aligned.
+        if len(values) < 2 * len(slots):
+            continue
+        vector_length = len(values) // 2
+        if vector_length != len(slots):
+            # Extra values can belong to a continuation fragment.  Use only a
+            # full symmetric prefix when its boundary is unambiguous.
+            if len(values) % 2 or vector_length < 4:
+                continue
+            slots = slots[:vector_length]
+            if len(slots) != vector_length:
+                continue
+
+        current_values = values[:vector_length]
+        previous_values = values[vector_length:vector_length * 2]
+        rows = []
+        for slot, current, previous in zip(slots, current_values, previous_values):
+            if current is None and previous is None:
+                continue
+            rows.append(CashFlowObservation(
+                source_label=slot["label"],
+                current=current,
+                previous=previous,
+                section=slot["section"],
+                method=method,
+                code=None,
+                note=None,
+                statement_code=None,
+                note_ref=None,
+                source_line=absolute_start_zero + slot["source_line"],
+                pattern="CF_COLUMN_MAJOR_STRUCTURAL",
+            ))
+        if rows:
+            return {
+                "rows": rows,
+                "detected": True,
+                "header_line": absolute_start_zero + header_idx + 1,
+                "label_start_line": absolute_start_zero + header_idx + 2,
+                "label_end_line": absolute_start_zero + numeric_start,
+                "value_count": len(values),
+                "row_slots": len(slots),
+                "vector_length": vector_length,
+                "current_year": current_year,
+                "previous_year": previous_year,
+            }
+    return {"rows": [], "detected": False, "reason": "no_symmetric_value_vectors"}
+
+
+def _period_value_line(clean: str, current_year: int, previous_year: int):
+    """Read a period role and value from a standalone period line."""
+
+    if ":" not in clean:
+        return None
+    head, value_text = clean.split(":", 1)
+    folded_head = fold(head)
+    role = None
+    if re.search(r"\b(?:nam|ky)\s+nay\b", folded_head):
+        role = "current"
+    elif re.search(r"\b(?:nam|ky)\s+truoc\b", folded_head):
+        role = "previous"
+    else:
+        years = [int(year) for year in re.findall(r"\b20\d{2}\b", folded_head)]
+        if years:
+            if years[-1] == current_year:
+                role = "current"
+            elif years[-1] == previous_year:
+                role = "previous"
+    if role is None:
+        return None
+    value_text = value_text.strip()
+    if value_text not in {"-", "–", "—"} and parse_number(value_text) is None:
+        return None
+    return role, parse_number(value_text)
+
+
+def _next_value_before_label(scoped_lines: list[str], value_idx: int, current_year: int, previous_year: int):
+    """Find the semantic label that follows a standalone period value."""
+
+    value_indent = _line_indent(scoped_lines[value_idx])
+    for idx in range(value_idx + 1, min(len(scoped_lines), value_idx + 7)):
+        raw = scoped_lines[idx]
+        clean = _clean_bullet(raw)
+        if not clean:
+            continue
+        if "|" in raw:
+            return None
+        if _period_value_line(clean, current_year, previous_year):
+            return None
+        if any(pattern.search(clean) for pattern in SECTION_PATTERNS.values()):
+            return None
+        if _looks_metadata_line(clean) or _is_report_noise_label(clean):
+            continue
+        if _extract_inline_periods(clean, current_year, previous_year) != (None, None):
+            return None
+        if not re.search(r"[A-Za-zÀ-ỹ]", clean):
+            continue
+        # In the usual flattened hierarchy the label is a child of the
+        # period-value line.  Requiring a deeper indentation is important:
+        # without it, a normal ``label -> year values`` row would make its
+        # last period value look like the next row's value-before-label pair.
+        if _line_indent(raw) <= value_indent:
+            return None
+        label = re.sub(r"^(?:[IVXLC]+|\d{1,3}(?:\.\d+)*)[.)]?\s+", "", clean, flags=re.I).strip()
+        if not label or _looks_metadata_line(label):
+            return None
+        return label, idx
+    return None
+
+
+def _extract_value_before_label_rows(
+    scoped_lines: list[str],
+    absolute_start_zero: int,
+    current_year: int,
+    previous_year: int,
+    method: str,
+):
+    """Recover rows emitted as ``period value`` followed by the row label.
+
+    The pairing is local and semantic: the period role, nearby label, section,
+    and occurrence order are used.  No statement code or note reference is
+    consulted.
+    """
+
+    records = []
+    section = None
+    last_note = None
+
+    for idx, raw in enumerate(scoped_lines):
+        clean = _clean_bullet(raw)
+        if not clean:
+            continue
+        for candidate_section, pattern in SECTION_PATTERNS.items():
+            if pattern.search(clean):
+                section = candidate_section
+                break
+
+        note_match = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
+        if note_match:
+            last_note = strip_md(note_match.group(1))
+            continue
+
+        period = _period_value_line(clean, current_year, previous_year)
+        if not period:
+            continue
+        role, value = period
+        following = _next_value_before_label(scoped_lines, idx, current_year, previous_year)
+        if not following:
+            continue
+        label, label_idx = following
+        row_section = _section_from_label(label, section)
+
+        # Prefer the nearest incomplete occurrence of the same semantic label.
+        # This supports both current-then-previous and previous-then-current
+        # emission without collapsing genuinely repeated labels into one row.
+        key = (fold(label), row_section or "", method or "")
+        target = None
+        for record in reversed(records):
+            if record["key"] != key:
+                continue
+            if role == "current" and record["current"] is None:
+                target = record
+                break
+            if role == "previous" and record["previous"] is None:
+                target = record
+                break
+        if target is None:
+            target = {
+                "key": key,
+                "label": label,
+                "section": row_section,
+                "current": None,
+                "previous": None,
+                "note": last_note,
+                "line": absolute_start_zero + label_idx + 1,
+            }
+            records.append(target)
+        target[role] = value
+        if not target.get("note") and last_note:
+            target["note"] = last_note
+
+    rows = []
+    for record in records:
+        if record["current"] is None and record["previous"] is None:
+            continue
+        rows.append(CashFlowObservation(
+            source_label=record["label"],
+            current=record["current"],
+            previous=record["previous"],
+            section=record["section"],
+            method=method,
+            code=None,
+            note=record.get("note"),
+            statement_code=None,
+            note_ref=record.get("note"),
+            source_line=record["line"],
+            pattern="CF_VALUE_BEFORE_LABEL",
+        ))
+    return {
+        "rows": rows,
+        "detected": bool(rows),
+        "rows_recovered": len(rows),
+    }
+
+
+def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, fallback_unit: Optional[str] = None):
+    period = resolve_report_years(
+        text,
+        source_name="input",
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+    current_year = period["current_year"]
+    previous_year = period["previous_year"]
     scope = choose_cashflow_scope(text)
     if not scope.get("scope_start_line"):
         unit_val = fallback_unit if fallback_unit and fallback_unit != "unknown" else "unknown"
@@ -396,7 +1023,8 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
     lines = text.splitlines()
     s = scope["scope_start_line"] - 1
     e = scope["scope_end_line"]
-    scoped_lines = lines[s:e]
+    source_scoped_lines = lines[s:e]
+    scoped_lines = source_scoped_lines
     # Preprocess scoped_lines to merge wrapped text lines that belong together (e.g. OCR table cells wrapped across lines)
     processed_scoped_lines = []
     for raw in scoped_lines:
@@ -426,7 +1054,22 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
     method, method_method = detect_method(scoped_text)
     sector, sector_method = detect_sector(scoped_text)
 
-    rows = []
+    column_major_layout = _extract_column_major_cashflow_rows(
+        source_scoped_lines,
+        s,
+        current_year,
+        previous_year,
+        method,
+    )
+    rows = list(column_major_layout.get("rows") or [])
+    value_before_label_layout = _extract_value_before_label_rows(
+        source_scoped_lines,
+        s,
+        current_year,
+        previous_year,
+        method,
+    )
+    rows.extend(value_before_label_layout.get("rows") or [])
     section = None
     pending = None
 
@@ -471,7 +1114,11 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
             section = matched_section
 
         # Child metadata/value lines, including explicit years because LLM often omits Năm nay/Năm trước.
-        m = re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*([^|]+)$", clean)
+        # OCR/LLM Markdown alternates between ``Mã số:``, ``Mã:`` and ``MS:``.
+        # Treat all three as the same keyed-row field.  If ``Mã:`` falls through
+        # as a new label, the following period children get attached to the
+        # metadata token and the real cash-flow row is silently discarded.
+        m = re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*([^|]+)$", clean)
         if m:
             code_val = strip_md(m.group(1))
             if pending and (pending.get("current") is not None or pending.get("previous") is not None):
@@ -557,7 +1204,7 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
             continue
         if any(k in f for k in ("bao cao tai chinh hop nhat", "cho nam tai chinh ket thuc", "don vi tinh", "nguoi lap", "ke toan truong", "tong giam doc", "metadata", "s3 key", "page ocr")):
             continue
-        if re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*[^|]+$", clean):
+        if re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*[^|]+$", clean):
             continue
         if re.match(r"(?i)^(?:Năm\s*)?20\d{2}\b", clean):
             continue
@@ -597,7 +1244,9 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
         mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
         if mc: code, label = mc.group(1), mc.group(2)
         sec = _section_from_label(label, section)
-        key=(fold(label), sec, code or "")
+        # Join split-period observations by semantic label and statement
+        # section.  The form code is retained as metadata, never as a row key.
+        key=(fold(label), sec)
         rec=period_rows.setdefault(key, {"label":label,"section":sec,"code":code,"current":None,"previous":None,"line":abs_line})
         if active_year == current_year: rec["current"] = val
         else: rec["previous"] = val
@@ -624,7 +1273,7 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
         f = fold(clean)
         if _looks_metadata_line(clean):
             continue
-        if re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*[^|]+$", clean):
+        if re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*[^|]+$", clean):
             continue
         if re.match(r"(?i)^(?:Năm\s*)?20\d{2}\b", clean):
             continue
@@ -662,7 +1311,7 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
                 continue
             if re.match(r"^#\s*Page\b|^---$", child_raw.strip(), re.I):
                 break
-            cm = re.match(r"(?i)^(?:Mã\s*số|Số|MS)\s*:\s*([^|]+)$", child)
+            cm = re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*([^|]+)$", child)
             if cm:
                 code = strip_md(cm.group(1))
                 continue
@@ -697,18 +1346,48 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
                  _section_from_label(label, section), code, None, abs_line,
                  "CF_POSITIONAL_VALUE_CHILDREN")
 
+    # In a detached-column table, the positional child pass can mistake the
+    # first numeric token of the value block for a child pair under the last
+    # label. The structural collector is stronger; discard that fallback
+    # artifact while retaining row-wise pipe observations.
+    if column_major_layout.get("detected"):
+        rows = [row for row in rows if row.pattern != "CF_POSITIONAL_VALUE_CHILDREN"]
+
     # Deduplicate/merge complementary observations from overlapping collectors.
     merged = {}
     order = []
     for r in rows:
-        key = (fold(r.source_label), r.section or "", r.method or "", r.code or "")
+        # Structural identity is label + section + method.  Statement codes
+        # and note references are provenance only and never a merge key.
+        key = (fold(r.source_label), r.section or "", r.method or "")
         if key not in merged:
             merged[key] = r; order.append(key); continue
         old = merged[key]
+        def recovery_priority(pattern: Optional[str]) -> int:
+            value = pattern or ""
+            if "CF_DETACHED_PERIOD_TABLE" in value:
+                return 40
+            if "CF_COLUMN_MAJOR_STRUCTURAL" in value:
+                return 40
+            if "CF_VALUE_BEFORE_LABEL" in value:
+                return 35
+            if "CF_PERIOD_CHILDREN" in value:
+                return 10
+            return 20
+
+        if recovery_priority(r.pattern) > recovery_priority(old.pattern):
+            merged[key] = r
+            old, r = r, old
         if old.current is None and r.current is not None:
             old.current = r.current
         if old.previous is None and r.previous is not None:
             old.previous = r.previous
+        if old.code is None and r.code is not None:
+            old.code = r.code
+            old.statement_code = r.statement_code or r.code
+        if old.note is None and r.note is not None:
+            old.note = r.note
+            old.note_ref = r.note_ref or r.note
         # Repeated-period block recovery. Some LLM conversions emit two complete blocks of
         # `label: value` rows but lose/mislabel the second period header. If the same semantic
         # row reappears materially later with another current-only value, treat the second
@@ -730,6 +1409,16 @@ def extract_cashflow_fallback(text: str, current_year=2025, previous_year=2024, 
         u = row_unit_override(r.source_label, unit_ctx)
         r.unit = u.unit
 
+    patterns = sorted({r.pattern for r in dedup if r.pattern})
     return {**scope, "rows": [r.to_dict() for r in dedup], "method": method, "method_method": method_method,
             "sector": sector, "sector_method": sector_method,
-            "unit": unit_ctx.unit, "unit_source": unit_ctx.source}
+            "unit": unit_ctx.unit, "unit_source": unit_ctx.source,
+            "column_major_layout": {
+                **{k: v for k, v in column_major_layout.items() if k != "rows"},
+                "rows_recovered": len(column_major_layout.get("rows") or []),
+            },
+            "value_before_label_layout": {
+                **{k: v for k, v in value_before_label_layout.items() if k != "rows"},
+                "rows_recovered": len(value_before_label_layout.get("rows") or []),
+            },
+            "patterns": patterns}

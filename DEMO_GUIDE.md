@@ -8,16 +8,17 @@ Từ thư mục gốc dự án:
 python .\scripts\run_demo.py
 ```
 
-Demo chỉ quét `md_reports/` và lưu artifact parser cho 57 báo cáo. Không chạy benchmark, audit hay so sánh reconciliation.
+Demo mặc định chạy ở chế độ `source-only`: chỉ đọc `md_reports/`, parse mới cả ba bảng chính và Notes, rồi lưu artifact cho 57 báo cáo. Không chạy benchmark, audit hay so sánh reconciliation.
 
 ## Output
 
 ```text
-demo_output/scan_57/
+output/demo/scan_57/
 ├── scan.log
 ├── scan_summary.md
 ├── scan_manifest.json
 └── results/
+    ├── run_metadata.json
     ├── comparison_summary.json
     ├── comparison_summary.csv
     ├── <report>.comparison.json
@@ -39,7 +40,12 @@ python .\scripts\run_demo.py --no-notes
 # Chỉ định input/output khác
 python .\scripts\run_demo.py `
   --input .\md_reports `
-  --output .\demo_output\scan_57
+  --output .\output\demo\scan_57
+
+# Chỉ dùng khi cần demo tương thích với B01 đã xác thực provenance
+python .\scripts\run_demo.py `
+  --mode seeded-demo `
+  --financial-position-dir .\path\to\validated_b01_artifacts
 ```
 
-Canonical Bảng cân đối được nạp từ folder `output/comparisons/comparison_v22_4_unit`, sau đó pipeline quét lại nguồn để tích hợp KQKD, LCTT và Notes.
+Pipeline không tự quét project root, `output/` hoặc các comparison cũ. Ground truth và artifact của lần chạy trước chỉ được dùng bởi các script audit/compare sau khi scan hoàn tất.

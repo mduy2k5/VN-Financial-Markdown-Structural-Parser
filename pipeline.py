@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import re
 import sys
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional
 
@@ -15,18 +15,25 @@ for _p in (str(ROOT), str(SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from src.b01_financial_position import FinancialPositionIndex, integrate_financial_position
+from src.b01_financial_position import (
+    FinancialPositionIndex,
+    FinancialPositionSourceParser,
+    integrate_financial_position,
+)
 from src.b02_income import extract_income_fallback, strip_md, IncomeMapper, adapt_row, auto_sector
 from src.b03_cashflow import extract_cashflow_fallback, detect_method as detect_cf_method, CashFlowMapper, adapt_cashflow_row
 from src.common import (
     augment_from_rows,
     extract_generic_statement_rows,
+    extract_securities_supplemental_cashflow_rows,
     augment_canonical_with_recovered_rows,
     extract_code_period_table,
     hydrate_canonical_by_form_code,
     reconcile_source_observations,
     detect_document_unit,
     fold_text,
+    resolve_report_years,
+    infer_report_year_pair,
 )
 from pipeline_metrics import (
     _scope_text,
@@ -44,24 +51,103 @@ try:
 except ImportError:
     from notes.row_exporter import export_note_rows
 
+try:
+    from flat_parser.preprocess import filter_noise
+    from flat_parser.statement_scanner import scan_statements
+    from flat_parser.textnorm import normalize_lines
+except Exception:
+    filter_noise = normalize_lines = scan_statements = None
+
 
 
 SCHEMA = ROOT / "resources" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
 CF_SCHEMA = ROOT / "resources" / "cash_flow_schema.json"
 CF_ALIASES = ROOT / "resources" / "cash_flow_aliases.json"
-
-
-def read_json(path: Path, default=None):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return default
+REPORT_ARTIFACT_SUFFIXES = (
+    ".income.canonical.json",
+    ".cashflow.canonical.json",
+    ".financial_position.canonical.json",
+    ".comparison.json",
+    ".notes.ir.json",
+)
+NOTES_ROW_SUFFIXES = (".notes_rows.csv", ".notes_rows.json")
 
 
 def write_json(path: Path, obj: Any):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def attach_source_provenance(
+    canonical: Optional[dict],
+    *,
+    source_name: str,
+    source_sha256: str,
+    current_year: int,
+    previous_year: int,
+    year_resolution: Optional[dict[str, Any]] = None,
+) -> Optional[dict]:
+    """Attach source identity to every current-run canonical artifact."""
+    if not isinstance(canonical, dict):
+        return canonical
+    canonical["source_name"] = source_name
+    canonical["source_sha256"] = source_sha256
+    canonical["provenance"] = {
+        "source_name": source_name,
+        "source_sha256": source_sha256,
+        "current_year": current_year,
+        "previous_year": previous_year,
+    }
+    if year_resolution:
+        canonical["provenance"]["year_resolution"] = year_resolution
+    return canonical
+
+
+def scan_statement_context(text: str) -> Optional[dict]:
+    """Run the shared structural scanner once for downstream Notes scope.
+
+    Notes scope detection treats the project scanner as corroborating evidence,
+    not as an authority.  Passing the same scanner context to the runtime Notes
+    parser and the Notes ground-truth builder keeps provenance comparable without
+    making any report-specific assumption.
+    """
+
+    if filter_noise is None or normalize_lines is None or scan_statements is None:
+        return None
+    try:
+        return scan_statements(filter_noise(normalize_lines(text)))
+    except Exception:
+        return None
+
+
+def remove_report_artifacts(output_dir: Path, base: str) -> None:
+    """Remove only the exact artifacts for the report being reprocessed.
+
+    This prevents an old report result from surviving a partial rerun while
+    avoiding any broad or recursive deletion of user data.
+    """
+    for suffix in REPORT_ARTIFACT_SUFFIXES:
+        (output_dir / f"{base}{suffix}").unlink(missing_ok=True)
+    rows_dir = output_dir / "notes_rows"
+    for suffix in NOTES_ROW_SUFFIXES:
+        (rows_dir / f"{base}{suffix}").unlink(missing_ok=True)
+
+
+def prune_stale_report_artifacts(output_dir: Path, active_bases: set[str]) -> None:
+    """Remove only generated report artifacts absent from the current input set."""
+    if not output_dir.exists():
+        return
+    for suffix in REPORT_ARTIFACT_SUFFIXES:
+        for path in output_dir.glob(f"*{suffix}"):
+            if path.is_file() and path.name[: -len(suffix)] not in active_bases:
+                path.unlink()
+    rows_dir = output_dir / "notes_rows"
+    if rows_dir.exists():
+        for suffix in NOTES_ROW_SUFFIXES:
+            for path in rows_dir.glob(f"*{suffix}"):
+                if path.is_file() and path.name[: -len(suffix)] not in active_bases:
+                    path.unlink()
 
 
 def stem_base(path: Path) -> str:
@@ -120,51 +206,16 @@ def select_md_files(input_path: Path):
     return chosen
 
 
-def find_existing_comparison(base: str, comparison_dir: Optional[Path], output_dir: Optional[Path] = None,
-                             source_dir: Optional[Path] = None):
-    """Find the best existing comparison and prefer one containing financial_position.
-
-    This prevents reruns from selecting a previously generated income-only comparison
-    when a legacy B02 comparison is also available.
-    """
-    target = f"{base}.comparison.json"
-    candidates = []
-    roots = []
-    for root in (comparison_dir, source_dir, output_dir):
-        if root and root not in roots:
-            roots.append(root)
-
-    for root in roots:
-        if not root.exists() or not root.is_dir():
-            continue
-        direct = root / target
-        if direct.exists():
-            candidates.append(direct)
-        # One nested level is enough for common layouts such as output/legacy/*.comparison.json.
-        candidates.extend(root.glob(f"*/{target}"))
-
-    # Prefer a file that really contains financial_position.
-    unique = []
-    seen = set()
-    for c in candidates:
-        try:
-            key = c.resolve()
-        except Exception:
-            key = c
-        if key not in seen:
-            seen.add(key)
-            unique.append(c)
-
-    for c in unique:
-        obj = read_json(c, {})
-        if isinstance(obj, dict) and isinstance(obj.get("financial_position"), dict):
-            return c
-    return unique[0] if unique else None
-
-
-
-def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sector="auto", fallback_unit: Optional[str] = None):
+def run_income(md_path: Path, current_year: int | None = None, previous_year: int | None = None, forced_sector="auto", fallback_unit: Optional[str] = None):
     text = md_path.read_text(encoding="utf-8", errors="ignore")
+    period = resolve_report_years(
+        text,
+        source_name=md_path.name,
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+    current_year = period["current_year"]
+    previous_year = period["previous_year"]
     ext = extract_income_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
     raw_rows = ext["rows"]
     rows = []
@@ -271,8 +322,16 @@ def run_income(md_path: Path, current_year=2025, previous_year=2024, forced_sect
 
 
 
-def run_cashflow(md_path: Path, current_year=2025, previous_year=2024, fallback_unit: Optional[str] = None):
+def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: int | None = None, fallback_unit: Optional[str] = None):
     text = md_path.read_text(encoding="utf-8", errors="ignore")
+    period = resolve_report_years(
+        text,
+        source_name=md_path.name,
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+    current_year = period["current_year"]
+    previous_year = period["previous_year"]
     ext = extract_cashflow_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
     rows = []
     for raw in ext.get("rows", []):
@@ -317,7 +376,25 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024, fallback_
         code_evidence = extract_code_period_table(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year)
         canonical = hydrate_canonical_by_form_code(canonical, code_evidence, sector, method)
+
+        # Securities reports can append a distinct customer/agency cash-flow
+        # schedule after the statutory B03 sections.  Keep it as bounded source
+        # observations: the universal schema has no semantic nodes for those
+        # customer balances, so mapping them into an enterprise/bank node would
+        # be materially worse than preserving the evidence explicitly.
+        supplemental_scope = {"rows": []}
+        if sector == "securities":
+            supplemental_scope = extract_securities_supplemental_cashflow_rows(
+                text, current_year, previous_year
+            )
+            supplemental_rows = supplemental_scope.get("rows") or []
+            if supplemental_rows:
+                canonical = augment_canonical_with_recovered_rows(
+                    canonical, supplemental_rows, "CASHFLOW"
+                )
         canonical = reconcile_source_observations(canonical, "CASHFLOW")
+    else:
+        supplemental_scope = {"rows": []}
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
@@ -325,29 +402,84 @@ def run_cashflow(md_path: Path, current_year=2025, previous_year=2024, fallback_
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
+        "supplemental_source_recovered_rows": len(supplemental_scope.get("rows") or []),
+        "supplemental_scope_start": supplemental_scope.get("scope_start_line"),
+        "supplemental_scope_end": supplemental_scope.get("scope_end_line"),
     })
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
 
-def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path], current_year: int, previous_year: int, sector: str, fp_index: FinancialPositionIndex, enable_notes: bool = True):
+def process_one(
+    md_path: Path,
+    output_dir: Path,
+    current_year: int,
+    previous_year: int,
+    sector: str,
+    *,
+    mode: str = "source-only",
+    fp_index: Optional[FinancialPositionIndex] = None,
+    fp_parser: Optional[FinancialPositionSourceParser] = None,
+    enable_notes: bool = True,
+    year_resolution: Optional[dict[str, Any]] = None,
+):
     base = stem_base(md_path)
     source_text = md_path.read_text(encoding="utf-8", errors="ignore")
+    source_sha256 = hashlib.sha256(md_path.read_bytes()).hexdigest()
     doc_unit_ctx = detect_document_unit(source_text)
     doc_unit = doc_unit_ctx.unit if doc_unit_ctx.unit != "unknown" else None
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    remove_report_artifacts(output_dir, base)
+
     inc = run_income(md_path, current_year, previous_year, sector, fallback_unit=doc_unit)
     cf = run_cashflow(md_path, current_year, previous_year, fallback_unit=doc_unit)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    attach_source_provenance(
+        inc.get("canonical"),
+        source_name=md_path.name,
+        source_sha256=source_sha256,
+        current_year=current_year,
+        previous_year=previous_year,
+        year_resolution=year_resolution,
+    )
+    attach_source_provenance(
+        cf.get("canonical"),
+        source_name=md_path.name,
+        source_sha256=source_sha256,
+        current_year=current_year,
+        previous_year=previous_year,
+        year_resolution=year_resolution,
+    )
 
-    existing_path = find_existing_comparison(base, comparison_dir, output_dir, md_path.parent)
-    existing = read_json(existing_path, {}) if existing_path else {}
-    if not isinstance(existing, dict):
-        existing = {}
-
-    # Integrate the completed Financial Position pipeline/output before writing the unified comparison.
-    fp = integrate_financial_position(
-        base, output_dir, fp_index, existing, source_text=source_text,
-        current_year=current_year, previous_year=previous_year, fallback_unit=doc_unit)
+    if mode == "source-only":
+        if fp_parser is None:
+            fp_parser = FinancialPositionSourceParser()
+        fp = fp_parser.parse_text(
+            source_text,
+            source_name=md_path.name,
+            source_sha256=source_sha256,
+            current_year=current_year,
+            previous_year=previous_year,
+            fallback_unit=doc_unit,
+        )
+    elif mode == "seeded-demo":
+        if fp_index is None:
+            raise ValueError("seeded-demo requires an explicit Financial Position artifact directory")
+        fp = integrate_financial_position(
+            base,
+            output_dir,
+            fp_index,
+            existing_comparison=None,
+            source_text=source_text,
+            current_year=current_year,
+            previous_year=previous_year,
+            fallback_unit=doc_unit,
+            expected_source_name=md_path.name,
+            expected_source_sha256=source_sha256,
+            expected_current_year=current_year,
+            expected_previous_year=previous_year,
+        )
+    else:
+        raise ValueError(f"Unknown pipeline mode: {mode}")
 
     # Cross-statement unit re-synchronization
     resolved_unit = (
@@ -385,6 +517,9 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     fp_path = output_dir / f"{base}.financial_position.canonical.json"
     if fp.get("canonical") is not None:
         write_json(fp_path, fp["canonical"])
+        fp["canonical_file"] = fp_path.name
+    elif fp_path.exists():
+        fp_path.unlink()
 
     # v22.5 Notes Foundation: additive, non-destructive.
     # Primary statements stay authoritative; Notes is emitted as a separate Generic Note IR.
@@ -404,8 +539,17 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
             source_text,
             source_name=md_path.name,
             sector=notes_sector,
+            scanner_result=scan_statement_context(source_text),
             primary=primary_for_notes,
         )
+        notes_ir["source_sha256"] = source_sha256
+        notes_ir["provenance"] = {
+            "source_name": md_path.name,
+            "source_sha256": source_sha256,
+            "current_year": current_year,
+            "previous_year": previous_year,
+            "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
+        }
         if (notes_ir.get("diagnostics") or {}).get("notes_found"):
             write_json(notes_path, notes_ir)
             notes_rows_dir = output_dir / "notes_rows"
@@ -424,9 +568,15 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     if not enable_notes and notes_path.exists():
         notes_path.unlink()
 
-    merged = deepcopy(existing)
-    merged.setdefault("source_name", md_path.name)
-    merged.setdefault("mapping_strategy", "legacy")
+    merged = {
+        "source_name": md_path.name,
+        "source_sha256": source_sha256,
+        "run_mode": mode,
+        "mapping_strategy": "source_only" if mode == "source-only" else "validated_artifact",
+        "current_year": current_year,
+        "previous_year": previous_year,
+        "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
+    }
     merged["financial_position"] = {
         "v05": fp["metrics"],
         "canonical_file": fp["canonical_file"],
@@ -471,6 +621,11 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
     cm = cf["metrics"]; cmp = cm.get("mapping", {})
     return {
         "source_name": md_path.name,
+        "source_sha256": source_sha256,
+        "run_mode": mode,
+        "current_year": current_year,
+        "previous_year": previous_year,
+        "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
         "sector": inc["sector"], "status": im.get("status"),
         "scope_start": (im.get("parser") or {}).get("scope_start"), "scope_end": (im.get("parser") or {}).get("scope_end"),
         "scope_score": (im.get("parser") or {}).get("scope_score"), "sector_method": (im.get("parser") or {}).get("sector_method"),
@@ -505,7 +660,10 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
         "cashflow_source_recovered_rows": (cm.get("parser") or {}).get("source_recovered_rows", 0),
         "cashflow_source_recovery_filled_nodes": (cm.get("parser") or {}).get("source_recovery_filled_nodes", 0),
         "financial_position_canonical_file": fp["canonical_file"],
-        "financial_position_preserved": fp["canonical"] is not None or fp.get("preserved_legacy", False),
+        "financial_position_source_mode": (
+            "source_parse" if mode == "source-only" else "validated_artifact"
+        ),
+        "financial_position_preserved": bool(fp.get("preserved_legacy", False)),
         "income_statement_preserved_or_written": "income_statement" in merged,
         "comparison_file": merged_path.name,
         "canonical_file": income_path.name if inc["canonical"] is not None else None,
@@ -528,13 +686,33 @@ def process_one(md_path: Path, output_dir: Path, comparison_dir: Optional[Path],
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Integrated mapper: Financial Position + Income + Cash Flow + additive Notes IR.")
+    ap = argparse.ArgumentParser(
+        description="Source-only mapper: Financial Position + Income + Cash Flow + additive Notes IR."
+    )
     ap.add_argument("input", help="Markdown file or folder")
-    ap.add_argument("--comparison-dir", help="Folder containing existing *.comparison.json")
-    ap.add_argument("--financial-position-dir", help="Folder containing completed <base>.canonical.json Financial Position outputs. If omitted, nearby workspace folders are auto-scanned.")
+    ap.add_argument(
+        "--mode",
+        choices=["source-only", "seeded-demo"],
+        default="source-only",
+        help="source-only parses every statement from Markdown; seeded-demo explicitly reuses validated B01 artifacts.",
+    )
+    ap.add_argument(
+        "--financial-position-dir",
+        help="Explicit directory of provenance-validated B01 artifacts; allowed only with --mode seeded-demo.",
+    )
     ap.add_argument("--output", default="comparison_v9")
-    ap.add_argument("--current-year", type=int, default=2025)
-    ap.add_argument("--previous-year", type=int, default=2024)
+    ap.add_argument(
+        "--current-year",
+        type=int,
+        default=None,
+        help="Optional explicit current reporting year; otherwise infer per Markdown report.",
+    )
+    ap.add_argument(
+        "--previous-year",
+        type=int,
+        default=None,
+        help="Optional explicit comparative year; otherwise infer per Markdown report.",
+    )
     ap.add_argument("--sector", choices=["auto", "bank", "enterprise", "securities", "insurance"], default="auto",
                     help="Income override only; Cash Flow sector is independently detected from its own scope.")
     ap.add_argument(
@@ -546,33 +724,79 @@ def main():
     args = ap.parse_args()
 
     input_path = Path(args.input)
-    comparison_dir = Path(args.comparison_dir) if args.comparison_dir else None
     output_dir = Path(args.output)
+    if args.mode == "source-only" and args.financial_position_dir:
+        ap.error("--financial-position-dir is only allowed with --mode seeded-demo")
+    if args.mode == "seeded-demo" and not args.financial_position_dir:
+        ap.error("--mode seeded-demo requires --financial-position-dir")
     try:
         md_files = select_md_files(input_path)
     except Exception as e:
         print(f"[FATAL] {e}", file=sys.stderr)
         raise SystemExit(2)
 
-    # Build one reusable index instead of recursively searching for every file.
-    fp_roots = []
-    if args.financial_position_dir:
-        fp_roots.append(Path(args.financial_position_dir))
-    # Auto-discovery keeps the one-command workflow compatible with the completed older B02 pipeline.
-    for root in (input_path if input_path.is_dir() else input_path.parent,
-                 input_path.parent if input_path.is_dir() else input_path.parent.parent,
-                 comparison_dir,
-                 comparison_dir.parent if comparison_dir else None,
-                 output_dir.parent):
-        if root is not None:
-            fp_roots.append(Path(root))
-    fp_index = FinancialPositionIndex.build(fp_roots)
-    print(f"[FINANCIAL_POSITION] canonical_sources={len(fp_index.by_base)} scanned={fp_index.scanned_files}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    prune_stale_report_artifacts(output_dir, {stem_base(path) for path in md_files})
+    fp_index = None
+    fp_parser = None
+    if args.mode == "seeded-demo":
+        fp_dir = Path(args.financial_position_dir)
+        if not fp_dir.exists():
+            ap.error(f"Financial Position artifact directory does not exist: {fp_dir}")
+        fp_index = FinancialPositionIndex.build([fp_dir], require_provenance=True)
+        if fp_index.duplicates:
+            duplicate_bases = ", ".join(sorted(fp_index.duplicates))
+            ap.error(f"Ambiguous B01 artifacts for: {duplicate_bases}")
+        missing_bases = [base for base in (stem_base(path) for path in md_files) if fp_index.find(base) is None]
+        if missing_bases:
+            ap.error(
+                "seeded-demo requires one provenance-validated B01 artifact per input report; "
+                f"missing/unverified: {', '.join(missing_bases[:20])}"
+                + (" ..." if len(missing_bases) > 20 else "")
+            )
+        print(
+            f"[FINANCIAL_POSITION] mode=seeded-demo canonical_sources={len(fp_index.by_base)} "
+            f"scanned={fp_index.scanned_files}"
+        )
+    else:
+        fp_parser = FinancialPositionSourceParser()
+        print("[FINANCIAL_POSITION] mode=source-only source=markdown")
+
+    write_json(
+        output_dir / "run_metadata.json",
+        {
+            "schema_version": "financial_parser_run_metadata_v1",
+            "mode": args.mode,
+            "input": str(input_path.resolve()),
+            "output": str(output_dir.resolve()),
+            "current_year": args.current_year,
+            "previous_year": args.previous_year,
+            "period_resolution": "per_report_inferred_or_cli_override",
+            "source_reports": len(md_files),
+        },
+    )
 
     rows = []
     for p in md_files:
         try:
-            r = process_one(p, output_dir, comparison_dir, args.current_year, args.previous_year, args.sector, fp_index, enable_notes=args.notes)
+            year_resolution = infer_report_year_pair(
+                p.read_text(encoding="utf-8-sig", errors="replace"),
+                source_name=p.name,
+                current_year=args.current_year,
+                previous_year=args.previous_year,
+            )
+            r = process_one(
+                p,
+                output_dir,
+                year_resolution["current_year"],
+                year_resolution["previous_year"],
+                args.sector,
+                mode=args.mode,
+                fp_index=fp_index,
+                fp_parser=fp_parser,
+                enable_notes=args.notes,
+                year_resolution=year_resolution,
+            )
             rows.append(r)
             print(
                 f"[OK] {p.name}: fp={r['financial_position_status']} nodes={r['financial_position_value_nodes']} "
@@ -590,7 +814,7 @@ def main():
 
     write_json(output_dir / "comparison_summary.json", rows)
     cols = [
-        "source_name","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
+        "source_name","source_sha256","run_mode","current_year","previous_year","year_resolution","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
         "input_rows","mapped_rows","unmapped_rows","mapping_rate","income_value_nodes","income_current_nodes",
         "income_previous_nodes","current_coverage","previous_coverage","formula_evaluated","formula_passed",
         "formula_failed","formula_pass_rate","sign_normalizations",
@@ -601,7 +825,7 @@ def main():
         "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
         "financial_position_previous_nodes","financial_position_recovered_rows",
         "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
-        "financial_position_canonical_file","financial_position_preserved",
+        "financial_position_canonical_file","financial_position_source_mode","financial_position_preserved",
         "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file",
         "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
     ]
@@ -611,6 +835,19 @@ def main():
         for r in rows:
             w.writerow(r)
     print(f"\nSummary: {output_dir / 'comparison_summary.csv'}")
+
+    errors = [r for r in rows if r.get("status") == "error"]
+    seeded_missing = [
+        r for r in rows
+        if args.mode == "seeded-demo" and r.get("financial_position_status") != "ok"
+    ]
+    if errors or seeded_missing:
+        print(
+            f"[FATAL] run rejected: errors={len(errors)} "
+            f"seeded_missing_financial_position={len(seeded_missing)}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

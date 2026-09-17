@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from src.notes.pipeline import NotesPipeline
 from src.notes.row_exporter import flatten_note_rows
+from src.common import infer_report_year_pair
 
 try:
     from flat_parser.preprocess import filter_noise
@@ -127,8 +128,8 @@ def main() -> None:
     )
     parser.add_argument("input", nargs="?", default="md_reports")
     parser.add_argument("--output", default="ground_truth/notes")
-    parser.add_argument("--current-year", type=int, default=2025)
-    parser.add_argument("--previous-year", type=int, default=2024)
+    parser.add_argument("--current-year", type=int, default=None)
+    parser.add_argument("--previous-year", type=int, default=None)
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -138,11 +139,27 @@ def main() -> None:
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    pipe = NotesPipeline(current_year=args.current_year, previous_year=args.previous_year)
     manifest_files: list[dict[str, Any]] = []
 
     for path in files:
-        document = build_document(path, pipe, args.current_year, args.previous_year)
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+        year_resolution = infer_report_year_pair(
+            text,
+            source_name=path.name,
+            current_year=args.current_year,
+            previous_year=args.previous_year,
+        )
+        pipe = NotesPipeline(
+            current_year=year_resolution["current_year"],
+            previous_year=year_resolution["previous_year"],
+        )
+        document = build_document(
+            path,
+            pipe,
+            year_resolution["current_year"],
+            year_resolution["previous_year"],
+        )
+        document["period"]["year_resolution"] = year_resolution
         output_name = f"{path.stem}.notes.ground_truth.json"
         output_path = output_dir / output_name
         output_path.write_text(
@@ -155,6 +172,8 @@ def main() -> None:
                 "source_file": path.name,
                 "ground_truth_file": output_name,
                 "source_sha256": document["source_sha256"],
+                "current_year": document["period"]["current_year"],
+                "previous_year": document["period"]["previous_year"],
                 "sector": document["sector"],
                 "scope_found": document["scope"]["found"],
                 "scope_confidence": document["scope"]["confidence"],
