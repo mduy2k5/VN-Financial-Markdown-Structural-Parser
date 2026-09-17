@@ -1,4 +1,4 @@
-# Demo scan 57 báo cáo
+# Demo scan theo thư mục input
 
 ## Chạy
 
@@ -8,12 +8,12 @@ Từ thư mục gốc dự án:
 python .\scripts\run_demo.py
 ```
 
-Demo mặc định chạy ở chế độ `source-only`: chỉ đọc `md_reports/`, parse mới cả ba bảng chính và Notes, rồi lưu artifact cho 57 báo cáo. Không chạy benchmark, audit hay so sánh reconciliation.
+Demo chỉ đọc `md_reports/`, parse mới cả ba bảng chính và Notes, rồi lưu artifact cho toàn bộ báo cáo tìm thấy. Output cũ, ground truth và comparison không được dùng làm input parser. Demo không chạy benchmark, audit hay so sánh reconciliation.
 
 ## Output
 
 ```text
-output/demo/scan_57/
+output/demo/latest/
 ├── scan.log
 ├── scan_summary.md
 ├── scan_manifest.json
@@ -40,12 +40,8 @@ python .\scripts\run_demo.py --no-notes
 # Chỉ định input/output khác
 python .\scripts\run_demo.py `
   --input .\md_reports `
-  --output .\output\demo\scan_57
+  --output .\output\demo\latest
 
-# Chỉ dùng khi cần demo tương thích với B01 đã xác thực provenance
-python .\scripts\run_demo.py `
-  --mode seeded-demo `
-  --financial-position-dir .\path\to\validated_b01_artifacts
 ```
 
-Pipeline không tự quét project root, `output/` hoặc các comparison cũ. Ground truth và artifact của lần chạy trước chỉ được dùng bởi các script audit/compare sau khi scan hoàn tất.
+Pipeline không tự quét project root, `output/` hoặc các comparison cũ. Các script audit/compare là công cụ đánh giá riêng và chỉ đọc artifact sau khi scan hoàn tất.

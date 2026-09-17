@@ -1,9 +1,6 @@
 """Common utilities for financial statements extraction."""
 
-from .period_resolver import (
-    period_role_for_date,
-    repair_financial_position_period_identity,
-)
+from .period_resolver import period_role_for_date
 from .value_semantics import (
     UnitContext,
     arithmetic_value,
@@ -27,7 +24,7 @@ from .source_recovery import (
     parse_number,
 )
 from .source_reconciler import reconcile_source_observations
-from .source_observation import augment_financial_position, augment_from_rows
+from .source_observation import augment_from_rows
 from .report_period import infer_report_period_context, infer_report_year_pair, resolve_report_years
 from .structural_identity import (
     clean_identity_text,
@@ -37,7 +34,6 @@ from .structural_identity import (
 )
 
 __all__ = [
-    "repair_financial_position_period_identity",
     "period_role_for_date",
     "UnitContext",
     "arithmetic_value",
@@ -58,7 +54,6 @@ __all__ = [
     "hydrate_canonical_by_form_code",
     "parse_number",
     "reconcile_source_observations",
-    "augment_financial_position",
     "augment_from_rows",
     "infer_report_year_pair",
     "infer_report_period_context",

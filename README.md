@@ -9,39 +9,96 @@ Dự án xử lý đồng thời ba báo cáo chính:
 - **B03 — Cash Flow:** Báo cáo lưu chuyển tiền tệ (LCTT).
 - **Notes:** Thuyết minh báo cáo tài chính, được xuất thành Notes IR và các dòng phẳng để kiểm tra.
 
-Bản parser hiện tại là **v23.1.0 — structural notes extraction**. Pipeline chạy trực tiếp trên Markdown nguồn, ghi lại provenance, suy luận niên độ theo từng báo cáo và không lấy output cũ làm dữ liệu đầu vào trong chế độ mặc định.
+Bản parser hiện tại là **v23.1.0 — structural notes extraction**. Pipeline chạy trực tiếp trên Markdown nguồn, ghi lại provenance, suy luận niên độ theo từng báo cáo và không lấy output cũ làm dữ liệu đầu vào.
 
-## Trạng thái hiện tại
+## Kết quả hiện tại
 
-Kết quả lần chạy 57 báo cáo gần nhất:
+Phần này mô tả **kết quả kỹ thuật của lần chạy gần nhất**, không phải kết luận nghiệp vụ và không dùng tên, mã hay đặc điểm nhận diện của bộ dữ liệu. Số lượng file được phát hiện là biến động theo thư mục input; số liệu chính thức của từng lần chạy nằm trong `scan_manifest.json` và `comparison_summary.json`.
 
-| Hạng mục | Kết quả |
-| :--- | ---: |
-| Markdown đầu vào | **57** |
-| Báo cáo đã xử lý | **57/57** |
-| Source hash khớp baseline | **57/57** |
-| B01 | **57/57 `ok`** |
-| B03 | **55 `ok`**, 1 `partial_mapping`, 1 `partial_source_coverage` |
-| Notes | **57/57 `parsed`** |
-| Regression tests | **82 passed** |
+### 1. Sức khỏe vận hành
 
-Đối chiếu với baseline parser-assisted ở chế độ `eligible`:
+| Nhóm kiểm tra | Kết quả snapshot gần nhất | Ý nghĩa |
+| :--- | :--- | :--- |
+| Discovery | **100%** file được phát hiện có summary | Không có file nguồn bị bỏ qua ở bước điều phối |
+| Provenance | **100%** kết quả có `source_sha256` | Có thể xác minh output thuộc đúng source đã parse |
+| B01 | **100% `ok`** | Đường structural parser và source recovery đang hoạt động ổn định |
+| B02 | **56,14% `ok`**, **43,86% `partial_mapping`** | Đã đọc được dòng nguồn nhưng còn dòng chưa ánh xạ đầy đủ vào schema semantic |
+| B03 | **96,49% `ok`**, **1,75% `partial_mapping`**, **1,75% `partial_source_coverage`** | Cần tiếp tục xử lý layout, section hoặc method chưa đủ bằng chứng |
+| Notes | **100% `parsed`** | Đây là lớp bổ sung, không ghi đè giá trị của ba bảng chính |
+| Regression suite | **81 passed** | Code hiện tại vượt qua toàn bộ test tự động trong repository |
 
-| Bảng | Numeric pair match | Value-only coverage |
-| :--- | ---: | ---: |
-| B01 — Financial Position | **96,90%** | **98,22%** |
-| B02 — Income Statement | **99,60%** | **99,60%** |
-| B03 — Cash Flow | **95,33%** | **96,90%** |
+Các tỷ lệ trên được tính trên `N` file Markdown được discovery ở thời điểm chạy; `N` không phải tham số cố định và phải lấy từ manifest của lần chạy tương ứng.
 
-Các chỉ số trên đo mức bao phủ bằng chứng `nhãn + kỳ + giá trị` hoặc chỉ `giá trị`. Ground truth hiện là **parser-assisted baseline**, chưa phải gold standard đã được con người xác nhận hoàn toàn; các dòng mơ hồ vẫn phải đi qua review queue trước khi dùng cho kết luận nghiệp vụ.
+Trạng thái `ok` chỉ cho biết pipeline hoàn tất và có dữ liệu đạt điều kiện tối thiểu. Nó không đồng nghĩa với việc mọi giá trị đều đúng tuyệt đối. Ngược lại, `partial_mapping` hoặc `partial_source_coverage` là tín hiệu cần review, không phải lỗi hệ thống hoàn toàn.
 
-Resolver niên độ nhận diện 56 báo cáo theo cặp `2025/2024` và một báo cáo CMG theo cặp `2026/2025` do nội dung có ngày kết thúc 31/03/2026. Xung đột giữa tên file CMG và ngày trong nội dung được giữ lại trong provenance để audit, không bị che giấu.
+### 2. Độ bao phủ bằng chứng
+
+Kết quả đối chiếu hiện tại với parser-assisted baseline:
+
+| Bảng | Numeric pair match | Value-only coverage | Cách đọc |
+| :--- | ---: | ---: | :--- |
+| B01 | **96,90%** | **98,22%** | Bao phủ tốt, nhưng vẫn cần kiểm tra các dòng khác kỳ hoặc khác nhãn |
+| B02 | **99,60%** | **99,60%** | Giá trị thu được ổn định trên các observation đủ điều kiện |
+| B03 | **95,33%** | **96,90%** | Còn chênh lệch do section, method hoặc period pairing |
+
+Hai metric không phải accuracy tuyệt đối:
+
+- `Numeric pair match`: cùng semantic label, period và giá trị số sau chuẩn hóa.
+- `Value-only coverage`: chỉ kiểm tra giá trị số, bỏ qua nhãn và kỳ; metric này dùng để phát hiện dữ liệu đã được thu nhưng có thể gán sai ngữ cảnh.
+- `source_hash`: kiểm tra tính toàn vẹn của source, không kiểm tra tính đúng đắn kế toán.
+- `status`: phản ánh mức hoàn tất của parser, không phải đánh giá chất lượng nghiệp vụ.
+
+Baseline hiện tại vẫn là **parser-assisted baseline**, chưa phải gold standard được con người xác nhận hoàn toàn. Các observation mơ hồ về nhãn, kỳ, đơn vị hoặc nguồn phải được đưa vào review queue trước khi dùng cho báo cáo nghiệp vụ.
+
+### 3. Diễn giải theo từng bảng
+
+#### B01 — Financial Position
+
+B01 hiện là bảng ổn định nhất về mặt cấu trúc. Parser dựng scope, cây parent/child, semantic anchor và cột kỳ trước khi tạo canonical node. Source recovery chỉ bổ sung observation còn thiếu và giữ lại provenance. Các điểm cần tiếp tục audit là:
+
+- dòng bị tách thành nhiều cụm cột;
+- cặp kỳ không nằm trên cùng một dòng;
+- dòng tổng và dòng chi tiết có cấu trúc lồng nhau;
+- conflict giữa canonical node và source observation.
+
+#### B02 — Income Statement
+
+B02 có độ bao phủ giá trị cao, nhưng trạng thái `partial_mapping` thường phản ánh việc extractor đã tìm thấy dòng nhưng mapper chưa thể xác định semantic node duy nhất. Nguyên nhân cần theo dõi gồm:
+
+- nhãn bị OCR làm biến dạng;
+- cùng một nhãn xuất hiện trong nhiều context;
+- sector/schema không có node tương ứng;
+- dòng current/previous bị tách khỏi nhãn;
+- alias gần giống nhau nhưng chưa đủ margin để tự động chọn.
+
+#### B03 — Cash Flow
+
+B03 phụ thuộc đồng thời vào section và phương pháp dòng tiền. Một dòng có thể giống nhau về mặt chữ nhưng khác ý nghĩa nếu nằm ở section khác hoặc thuộc method khác. Các trạng thái partial thường cần kiểm tra:
+
+- nhận diện direct/indirect;
+- ranh giới giữa statutory section và supplemental section;
+- period pairing trong bảng nhiều cột;
+- bảng chỉ có mã biểu mẫu nhưng thiếu nhãn semantic;
+- công thức có thành phần tùy chọn hoặc thiếu trong source.
+
+### 4. Niên độ và provenance
+
+Niên độ được suy luận độc lập cho từng tài liệu từ nội dung nguồn. Resolver ưu tiên ngày kết thúc kỳ, header kỳ và câu dẫn báo cáo; tên file chỉ là bằng chứng phụ trợ. Khi có xung đột, parser giữ lại `year_resolution`, `confidence` và `conflict` trong provenance thay vì tự động ghi đè.
+
+### 5. Kết luận kỹ thuật
+
+Kết quả hiện tại đủ tốt để tiếp tục phát triển parser và tạo hàng đợi review, nhưng chưa nên coi toàn bộ canonical output là kết luận nghiệp vụ tự động. Ưu tiên tiếp theo là:
+
+1. review các observation `partial_mapping` và `partial_source_coverage`;
+2. kiểm tra các conflict period/label bằng `source_line` và `raw_text`;
+3. nâng baseline parser-assisted thành gold standard có người xác nhận;
+4. chỉ công bố metric sau khi tách rõ lỗi thu dòng, lỗi period và lỗi semantic mapping.
 
 ## 1. Nguyên tắc thiết kế
 
 ### Source-first
 
-Chế độ mặc định `source-only` chỉ đọc các file Markdown trong thư mục input. Pipeline không tự quét project root, `output/`, ground truth hoặc các kết quả của lần chạy trước. Mỗi output mang theo:
+Pipeline chỉ đọc các file Markdown trong thư mục input. Pipeline không tự quét project root, `output/`, ground truth hoặc các kết quả của lần chạy trước. Mỗi output mang theo:
 
 - `source_name` và `source_sha256`;
 - dòng nguồn và đoạn text gốc khi có thể;
@@ -56,7 +113,7 @@ Chế độ mặc định `source-only` chỉ đọc các file Markdown trong th
 - Ngày đầu tháng 1 được nhận diện là số đầu kỳ; kỳ quý/YTD được phân loại riêng, không tự động coi là kỳ trước.
 - Mã số biểu mẫu và số Thuyết minh không được dùng làm khóa identity, join, dedupe hoặc reconciliation. Chúng chỉ là metadata/provenance.
 
-Các script audit/repair chuyên biệt có thể chứa fixture tên báo cáo để phục vụ kiểm định baseline. Những script này chạy offline, không được gọi trong pipeline production và không quyết định mapping cho báo cáo mới.
+Các công cụ so sánh/review được tách khỏi runtime parser. Chúng chỉ đọc output hoặc ground truth khi được gọi tường minh sau một lần scan để đánh giá; không có đường fallback từ output về parser.
 
 ### Primary statements là nguồn chính
 
@@ -102,7 +159,7 @@ Thư mục chính: `src/b01_financial_position/` và `flat_parser/`.
 - `hybrid`: dùng v05 làm nền và Flow fill các vị trí còn thiếu.
 - `compare`: chạy và so sánh ba engine.
 
-Các engine debug này phục vụ phân tích B01; pipeline thống nhất vẫn là `pipeline.py --mode source-only`.
+Các engine debug này phục vụ phân tích B01; pipeline thống nhất vẫn là `pipeline.py` với Markdown làm nguồn duy nhất.
 
 ### B02 — KQKD
 
@@ -148,7 +205,7 @@ Flatten/
 │   └── notes/                           # Notes IR, structural parser, linking, export
 ├── flat_parser/                        # Engine structural/debug cho B01
 ├── resources/                          # Schema, alias và structural guide
-├── md_reports/                         # Markdown nguồn; mặc định 57 báo cáo
+├── md_reports/                         # Markdown nguồn do người dùng cung cấp
 ├── ground_truth/                       # Baseline, Notes GT và review artifacts
 ├── output/                             # Artifact chạy cục bộ, được gom theo nhóm
 ├── scripts/                            # Demo, build GT, compare, audit/review
@@ -181,7 +238,7 @@ python -m pip install -r .\requirements.txt
 
 ## 6. Chạy pipeline
 
-### Demo toàn bộ 57 báo cáo
+### Demo toàn bộ báo cáo trong input
 
 ```powershell
 python .\scripts\run_demo.py
@@ -192,8 +249,7 @@ Lệnh mặc định tương đương:
 ```powershell
 python .\scripts\run_demo.py `
   --input .\md_reports `
-  --output .\output\demo\scan_57 `
-  --mode source-only
+  --output .\output\demo\latest
 ```
 
 Chỉ định output khác hoặc tắt Notes:
@@ -211,23 +267,11 @@ Không cần truyền năm nếu muốn dùng resolver tự động. Có thể t
 
 ```powershell
 python .\pipeline.py .\md_reports `
-  --mode source-only `
   --output .\output\comparisons\current_run `
   --notes
 ```
 
 `--sector auto` là mặc định. Có thể dùng `--sector bank|enterprise|securities|insurance` để override sector cho B02; B03 vẫn phát hiện scope độc lập.
-
-### Chế độ seeded demo
-
-```powershell
-python .\pipeline.py .\md_reports `
-  --mode seeded-demo `
-  --financial-position-dir .\path\to\validated_b01_artifacts `
-  --output .\output\demo\seeded
-```
-
-Chế độ này chỉ dành cho demo tương thích với artifact B01 đã xác thực provenance. Nó không phải đường chạy production và không được dùng để kết luận chất lượng parser source-only.
 
 ## 7. Debug engine B01
 
@@ -263,7 +307,7 @@ Năm được suy luận theo từng source file nếu không truyền override.
 
 ```powershell
 python .\scripts\prepare_main_statement_gold.py `
-  --baselines .\ground_truth\main_statements_v3_specialized `
+  --baselines .\ground_truth\main_statements `
   --source-dir .\md_reports `
   --output .\output\evaluations\main_statement_gold_queue
 ```
@@ -274,8 +318,8 @@ Lệnh này không ghi đè baseline. Các observation thiếu giá trị, mơ h
 
 ```powershell
 python .\scripts\compare_main_statement_ground_truth.py `
-  --ground-truth .\ground_truth\main_statements_v3_specialized `
-  --current .\output\demo\scan_57\results `
+  --ground-truth .\ground_truth\main_statements `
+  --current .\output\demo\latest\results `
   --ground-truth-mode eligible `
   --sources .\md_reports `
   --report .\output\evaluations\comparison_main_statements.json
@@ -301,7 +345,7 @@ python .\scripts\evaluate_notes_coverage.py .\md_reports `
 Demo mặc định tạo:
 
 ```text
-output/demo/scan_57/
+output/demo/latest/
 ├── scan.log
 ├── scan_summary.md
 ├── scan_manifest.json
@@ -323,7 +367,7 @@ Ground truth được tổ chức độc lập với output chạy:
 
 ```text
 ground_truth/
-├── main_statements_v3_specialized/     # Baseline ba bảng chính
+├── main_statements/                    # Baseline ba bảng chính
 ├── notes/                              # Notes ground truth theo báo cáo
 ├── notes_gold/                         # Gold/candidate đã lọc nếu có
 └── ...                                 # Audit/review queues và snapshot
@@ -386,7 +430,7 @@ Regression suite hiện hành gồm các nhóm: structural edge cases, identity 
 
 ## 12. Quy trình review trước khi dùng nghiệp vụ
 
-1. Chạy pipeline `source-only` trên source Markdown mới.
+1. Chạy pipeline source-first trên Markdown mới.
 2. Kiểm tra `scan_manifest.json`: số file, status, source hash, period confidence và conflict.
 3. Đối chiếu `eligible` để phát hiện missing/unexpected theo từng bảng.
 4. Mở review queue và kiểm tra các dòng cần adjudication bằng raw text/source line.

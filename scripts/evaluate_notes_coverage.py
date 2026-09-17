@@ -165,7 +165,7 @@ def main() -> None:
         "rejected_scope_candidates": sum(int(r["scope_rejected_candidate_count"] or 0) for r in rows),
         "decoy_primary_headings_inside_notes": sum(int(r["decoy_primary_heading_count"] or 0) for r in rows),
         "release_gates": {
-            "notes_scope_detection_target": "57/57 for current reference corpus",
+            "notes_scope_detection_target": "all discovered Markdown reports",
             "false_primary_capture_target": 0,
             "primary_regression_target": "unchanged",
         },

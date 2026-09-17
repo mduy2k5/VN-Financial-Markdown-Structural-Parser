@@ -153,9 +153,9 @@ def analyze_baseline(path: Path, source_dir: Path) -> tuple[dict[str, Any], list
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--baselines", type=Path, default=Path("ground_truth/main_statements_v3_specialized"))
+    parser.add_argument("--baselines", type=Path, default=Path("ground_truth/main_statements"))
     parser.add_argument("--source-dir", type=Path, default=Path("md_reports"))
-    parser.add_argument("--output", type=Path, default=Path("output/evaluations/main_statement_gold_queue_57"))
+    parser.add_argument("--output", type=Path, default=Path("output/evaluations/main_statement_gold_queue"))
     args = parser.parse_args()
 
     reports: list[dict[str, Any]] = []

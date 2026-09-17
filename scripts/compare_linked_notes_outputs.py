@@ -217,13 +217,13 @@ def _queue_rows(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v2", type=Path, default=Path("output/notes/linked_v2"))
-    parser.add_argument("--v3", type=Path, default=Path("output/notes/linked_specialized"))
+    parser.add_argument("--v3", type=Path, default=Path("output/notes/linked"))
     parser.add_argument("--left-label", default="v2", help="Label for the left/older output in the report")
     parser.add_argument("--right-label", default="v3", help="Label for the right/newer output in the report")
     parser.add_argument("--v2-triage", "--left-triage", dest="left_triage", type=Path, default=Path("ground_truth/reconciliation_review_v2/triage.json"))
-    parser.add_argument("--v3-triage", "--right-triage", dest="right_triage", type=Path, default=Path("ground_truth/reconciliation_review_specialized/triage.json"))
+    parser.add_argument("--v3-triage", "--right-triage", dest="right_triage", type=Path, default=Path("ground_truth/reconciliation_review/triage.json"))
     parser.add_argument("--report", type=Path, default=Path("ground_truth/notes/comparison_linked_v2_v3.json"))
-    parser.add_argument("--queue-dir", type=Path, default=Path("ground_truth/reconciliation_review_specialized"))
+    parser.add_argument("--queue-dir", type=Path, default=Path("ground_truth/reconciliation_review"))
     parser.add_argument("--queue-stem", help="Output stem for the focused conflict queue")
     args = parser.parse_args()
 

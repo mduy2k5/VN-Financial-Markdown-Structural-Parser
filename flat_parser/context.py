@@ -403,7 +403,7 @@ def find_validated_financial_position_start(lines: list[SourceLine], min_score=4
     # TOC/audit false positives are already penalized by base heading evidence;
     # among genuinely valid statement candidates, prefer the earliest one that
     # has downstream financial payload. This restores page-1 + continuation
-    # coverage for BAB/VBB/CTS/VGI-like reports.
+    # coverage for multi-page reports.
     valid = [
         c for c in candidates
         if _is_statement_title_shape(c.text)

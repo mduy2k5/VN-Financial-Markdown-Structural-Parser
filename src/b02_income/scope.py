@@ -196,7 +196,8 @@ def _find_notes_start(lines: list[str]) -> int | None:
         if re.search(r"(?i)^\s*(?:thuyết minh|thuyet minh)\s+(?:báo cáo|bao cao)\s+tài chính", strip_md(line)):
             return i
         if re.search(r"(?i)\bB\s*0?9\s*[-–/]?\s*DN(?:/HN)?\b", strip_md(line)):
-            # B09 can occur in metadata; require nearby notes wording when possible.
+            # The form code can occur in metadata; require nearby notes wording
+            # when possible.
             nearby = " ".join(strip_md(x).casefold() for x in lines[max(0, i-4):i+5])
             if "thuyết minh" in nearby or "thuyet minh" in nearby:
                 return max(0, i-4)
@@ -242,7 +243,8 @@ def _candidate_viability(lines: list[str], cand: dict, current_year: int, previo
 
     # Once the statutory notes section has started, a later income-like heading
     # is overwhelmingly likely to be a disclosure/note rather than the primary
-    # statement. This is the v6 regression guard for BSR/VIC-like documents.
+    # statement. This is a regression guard for reports with note sections that
+    # repeat income-like headings.
     if notes_start is not None and start >= notes_start:
         adjusted -= 1400
 

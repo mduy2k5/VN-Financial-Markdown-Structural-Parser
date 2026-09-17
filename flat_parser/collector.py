@@ -597,7 +597,7 @@ def collect_observation(
             unit = d.unit or d.inherited_unit
 
     # Sequential fallback for plain/non-parent labels whose attributes are
-    # serialized as immediately following bullets (e.g. TOTAL_ASSETS in ABB).
+    # serialized as immediately following bullets.
     if not period_values and not values:
         seq_periods, seq_note, seq_code, seq_unit, seq_values = _sequential_local_attributes(
             anchor,

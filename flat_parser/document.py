@@ -196,8 +196,8 @@ def _table_label_and_metadata(
                         break
 
             # Any remaining prefix token belongs to note when table declares a
-            # note column. STB B02 has no code header, so "22" correctly becomes
-            # note instead of current value.
+            # note column. Without a code header, a numeric prefix can still be
+            # a note reference rather than a current-period value.
             if has_note_header and remaining:
                 note = remaining[0].strip('*_ ')
 

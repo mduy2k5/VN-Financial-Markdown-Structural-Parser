@@ -103,17 +103,17 @@ def main() -> int:
     parser.add_argument(
         "--main-comparison",
         type=Path,
-        default=Path("output/evaluations/comparison_main_statements_scan_57_eligible.json"),
+        default=Path("output/evaluations/comparison_main_statements_eligible.json"),
     )
     parser.add_argument(
         "--notes-comparison",
         type=Path,
-        default=Path("output/evaluations/comparison_notes_scan_57.json"),
+        default=Path("output/evaluations/comparison_notes.json"),
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("output/evaluations/comparison_main_statements_scan_57_per_report"),
+        default=Path("output/evaluations/comparison_main_statements_per_report"),
         help="Output stem; .csv and .md are appended automatically.",
     )
     args = parser.parse_args()

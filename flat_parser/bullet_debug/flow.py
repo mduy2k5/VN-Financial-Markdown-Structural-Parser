@@ -1392,7 +1392,7 @@ class BulletDebugFlow:
             rows.append(row); matches.append(row.debug_dict()); consumed.add(i)
 
         # P20: one structural wrapper carries multiple sibling CHỈ TIÊU nodes.
-        # Seen in MWG where "Mã số: III..." is a section wrapper, not a row code.
+        # A "Mã số: III..." line can be a section wrapper, not a row code.
         for i, ln in enumerate(lines):
             if i in consumed or not ln.is_bullet or not ln.body:
                 continue

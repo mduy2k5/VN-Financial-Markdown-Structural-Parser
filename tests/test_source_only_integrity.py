@@ -6,12 +6,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
-
-from src.b01_financial_position import (
-    FinancialPositionIndex,
-    integrate_financial_position,
-)
 from src.notes.structural_parser import parse_bullet_structures
 from src.common.source_canonical_hydrator import augment_canonical_with_recovered_rows
 
@@ -26,8 +20,6 @@ def _run_pipeline(source: Path, output: Path) -> tuple[subprocess.CompletedProce
             sys.executable,
             str(ROOT / "pipeline.py"),
             str(source),
-            "--mode",
-            "source-only",
             "--output",
             str(output),
             "--no-notes",
@@ -68,11 +60,11 @@ def test_source_only_ignores_previous_output_and_writes_provenance(tmp_path):
 
     result, row = _run_pipeline(source, output)
 
-    assert "mode=source-only source=markdown" in result.stdout
+    assert "[FINANCIAL_POSITION] source=markdown" in result.stdout
     assert "canonical_sources=" not in result.stdout
-    assert row["run_mode"] == "source-only"
-    assert row["financial_position_source_mode"] == "source_parse"
-    assert row["financial_position_preserved"] is False
+    assert "run_mode" not in row
+    assert "financial_position_source_mode" not in row
+    assert "financial_position_preserved" not in row
     assert row["financial_position_value_nodes"] > 0
 
     canonical = json.loads(stale.read_text(encoding="utf-8-sig"))
@@ -82,7 +74,6 @@ def test_source_only_ignores_previous_output_and_writes_provenance(tmp_path):
     assert canonical["provenance"]["source_sha256"] == expected_hash
     comparison = json.loads(stale_comparison.read_text(encoding="utf-8-sig"))
     assert comparison.get("poison") is None
-    assert comparison["run_mode"] == "source-only"
     assert comparison["financial_position"]["v05"]["parser"]["integration_mode"] == "source_parse"
     assert not (output / "removed_report.income.canonical.json").exists()
     assert not (stale_rows / "removed_report.notes_rows.csv").exists()
@@ -103,7 +94,6 @@ def test_source_only_is_stable_when_reusing_the_same_output_directory(tmp_path):
     assert "canonical_sources=" not in second_log.stdout
     for key in (
         "source_sha256",
-        "run_mode",
         "financial_position_status",
         "financial_position_value_nodes",
         "income_value_nodes",
@@ -112,59 +102,33 @@ def test_source_only_is_stable_when_reusing_the_same_output_directory(tmp_path):
         assert second[key] == first[key]
 
 
-def test_missing_b01_cannot_restore_metrics_from_old_comparison(tmp_path):
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    index = FinancialPositionIndex.build([empty])
-    old_comparison = {
-        "financial_position": {
-            "canonical_file": "old.financial_position.canonical.json",
-            "v05": {"status": "ok", "value_nodes": 999},
-        }
-    }
+def test_output_inside_markdown_input_is_rejected(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    source = input_dir / SOURCE.name
+    shutil.copy2(SOURCE, source)
+    output = input_dir / "generated"
 
-    result = integrate_financial_position(
-        "ABB_BCTC_2025_hop_nhat_kiem_toan",
-        tmp_path / "out",
-        index,
-        existing_comparison=old_comparison,
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "pipeline.py"),
+            str(input_dir),
+            "--output",
+            str(output),
+            "--no-notes",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
     )
 
-    assert result["status"] == "financial_position_source_missing"
-    assert result["metrics"]["value_nodes"] == 0
-    assert result["canonical"] is None
-    assert result["canonical_file"] is None
-    assert result["preserved_legacy"] is False
-
-
-def test_unverified_and_ambiguous_b01_artifacts_are_not_selected(tmp_path):
-    artifact_dir = tmp_path / "artifacts"
-    artifact_dir.mkdir()
-    base = "ABB_BCTC_2025_hop_nhat_kiem_toan"
-    path = artifact_dir / f"{base}.financial_position.canonical.json"
-    minimal = {
-        "schema_id": "UNIVERSAL_FINANCIAL_POSITION_V1",
-        "schema_version": "1.6.0",
-        "statement_type": "FINANCIAL_POSITION",
-        "nodes": [],
-    }
-    path.write_text(json.dumps(minimal), encoding="utf-8")
-    assert FinancialPositionIndex.build([artifact_dir]).find(base) is None
-
-    source_hash = "a" * 64
-    minimal.update({"source_name": f"{base}.md", "source_sha256": source_hash})
-    path.write_text(json.dumps(minimal), encoding="utf-8")
-    index = FinancialPositionIndex.build([artifact_dir])
-    assert index.find(base) == path
-
-    duplicate_dir = tmp_path / "duplicate"
-    duplicate_dir.mkdir()
-    duplicate = duplicate_dir / path.name
-    duplicate.write_text(json.dumps(minimal), encoding="utf-8")
-    index = FinancialPositionIndex.build([artifact_dir, duplicate_dir])
-    assert base in index.duplicates
-    with pytest.raises(ValueError, match="Multiple valid"):
-        index.find(base)
+    assert result.returncode != 0
+    assert "outside the Markdown input directory" in result.stderr
+    assert not output.exists()
 
 
 def test_notes_period_roles_use_requested_years():

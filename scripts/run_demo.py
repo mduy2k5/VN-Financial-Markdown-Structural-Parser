@@ -1,9 +1,7 @@
-"""Scan the Markdown financial reports and save fresh parser artifacts.
+"""Scan Markdown financial reports and save fresh parser artifacts.
 
-The default mode is source-only: every statement is parsed from the current
-Markdown corpus and no prior output, comparison, or ground-truth file is used.
-The seeded-demo mode is retained only for an explicit, provenance-validated
-compatibility demonstration.
+Every statement is parsed from the current Markdown corpus. Existing output,
+comparison and ground-truth files are never used as parser input.
 """
 
 from __future__ import annotations
@@ -20,7 +18,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = ROOT / "md_reports"
-DEFAULT_OUTPUT = ROOT / "output" / "demo" / "scan_57"
+DEFAULT_OUTPUT = ROOT / "output" / "demo" / "latest"
 
 
 def _load(path: Path) -> Any:
@@ -40,6 +38,18 @@ def _resolve(path: Path) -> Path:
 
 def _source_files(input_dir: Path) -> list[Path]:
     return sorted(path for path in input_dir.rglob("*.md") if path.is_file())
+
+
+def _ensure_output_is_outside_input(input_dir: Path, output_dir: Path) -> None:
+    source_root = input_dir.resolve()
+    candidate = output_dir.resolve()
+    try:
+        candidate.relative_to(source_root)
+    except ValueError:
+        return
+    raise SystemExit(
+        f"Output directory must be outside the Markdown input directory: {candidate}"
+    )
 
 
 def _run_pipeline(command: list[str], output_dir: Path) -> dict[str, Any]:
@@ -127,16 +137,11 @@ def _snapshot(results_dir: Path, source_files: list[Path]) -> dict[str, Any]:
 def _write_summary(path: Path, manifest: dict[str, Any]) -> None:
     scan = manifest["scan"]
     lines = [
-        "# Demo scan — 57 báo cáo tài chính",
+        f"# Demo scan — {scan['source_reports']} báo cáo tài chính",
         "",
         f"Generated: `{manifest['generated_at_utc']}`",
         "",
-        (
-            "Demo mặc định chạy source-only: chỉ quét Markdown đầu vào, không đọc output cũ, "
-            "comparison cũ hoặc ground truth."
-            if manifest["mode"] == "source-only"
-            else "Demo seeded chỉ dùng artifact B01 đã xác thực provenance; không dùng làm benchmark nghiệp vụ."
-        ),
+        "Demo chỉ quét Markdown đầu vào; output cũ, comparison cũ và ground truth không được dùng làm parser input.",
         "",
         "## Kết quả lưu",
         "",
@@ -165,13 +170,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Folder of Markdown reports")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Folder for saved scan artifacts")
-    parser.add_argument(
-        "--mode",
-        choices=["source-only", "seeded-demo"],
-        default="source-only",
-        help="source-only parses B01 from Markdown; seeded-demo requires validated B01 artifacts.",
-    )
-    parser.add_argument("--financial-position-dir", type=Path, default=None)
     parser.add_argument("--notes", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--current-year", type=int, default=None)
     parser.add_argument("--previous-year", type=int, default=None)
@@ -179,17 +177,10 @@ def main() -> int:
 
     input_dir = _resolve(args.input)
     output_dir = _resolve(args.output)
-    fp_dir = _resolve(args.financial_position_dir) if args.financial_position_dir else None
 
     if not input_dir.is_dir():
         raise SystemExit(f"Input folder not found: {input_dir}")
-    if args.mode == "source-only" and fp_dir is not None:
-        raise SystemExit("--financial-position-dir chỉ được dùng với --mode seeded-demo")
-    if args.mode == "seeded-demo":
-        if fp_dir is None:
-            raise SystemExit("--mode seeded-demo yêu cầu --financial-position-dir")
-        if not fp_dir.is_dir():
-            raise SystemExit(f"Financial Position source folder not found: {fp_dir}")
+    _ensure_output_is_outside_input(input_dir, output_dir)
 
     source_files = _source_files(input_dir)
     if not source_files:
@@ -201,8 +192,6 @@ def main() -> int:
         sys.executable,
         str(ROOT / "pipeline.py"),
         str(input_dir),
-        "--mode",
-        args.mode,
         "--output",
         str(results_dir),
         "--notes" if args.notes else "--no-notes",
@@ -211,8 +200,6 @@ def main() -> int:
         command.extend(["--current-year", str(args.current_year)])
     if args.previous_year is not None:
         command.extend(["--previous-year", str(args.previous_year)])
-    if fp_dir is not None:
-        command[3:3] = ["--financial-position-dir", str(fp_dir)]
     run = _run_pipeline(command, output_dir)
     if run["status"] != "passed":
         raise SystemExit(f"Scan failed; see {output_dir / 'scan.log'}")
@@ -223,8 +210,6 @@ def main() -> int:
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "project_root": str(ROOT),
         "input": _relative(input_dir),
-        "mode": args.mode,
-        "financial_position_source": _relative(fp_dir) if fp_dir else None,
         "notes_enabled": bool(args.notes),
         "run": run,
         "scan": scan,

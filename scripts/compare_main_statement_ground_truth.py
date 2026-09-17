@@ -323,8 +323,8 @@ def compare_statement(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ground-truth", type=Path, default=Path("ground_truth/main_statements_v3_specialized"))
-    parser.add_argument("--current", type=Path, default=Path("output/demo/scan_57/results"))
+    parser.add_argument("--ground-truth", type=Path, default=Path("ground_truth/main_statements"))
+    parser.add_argument("--current", type=Path, default=Path("output/demo/latest/results"))
     parser.add_argument(
         "--ground-truth-mode",
         choices=["raw", "eligible"],
@@ -332,7 +332,7 @@ def main() -> int:
         help="raw keeps the persisted baseline; eligible excludes ambiguous observations from the primary score.",
     )
     parser.add_argument("--sources", type=Path, help="Optional Markdown source directory for source-line validation.")
-    parser.add_argument("--report", type=Path, default=Path("output/evaluations/comparison_main_statements_scan_57.json"))
+    parser.add_argument("--report", type=Path, default=Path("output/evaluations/comparison_main_statements.json"))
     args = parser.parse_args()
 
     reports: list[dict[str, Any]] = []

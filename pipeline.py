@@ -16,9 +16,7 @@ for _p in (str(ROOT), str(SRC)):
         sys.path.insert(0, _p)
 
 from src.b01_financial_position import (
-    FinancialPositionIndex,
     FinancialPositionSourceParser,
-    integrate_financial_position,
 )
 from src.b02_income import extract_income_fallback, strip_md, IncomeMapper, adapt_row, auto_sector
 from src.b03_cashflow import extract_cashflow_fallback, detect_method as detect_cf_method, CashFlowMapper, adapt_cashflow_row
@@ -148,6 +146,27 @@ def prune_stale_report_artifacts(output_dir: Path, active_bases: set[str]) -> No
             for path in rows_dir.glob(f"*{suffix}"):
                 if path.is_file() and path.name[: -len(suffix)] not in active_bases:
                     path.unlink()
+
+
+def ensure_output_is_outside_input(input_path: Path, output_dir: Path) -> None:
+    """Reject an output folder that could become a future Markdown input.
+
+    Recursive discovery is intentionally limited to the caller's source tree.
+    Keeping generated files below that tree would allow a generated Markdown
+    summary or copied source to be discovered on a later run, so the boundary
+    is rejected before any output is created.
+    """
+    if not input_path.is_dir():
+        return
+    source_root = input_path.resolve()
+    candidate = output_dir.resolve()
+    try:
+        candidate.relative_to(source_root)
+    except ValueError:
+        return
+    raise ValueError(
+        f"Output directory must be outside the Markdown input directory: {candidate}"
+    )
 
 
 def stem_base(path: Path) -> str:
@@ -416,8 +435,6 @@ def process_one(
     previous_year: int,
     sector: str,
     *,
-    mode: str = "source-only",
-    fp_index: Optional[FinancialPositionIndex] = None,
     fp_parser: Optional[FinancialPositionSourceParser] = None,
     enable_notes: bool = True,
     year_resolution: Optional[dict[str, Any]] = None,
@@ -450,36 +467,16 @@ def process_one(
         year_resolution=year_resolution,
     )
 
-    if mode == "source-only":
-        if fp_parser is None:
-            fp_parser = FinancialPositionSourceParser()
-        fp = fp_parser.parse_text(
-            source_text,
-            source_name=md_path.name,
-            source_sha256=source_sha256,
-            current_year=current_year,
-            previous_year=previous_year,
-            fallback_unit=doc_unit,
-        )
-    elif mode == "seeded-demo":
-        if fp_index is None:
-            raise ValueError("seeded-demo requires an explicit Financial Position artifact directory")
-        fp = integrate_financial_position(
-            base,
-            output_dir,
-            fp_index,
-            existing_comparison=None,
-            source_text=source_text,
-            current_year=current_year,
-            previous_year=previous_year,
-            fallback_unit=doc_unit,
-            expected_source_name=md_path.name,
-            expected_source_sha256=source_sha256,
-            expected_current_year=current_year,
-            expected_previous_year=previous_year,
-        )
-    else:
-        raise ValueError(f"Unknown pipeline mode: {mode}")
+    if fp_parser is None:
+        fp_parser = FinancialPositionSourceParser()
+    fp = fp_parser.parse_text(
+        source_text,
+        source_name=md_path.name,
+        source_sha256=source_sha256,
+        current_year=current_year,
+        previous_year=previous_year,
+        fallback_unit=doc_unit,
+    )
 
     # Cross-statement unit re-synchronization
     resolved_unit = (
@@ -571,8 +568,6 @@ def process_one(
     merged = {
         "source_name": md_path.name,
         "source_sha256": source_sha256,
-        "run_mode": mode,
-        "mapping_strategy": "source_only" if mode == "source-only" else "validated_artifact",
         "current_year": current_year,
         "previous_year": previous_year,
         "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
@@ -622,7 +617,6 @@ def process_one(
     return {
         "source_name": md_path.name,
         "source_sha256": source_sha256,
-        "run_mode": mode,
         "current_year": current_year,
         "previous_year": previous_year,
         "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
@@ -660,11 +654,6 @@ def process_one(
         "cashflow_source_recovered_rows": (cm.get("parser") or {}).get("source_recovered_rows", 0),
         "cashflow_source_recovery_filled_nodes": (cm.get("parser") or {}).get("source_recovery_filled_nodes", 0),
         "financial_position_canonical_file": fp["canonical_file"],
-        "financial_position_source_mode": (
-            "source_parse" if mode == "source-only" else "validated_artifact"
-        ),
-        "financial_position_preserved": bool(fp.get("preserved_legacy", False)),
-        "income_statement_preserved_or_written": "income_statement" in merged,
         "comparison_file": merged_path.name,
         "canonical_file": income_path.name if inc["canonical"] is not None else None,
         "cashflow_canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
@@ -690,16 +679,6 @@ def main():
         description="Source-only mapper: Financial Position + Income + Cash Flow + additive Notes IR."
     )
     ap.add_argument("input", help="Markdown file or folder")
-    ap.add_argument(
-        "--mode",
-        choices=["source-only", "seeded-demo"],
-        default="source-only",
-        help="source-only parses every statement from Markdown; seeded-demo explicitly reuses validated B01 artifacts.",
-    )
-    ap.add_argument(
-        "--financial-position-dir",
-        help="Explicit directory of provenance-validated B01 artifacts; allowed only with --mode seeded-demo.",
-    )
     ap.add_argument("--output", default="comparison_v9")
     ap.add_argument(
         "--current-year",
@@ -725,53 +704,28 @@ def main():
 
     input_path = Path(args.input)
     output_dir = Path(args.output)
-    if args.mode == "source-only" and args.financial_position_dir:
-        ap.error("--financial-position-dir is only allowed with --mode seeded-demo")
-    if args.mode == "seeded-demo" and not args.financial_position_dir:
-        ap.error("--mode seeded-demo requires --financial-position-dir")
     try:
         md_files = select_md_files(input_path)
+        ensure_output_is_outside_input(input_path, output_dir)
     except Exception as e:
         print(f"[FATAL] {e}", file=sys.stderr)
         raise SystemExit(2)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     prune_stale_report_artifacts(output_dir, {stem_base(path) for path in md_files})
-    fp_index = None
-    fp_parser = None
-    if args.mode == "seeded-demo":
-        fp_dir = Path(args.financial_position_dir)
-        if not fp_dir.exists():
-            ap.error(f"Financial Position artifact directory does not exist: {fp_dir}")
-        fp_index = FinancialPositionIndex.build([fp_dir], require_provenance=True)
-        if fp_index.duplicates:
-            duplicate_bases = ", ".join(sorted(fp_index.duplicates))
-            ap.error(f"Ambiguous B01 artifacts for: {duplicate_bases}")
-        missing_bases = [base for base in (stem_base(path) for path in md_files) if fp_index.find(base) is None]
-        if missing_bases:
-            ap.error(
-                "seeded-demo requires one provenance-validated B01 artifact per input report; "
-                f"missing/unverified: {', '.join(missing_bases[:20])}"
-                + (" ..." if len(missing_bases) > 20 else "")
-            )
-        print(
-            f"[FINANCIAL_POSITION] mode=seeded-demo canonical_sources={len(fp_index.by_base)} "
-            f"scanned={fp_index.scanned_files}"
-        )
-    else:
-        fp_parser = FinancialPositionSourceParser()
-        print("[FINANCIAL_POSITION] mode=source-only source=markdown")
+    fp_parser = FinancialPositionSourceParser()
+    print("[FINANCIAL_POSITION] source=markdown")
 
     write_json(
         output_dir / "run_metadata.json",
         {
             "schema_version": "financial_parser_run_metadata_v1",
-            "mode": args.mode,
             "input": str(input_path.resolve()),
             "output": str(output_dir.resolve()),
             "current_year": args.current_year,
             "previous_year": args.previous_year,
             "period_resolution": "per_report_inferred_or_cli_override",
+            "input_policy": "markdown_source_only",
             "source_reports": len(md_files),
         },
     )
@@ -791,8 +745,6 @@ def main():
                 year_resolution["current_year"],
                 year_resolution["previous_year"],
                 args.sector,
-                mode=args.mode,
-                fp_index=fp_index,
                 fp_parser=fp_parser,
                 enable_notes=args.notes,
                 year_resolution=year_resolution,
@@ -814,7 +766,7 @@ def main():
 
     write_json(output_dir / "comparison_summary.json", rows)
     cols = [
-        "source_name","source_sha256","run_mode","current_year","previous_year","year_resolution","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
+        "source_name","source_sha256","current_year","previous_year","year_resolution","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
         "input_rows","mapped_rows","unmapped_rows","mapping_rate","income_value_nodes","income_current_nodes",
         "income_previous_nodes","current_coverage","previous_coverage","formula_evaluated","formula_passed",
         "formula_failed","formula_pass_rate","sign_normalizations",
@@ -825,8 +777,8 @@ def main():
         "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
         "financial_position_previous_nodes","financial_position_recovered_rows",
         "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
-        "financial_position_canonical_file","financial_position_source_mode","financial_position_preserved",
-        "income_statement_preserved_or_written","comparison_file","canonical_file","cashflow_canonical_file",
+        "financial_position_canonical_file",
+        "comparison_file","canonical_file","cashflow_canonical_file",
         "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
     ]
     with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
@@ -837,14 +789,9 @@ def main():
     print(f"\nSummary: {output_dir / 'comparison_summary.csv'}")
 
     errors = [r for r in rows if r.get("status") == "error"]
-    seeded_missing = [
-        r for r in rows
-        if args.mode == "seeded-demo" and r.get("financial_position_status") != "ok"
-    ]
-    if errors or seeded_missing:
+    if errors:
         print(
-            f"[FATAL] run rejected: errors={len(errors)} "
-            f"seeded_missing_financial_position={len(seeded_missing)}",
+            f"[FATAL] run rejected: errors={len(errors)}",
             file=sys.stderr,
         )
         raise SystemExit(1)

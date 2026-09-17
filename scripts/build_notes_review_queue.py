@@ -6,22 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
-DEFAULT_REPORTS = [
-    "CTG_BCTC_2025_hop_nhat_kiem_toan",
-    "DIG_BCTC_2025_hop_nhat_kiem_toan",
-    "NVB_BCTC_2025_hop_nhat_kiem_toan",
-    "DXS_BCTC_2025_hop_nhat_kiem_toan",
-    "VCB_BCTC_2025_hop_nhat_kiem_toan",
-    "ABB_BCTC_2025_hop_nhat_kiem_toan",
-    "ACB_BCTC_2025_hop_nhat_kiem_toan",
-    "ANV_BCTC_2025_hop_nhat_kiem_toan",
-    "GVR_BCTC_2025_hop_nhat_kiem_toan",
-    "BSR_BCTC_2025_hop_nhat_kiem_toan",
-    "SAB_BCTC_2025_hop_nhat_kiem_toan",
-    "CTS_BCTC_2025_hop_nhat_kiem_toan",
-]
-
 QUEUE_FIELDS = [
     "source_file",
     "ground_truth_file",
@@ -93,12 +77,32 @@ def select_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     return selected
 
 
+def selection_reason(document: dict[str, Any], selected: list[dict[str, Any]]) -> str:
+    """Describe why rows were selected without naming a report or ticker."""
+
+    rows = document.get("rows") or []
+    buckets = sorted({bucket(row) for row in selected})
+    reasons = ["stratified_structural_sample"]
+    if len(rows) >= 500:
+        reasons.append("large_row_inventory")
+    if document.get("scope_confidence") in {"low", "medium"}:
+        reasons.append("scope_requires_review")
+    if len(buckets) > 1:
+        reasons.append("multiple_structural_buckets")
+    return "; ".join(reasons)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a stratified human-review queue for Notes ground truth.")
     parser.add_argument("--ground-truth", default="ground_truth/notes")
     parser.add_argument("--output", default="ground_truth/notes_review")
     parser.add_argument("--per-report", type=int, default=100)
-    parser.add_argument("--reports", nargs="*", default=DEFAULT_REPORTS)
+    parser.add_argument(
+        "--reports",
+        nargs="*",
+        default=None,
+        help="Optional report stems; when omitted, discover every Notes ground-truth file.",
+    )
     args = parser.parse_args()
 
     gt_dir = Path(args.ground_truth)
@@ -107,28 +111,21 @@ def main() -> None:
 
     queue: list[dict[str, Any]] = []
     report_summary: list[dict[str, Any]] = []
-    for stem in args.reports:
+    report_stems = args.reports
+    if report_stems is None:
+        suffix = ".notes.ground_truth.json"
+        report_stems = sorted(
+            path.name[: -len(suffix)]
+            for path in gt_dir.glob(f"*{suffix}")
+            if path.is_file()
+        )
+    for stem in report_stems:
         gt_path = gt_dir / f"{stem}.notes.ground_truth.json"
         if not gt_path.exists():
             raise SystemExit(f"Ground truth file not found: {gt_path}")
         document = json.loads(gt_path.read_text(encoding="utf-8-sig"))
         selected = select_rows(document.get("rows") or [], args.per_report)
-        reason = "; ".join(
-            {
-                "CTG_BCTC_2025_hop_nhat_kiem_toan": ["high_section_fragmentation", "bank"],
-                "DIG_BCTC_2025_hop_nhat_kiem_toan": ["high_decoy_count", "enterprise"],
-                "NVB_BCTC_2025_hop_nhat_kiem_toan": ["low_scope_confidence", "bank"],
-                "DXS_BCTC_2025_hop_nhat_kiem_toan": ["low_scope_confidence", "enterprise"],
-                "VCB_BCTC_2025_hop_nhat_kiem_toan": ["low_scope_confidence", "bank"],
-                "ABB_BCTC_2025_hop_nhat_kiem_toan": ["bullet_ocr_target", "bank"],
-                "ACB_BCTC_2025_hop_nhat_kiem_toan": ["matrix_target", "bank"],
-                "ANV_BCTC_2025_hop_nhat_kiem_toan": ["bullet_ocr_target", "enterprise"],
-                "GVR_BCTC_2025_hop_nhat_kiem_toan": ["largest_row_count", "enterprise"],
-                "BSR_BCTC_2025_hop_nhat_kiem_toan": ["matrix_and_movement", "enterprise"],
-                "SAB_BCTC_2025_hop_nhat_kiem_toan": ["matrix_and_large_rows", "enterprise"],
-                "CTS_BCTC_2025_hop_nhat_kiem_toan": ["securities_sector", "securities"],
-            }.get(stem, ["representative_sample", document.get("sector") or "unknown"])
-        )
+        reason = selection_reason(document, selected)
         for row in selected:
             item = {
                 "source_file": document["source_file"],
