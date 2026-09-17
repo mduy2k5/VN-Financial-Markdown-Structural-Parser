@@ -48,6 +48,21 @@ def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
+def _as_list(value: Any) -> list:
+    """Keep nested export fields as collections across legacy IR variants."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return [value]
+        return parsed if isinstance(parsed, list) else [parsed]
+    return [value]
+
+
 def _first_by_role(values: list[dict], role: str):
     for value in values:
         if value.get("period_role") == role:
@@ -82,7 +97,7 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
         for block in section.get("blocks") or []:
             block_rows = block.get("rows") or []
             for row_index, row in enumerate(block_rows, start=1):
-                values = row.get("values") or []
+                values = _as_list(row.get("values"))
                 current = _first_by_role(values, "current") or {}
                 previous = _first_by_role(values, "previous") or {}
 
@@ -108,15 +123,15 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                     "note_title_normalized": section.get("title_normalized"),
                     "section_start_line": section.get("source_start_line"),
                     "section_end_line": section.get("source_end_line"),
-                    "pages": _json(section.get("pages") or []),
+                    "pages": _as_list(section.get("pages")),
                     "sector_topic": section.get("sector_topic"),
                     "block_id": block.get("block_id"),
                     "block_form": block.get("form"),
                     "semantic_shape": block.get("semantic_shape"),
                     "block_start_line": block.get("source_start_line"),
                     "block_end_line": block.get("source_end_line"),
-                    "headers": _json(block.get("headers_raw") or []),
-                    "dimensions": _json(block.get("dimensions") or []),
+                    "headers": _as_list(block.get("headers_raw")),
+                    "dimensions": _as_list(block.get("dimensions")),
                     "row_index": row_index,
                     "row_label": row.get("label_raw"),
                     "row_label_normalized": row.get("label_normalized"),
@@ -131,9 +146,9 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                     "previous_raw": previous.get("raw"),
                     "previous_normalized": previous.get("normalized"),
                     "value_count": len(values),
-                    "values": _json(values),
-                    "raw_cells": _json(row.get("raw_cells") or []),
-                    "linked_targets": _json(linked_targets),
+                    "values": _as_list(values),
+                    "raw_cells": _as_list(row.get("raw_cells")),
+                    "linked_targets": linked_targets,
                 })
     return rows
 
@@ -144,7 +159,12 @@ def write_rows_csv(path: str | Path, rows: list[dict]) -> Path:
     with path.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=ROW_FIELDS, extrasaction="ignore")
         writer.writeheader()
-        writer.writerows(rows)
+        for row in rows:
+            csv_row = dict(row)
+            for field in ("pages", "headers", "dimensions", "values", "raw_cells", "linked_targets"):
+                if isinstance(csv_row.get(field), (list, dict)):
+                    csv_row[field] = _json(csv_row[field])
+            writer.writerow(csv_row)
     return path
 
 

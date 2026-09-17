@@ -148,7 +148,11 @@ def main() -> None:
         description="Compare current Notes output with source-grounded Notes baselines."
     )
     parser.add_argument("--ground-truth", default="ground_truth/notes")
-    parser.add_argument("--current", default="output/notes/raw")
+    parser.add_argument(
+        "--current",
+        default="output/current/audit",
+        help="Audit artifact directory produced with pipeline --audit.",
+    )
     parser.add_argument("--sources", default="md_reports")
     parser.add_argument(
         "--report",

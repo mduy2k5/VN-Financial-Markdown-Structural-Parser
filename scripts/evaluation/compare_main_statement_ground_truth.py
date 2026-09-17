@@ -324,7 +324,12 @@ def compare_statement(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ground-truth", type=Path, default=Path("ground_truth/main_statements"))
-    parser.add_argument("--current", type=Path, default=Path("output/current"))
+    parser.add_argument(
+        "--current",
+        type=Path,
+        default=Path("output/current/audit"),
+        help="Audit artifact directory produced with pipeline --audit.",
+    )
     parser.add_argument(
         "--ground-truth-mode",
         choices=["raw", "eligible"],

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -39,15 +40,22 @@ from src.common.pipeline_metrics import (
     build_metrics,
     build_cashflow_metrics,
 )
+from src.common.output_contract import (
+    build_production_report,
+    clean_notes,
+    clean_statement,
+    manifest_entry,
+    report_filename,
+)
 
 try:
     from src.notes.pipeline import NotesPipeline
 except ImportError:
     from notes.pipeline import NotesPipeline
 try:
-    from src.notes.row_exporter import export_note_rows
+    from src.notes.row_exporter import export_note_rows, flatten_note_rows
 except ImportError:
-    from notes.row_exporter import export_note_rows
+    from notes.row_exporter import export_note_rows, flatten_note_rows
 
 try:
     from flat_parser.preprocess import filter_noise
@@ -146,6 +154,41 @@ def prune_stale_report_artifacts(output_dir: Path, active_bases: set[str]) -> No
             for path in rows_dir.glob(f"*{suffix}"):
                 if path.is_file() and path.name[: -len(suffix)] not in active_bases:
                     path.unlink()
+
+
+def clear_legacy_output(output_dir: Path) -> None:
+    """Remove the former flat output layout without touching user directories.
+
+    The production contract is now ``manifest.json`` plus ``reports/*.json``.
+    Legacy parser/evaluation files are still available under ``audit/`` when
+    requested, but stale files from an earlier run must not remain beside the
+    production manifest and be mistaken for the current result.
+    """
+    for suffix in REPORT_ARTIFACT_SUFFIXES:
+        for path in output_dir.glob(f"*{suffix}"):
+            if path.is_file():
+                path.unlink()
+    rows_dir = output_dir / "notes_rows"
+    if rows_dir.exists():
+        for suffix in NOTES_ROW_SUFFIXES:
+            for path in rows_dir.glob(f"*{suffix}"):
+                if path.is_file():
+                    path.unlink()
+        try:
+            rows_dir.rmdir()
+        except OSError:
+            pass
+    for filename in ("run_metadata.json", "comparison_summary.json", "comparison_summary.csv"):
+        (output_dir / filename).unlink(missing_ok=True)
+
+
+def prune_stale_production_reports(reports_dir: Path, active_report_filenames: set[str]) -> None:
+    """Keep only report JSON files generated for the current source set."""
+    if not reports_dir.exists():
+        return
+    for path in reports_dir.glob("*.json"):
+        if path.is_file() and path.name not in active_report_filenames:
+            path.unlink()
 
 
 def ensure_output_is_outside_input(input_path: Path, output_dir: Path) -> None:
@@ -430,7 +473,7 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
 
 def process_one(
     md_path: Path,
-    output_dir: Path,
+    audit_dir: Optional[Path],
     current_year: int,
     previous_year: int,
     sector: str,
@@ -445,8 +488,9 @@ def process_one(
     doc_unit_ctx = detect_document_unit(source_text)
     doc_unit = doc_unit_ctx.unit if doc_unit_ctx.unit != "unknown" else None
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    remove_report_artifacts(output_dir, base)
+    if audit_dir is not None:
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        remove_report_artifacts(audit_dir, base)
 
     inc = run_income(md_path, current_year, previous_year, sector, fallback_unit=doc_unit)
     cf = run_cashflow(md_path, current_year, previous_year, fallback_unit=doc_unit)
@@ -499,29 +543,33 @@ def process_one(
                         else:
                             v["unit"] = resolved_unit
 
-    income_path = output_dir / f"{base}.income.canonical.json"
-    if inc["canonical"] is not None:
-        write_json(income_path, inc["canonical"])
-    elif income_path.exists():
-        income_path.unlink()
+    income_path = audit_dir / f"{base}.income.canonical.json" if audit_dir else None
+    if audit_dir is not None:
+        if inc["canonical"] is not None:
+            write_json(income_path, inc["canonical"])
+        elif income_path.exists():
+            income_path.unlink()
 
-    cashflow_path = output_dir / f"{base}.cashflow.canonical.json"
-    if cf["canonical"] is not None:
-        write_json(cashflow_path, cf["canonical"])
-    elif cashflow_path.exists():
-        cashflow_path.unlink()
+    cashflow_path = audit_dir / f"{base}.cashflow.canonical.json" if audit_dir else None
+    if audit_dir is not None:
+        if cf["canonical"] is not None:
+            write_json(cashflow_path, cf["canonical"])
+        elif cashflow_path.exists():
+            cashflow_path.unlink()
 
-    fp_path = output_dir / f"{base}.financial_position.canonical.json"
-    if fp.get("canonical") is not None:
-        write_json(fp_path, fp["canonical"])
-        fp["canonical_file"] = fp_path.name
-    elif fp_path.exists():
-        fp_path.unlink()
+    fp_path = audit_dir / f"{base}.financial_position.canonical.json" if audit_dir else None
+    if audit_dir is not None:
+        if fp.get("canonical") is not None:
+            write_json(fp_path, fp["canonical"])
+            fp["canonical_file"] = fp_path.name
+        elif fp_path.exists():
+            fp_path.unlink()
 
     # v22.5 Notes Foundation: additive, non-destructive.
     # Primary statements stay authoritative; Notes is emitted as a separate Generic Note IR.
     notes_ir = None
-    notes_path = output_dir / f"{base}.notes.ir.json"
+    notes_rows: list[dict[str, Any]] = []
+    notes_path = audit_dir / f"{base}.notes.ir.json" if audit_dir else None
     if enable_notes:
         notes_sector = inc.get("sector") or cf.get("sector") or "enterprise"
         primary_for_notes = {
@@ -548,69 +596,100 @@ def process_one(
             "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
         }
         if (notes_ir.get("diagnostics") or {}).get("notes_found"):
-            write_json(notes_path, notes_ir)
-            notes_rows_dir = output_dir / "notes_rows"
-            notes_rows_export = export_note_rows(
-                notes_ir,
-                notes_rows_dir,
-                stem=base,
-                write_json=True,
-            )
+            notes_rows = flatten_note_rows(notes_ir)
+            if audit_dir is not None:
+                write_json(notes_path, notes_ir)
+                notes_rows_dir = audit_dir / "notes_rows"
+                notes_rows_export = export_note_rows(
+                    notes_ir,
+                    notes_rows_dir,
+                    stem=base,
+                    write_json=True,
+                )
+            else:
+                notes_rows_export = {
+                    "row_count": len(notes_rows),
+                    "csv_file": None,
+                    "json_file": None,
+                }
         else:
             notes_rows_export = {"row_count": 0, "csv_file": None, "json_file": None}
-            if notes_path.exists():
+            if notes_path is not None and notes_path.exists():
                 notes_path.unlink()
     else:
         notes_rows_export = {"row_count": 0, "csv_file": None, "json_file": None}
-    if not enable_notes and notes_path.exists():
+    if not enable_notes and notes_path is not None and notes_path.exists():
         notes_path.unlink()
 
-    merged = {
-        "source_name": md_path.name,
-        "source_sha256": source_sha256,
-        "current_year": current_year,
-        "previous_year": previous_year,
-        "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
-    }
-    merged["financial_position"] = {
-        "v05": fp["metrics"],
-        "canonical_file": fp["canonical_file"],
-    }
-    merged["income_statement"] = {
-        "v05": inc["metrics"],
-        "canonical_file": income_path.name if inc["canonical"] is not None else None,
-    }
-    merged["cash_flow_statement"] = {
-        "v01": cf["metrics"],
-        "canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
-    }
-    if notes_ir is not None:
-        nd = notes_ir.get("diagnostics") or {}
-        merged["notes"] = {
-            "schema_id": notes_ir.get("schema_id"),
-            "schema_version": notes_ir.get("schema_version"),
-            "status": "parsed" if nd.get("notes_found") else "not_detected",
-            "ir_file": notes_path.name if nd.get("notes_found") else None,
-            "scope_start": notes_ir.get("scope_start_line"),
-            "scope_end": notes_ir.get("scope_end_line"),
-            "sections": nd.get("section_count", 0),
-            "tables": nd.get("table_count", 0),
-            "rows": nd.get("row_count", 0),
-            "exported_rows": notes_rows_export.get("row_count", 0),
-            "rows_csv": (
-                f"notes_rows/{notes_rows_export.get('csv_file')}"
-                if notes_rows_export.get("csv_file") else None
-            ),
-            "rows_json": (
-                f"notes_rows/{notes_rows_export.get('json_file')}"
-                if notes_rows_export.get("json_file") else None
-            ),
-            "links": nd.get("link_count", 0),
-            "high_confidence_links": nd.get("high_confidence_links", 0),
-            "policy": "PRIMARY_GT_NOTES_non_destructive_v1",
+    production = build_production_report(
+        source_name=md_path.name,
+        source_sha256=source_sha256,
+        current_year=current_year,
+        previous_year=previous_year,
+        year_resolution=year_resolution,
+        financial_position=clean_statement(
+            fp.get("canonical"), fp.get("metrics"), statement_type="financial_position"
+        ),
+        income_statement=clean_statement(
+            inc.get("canonical"), inc.get("metrics"), statement_type="income_statement"
+        ),
+        cash_flow=clean_statement(
+            cf.get("canonical"), cf.get("metrics"), statement_type="cash_flow"
+        ),
+        notes=clean_notes(notes_ir, notes_rows),
+    )
+
+    # Rich canonical/comparison files are intentionally audit-only.  They are
+    # useful for evaluation and troubleshooting, but are not part of the
+    # stable consumer-facing output contract.
+    merged_path = None
+    if audit_dir is not None:
+        merged = {
+            "source_name": md_path.name,
+            "source_sha256": source_sha256,
+            "current_year": current_year,
+            "previous_year": previous_year,
+            "year_resolution": year_resolution or {"method": "explicit_function_arguments"},
+            "financial_position": {
+                "v05": fp["metrics"],
+                "canonical_file": fp["canonical_file"],
+            },
+            "income_statement": {
+                "v05": inc["metrics"],
+                "canonical_file": income_path.name if inc["canonical"] is not None else None,
+            },
+            "cash_flow_statement": {
+                "v01": cf["metrics"],
+                "canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
+            },
         }
-    merged_path = output_dir / f"{base}.comparison.json"
-    write_json(merged_path, merged)
+        if notes_ir is not None:
+            nd = notes_ir.get("diagnostics") or {}
+            merged["notes"] = {
+                "schema_id": notes_ir.get("schema_id"),
+                "schema_version": notes_ir.get("schema_version"),
+                "status": "parsed" if nd.get("notes_found") else "not_detected",
+                "ir_file": notes_path.name if nd.get("notes_found") else None,
+                "scope_start": notes_ir.get("scope_start_line"),
+                "scope_end": notes_ir.get("scope_end_line"),
+                "sections": nd.get("section_count", 0),
+                "tables": nd.get("table_count", 0),
+                "rows": nd.get("row_count", 0),
+                "exported_rows": notes_rows_export.get("row_count", 0),
+                "rows_csv": (
+                    f"notes_rows/{notes_rows_export.get('csv_file')}"
+                    if notes_rows_export.get("csv_file") else None
+                ),
+                "rows_json": (
+                    f"notes_rows/{notes_rows_export.get('json_file')}"
+                    if notes_rows_export.get("json_file") else None
+                ),
+                "links": nd.get("link_count", 0),
+                "high_confidence_links": nd.get("high_confidence_links", 0),
+                "policy": "PRIMARY_GT_NOTES_non_destructive_v1",
+            }
+        merged_path = audit_dir / f"{base}.comparison.json"
+        write_json(merged_path, merged)
 
     im = inc["metrics"]; imp = im.get("mapping", {})
     cm = cf["metrics"]; cmp = cm.get("mapping", {})
@@ -653,10 +732,10 @@ def process_one(
         "income_source_recovered_rows": (im.get("parser") or {}).get("source_recovered_rows", 0),
         "cashflow_source_recovered_rows": (cm.get("parser") or {}).get("source_recovered_rows", 0),
         "cashflow_source_recovery_filled_nodes": (cm.get("parser") or {}).get("source_recovery_filled_nodes", 0),
-        "financial_position_canonical_file": fp["canonical_file"],
-        "comparison_file": merged_path.name,
-        "canonical_file": income_path.name if inc["canonical"] is not None else None,
-        "cashflow_canonical_file": cashflow_path.name if cf["canonical"] is not None else None,
+        "financial_position_canonical_file": fp.get("canonical_file"),
+        "comparison_file": merged_path.name if merged_path is not None else None,
+        "canonical_file": income_path.name if income_path is not None and inc["canonical"] is not None else None,
+        "cashflow_canonical_file": cashflow_path.name if cashflow_path is not None and cf["canonical"] is not None else None,
         "notes_status": (
             "parsed" if notes_ir is not None and (notes_ir.get("diagnostics") or {}).get("notes_found")
             else ("not_detected" if enable_notes else "disabled")
@@ -667,10 +746,17 @@ def process_one(
         "notes_exported_rows": notes_rows_export.get("row_count", 0) if enable_notes else 0,
         "notes_rows_csv": (
             f"notes_rows/{notes_rows_export.get('csv_file')}"
-            if enable_notes and notes_rows_export.get("csv_file") else None
+            if audit_dir is not None and enable_notes and notes_rows_export.get("csv_file") else None
         ),
         "notes_links": ((notes_ir or {}).get("diagnostics") or {}).get("link_count", 0),
-        "notes_ir_file": notes_path.name if notes_ir is not None and (notes_ir.get("diagnostics") or {}).get("notes_found") else None,
+        "notes_ir_file": (
+            notes_path.name
+            if notes_path is not None
+            and notes_ir is not None
+            and (notes_ir.get("diagnostics") or {}).get("notes_found")
+            else None
+        ),
+        "production": production,
     }
 
 
@@ -700,6 +786,11 @@ def main():
         default=True,
         help="Enable/disable v22.5 additive Notes IR extraction. Primary statements remain authoritative.",
     )
+    ap.add_argument(
+        "--audit",
+        action="store_true",
+        help="Also write rich parser/evaluation artifacts under <output>/audit/.",
+    )
     args = ap.parse_args()
 
     input_path = Path(args.input)
@@ -712,25 +803,33 @@ def main():
         raise SystemExit(2)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    prune_stale_report_artifacts(output_dir, {stem_base(path) for path in md_files})
+    clear_legacy_output(output_dir)
+    reports_dir = output_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    audit_dir = output_dir / "audit" if args.audit else None
+    if audit_dir is not None:
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        prune_stale_report_artifacts(audit_dir, {stem_base(path) for path in md_files})
     fp_parser = FinancialPositionSourceParser()
     print("[FINANCIAL_POSITION] source=markdown")
 
-    write_json(
-        output_dir / "run_metadata.json",
-        {
-            "schema_version": "financial_parser_run_metadata_v1",
-            "input": str(input_path.resolve()),
-            "output": str(output_dir.resolve()),
-            "current_year": args.current_year,
-            "previous_year": args.previous_year,
-            "period_resolution": "per_report_inferred_or_cli_override",
-            "input_policy": "markdown_source_only",
-            "source_reports": len(md_files),
-        },
-    )
+    if audit_dir is not None:
+        write_json(
+            audit_dir / "run_metadata.json",
+            {
+                "schema_version": "financial_parser_run_metadata_v1",
+                "input": str(input_path.resolve()),
+                "output": str(output_dir.resolve()),
+                "current_year": args.current_year,
+                "previous_year": args.previous_year,
+                "period_resolution": "per_report_inferred_or_cli_override",
+                "input_policy": "markdown_source_only",
+                "source_reports": len(md_files),
+            },
+        )
 
     rows = []
+    production_reports = []
     for p in md_files:
         try:
             year_resolution = infer_report_year_pair(
@@ -741,7 +840,7 @@ def main():
             )
             r = process_one(
                 p,
-                output_dir,
+                audit_dir,
                 year_resolution["current_year"],
                 year_resolution["previous_year"],
                 args.sector,
@@ -749,6 +848,15 @@ def main():
                 enable_notes=args.notes,
                 year_resolution=year_resolution,
             )
+            production = r.pop("production")
+            write_json(
+                reports_dir / report_filename(
+                    production["report"]["source_name"],
+                    production["report"]["source_sha256"],
+                ),
+                production,
+            )
+            production_reports.append(production)
             rows.append(r)
             print(
                 f"[OK] {p.name}: fp={r['financial_position_status']} nodes={r['financial_position_value_nodes']} "
@@ -764,31 +872,65 @@ def main():
         print("[FATAL] Internal invariant failed: discovered Markdown files but produced zero summary rows.", file=sys.stderr)
         raise SystemExit(3)
 
-    write_json(output_dir / "comparison_summary.json", rows)
-    cols = [
-        "source_name","source_sha256","current_year","previous_year","year_resolution","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
-        "input_rows","mapped_rows","unmapped_rows","mapping_rate","income_value_nodes","income_current_nodes",
-        "income_previous_nodes","current_coverage","previous_coverage","formula_evaluated","formula_passed",
-        "formula_failed","formula_pass_rate","sign_normalizations",
-        "cashflow_sector","cashflow_method","cashflow_status","cashflow_scope_start","cashflow_scope_end","cashflow_scope_score",
-        "cashflow_patterns","cashflow_input_rows","cashflow_mapped_rows","cashflow_unmapped_rows","cashflow_mapping_rate",
-        "cashflow_value_nodes","cashflow_current_nodes","cashflow_previous_nodes","cashflow_formula_evaluated",
-        "cashflow_formula_passed","cashflow_formula_failed","cashflow_formula_pass_rate",
-        "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
-        "financial_position_previous_nodes","financial_position_recovered_rows",
-        "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
-        "financial_position_canonical_file",
-        "comparison_file","canonical_file","cashflow_canonical_file",
-        "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
-    ]
-    with (output_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
-        w.writeheader()
-        for r in rows:
-            w.writerow(r)
-    print(f"\nSummary: {output_dir / 'comparison_summary.csv'}")
+    prune_stale_production_reports(
+        reports_dir,
+        {
+            report_filename(report["report"]["source_name"], report["report"]["source_sha256"])
+            for report in production_reports
+        },
+    )
 
     errors = [r for r in rows if r.get("status") == "error"]
+    manifest = {
+        "output_schema": {
+            "name": "vn_financial_report_batch",
+            "version": "1.0.0",
+        },
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "input": {
+            "name": input_path.name,
+            "policy": "markdown_source_only",
+        },
+        "options": {
+            "current_year": args.current_year,
+            "previous_year": args.previous_year,
+            "sector": args.sector,
+            "notes_enabled": args.notes,
+        },
+        "report_count": len(production_reports),
+        "error_count": len(errors),
+        "reports": [manifest_entry(report) for report in production_reports],
+    }
+    if audit_dir is not None:
+        manifest["audit"] = {"enabled": True, "directory": "audit"}
+    write_json(output_dir / "manifest.json", manifest)
+    print(f"\nManifest: {output_dir / 'manifest.json'}")
+
+    if audit_dir is not None:
+        write_json(audit_dir / "comparison_summary.json", rows)
+        cols = [
+            "source_name","source_sha256","current_year","previous_year","year_resolution","sector","status","scope_start","scope_end","scope_score","sector_method","patterns",
+            "input_rows","mapped_rows","unmapped_rows","mapping_rate","income_value_nodes","income_current_nodes",
+            "income_previous_nodes","current_coverage","previous_coverage","formula_evaluated","formula_passed",
+            "formula_failed","formula_pass_rate","sign_normalizations",
+            "cashflow_sector","cashflow_method","cashflow_status","cashflow_scope_start","cashflow_scope_end","cashflow_scope_score",
+            "cashflow_patterns","cashflow_input_rows","cashflow_mapped_rows","cashflow_unmapped_rows","cashflow_mapping_rate",
+            "cashflow_value_nodes","cashflow_current_nodes","cashflow_previous_nodes","cashflow_formula_evaluated",
+            "cashflow_formula_passed","cashflow_formula_failed","cashflow_formula_pass_rate",
+            "financial_position_status","financial_position_value_nodes","financial_position_current_nodes",
+            "financial_position_previous_nodes","financial_position_recovered_rows",
+            "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
+            "financial_position_canonical_file",
+            "comparison_file","canonical_file","cashflow_canonical_file",
+            "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
+        ]
+        with (audit_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
+            w.writeheader()
+            for r in rows:
+                w.writerow(r)
+        print(f"Audit summary: {audit_dir / 'comparison_summary.csv'}")
+
     if errors:
         print(
             f"[FATAL] run rejected: errors={len(errors)}",

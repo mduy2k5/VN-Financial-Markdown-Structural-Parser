@@ -24,7 +24,7 @@ Snapshot local gần nhất được tạo từ entrypoint hiện tại:
 | B02 | 32 `ok`, 25 `partial_mapping` | Một số dòng đọc được nhưng chưa map đủ vào semantic schema |
 | B03 | 55 `ok`, 1 `partial_mapping`, 1 `partial_source_coverage` | Còn một số khác biệt về section/layout/phương pháp |
 | Notes | 57/57 `parsed` | Lớp bổ sung, không ghi đè primary statements |
-| Regression suite | **75 passed** | Kiểm thử tự động hiện hành |
+| Regression suite | **77 passed** | Kiểm thử tự động hiện hành |
 
 Các số liệu trên là snapshot của một lần chạy, không phải cam kết accuracy tuyệt đối. `partial_mapping` và `partial_source_coverage` là tín hiệu cần review; chúng không có nghĩa toàn bộ báo cáo bị loại bỏ.
 
@@ -71,7 +71,7 @@ Resolver kỳ/năm và statement scope theo từng báo cáo
 Source recovery + hydration + reconciliation + provenance
     │
     ▼
-Canonical JSON + comparison summary + Notes row export
+Production report JSON + batch manifest
 ```
 
 ## Các engine
@@ -199,24 +199,28 @@ python .\app\run_notes.py .\md_reports `
 
 ## Output
 
-Một lần chạy pipeline tạo cấu trúc tương tự:
+Mặc định, pipeline chỉ sinh output dành cho downstream consumer:
 
 ```text
 output/current/
-├── run_metadata.json
-├── comparison_summary.json
-├── comparison_summary.csv
-├── <report>.comparison.json
-├── <report>.financial_position.canonical.json
-├── <report>.income.canonical.json
-├── <report>.cashflow.canonical.json
-├── <report>.notes.ir.json
-└── notes_rows/
-    ├── <report>.notes_rows.csv
-    └── <report>.notes_rows.json
+├── manifest.json
+└── reports/
+    ├── <source-stem>__<sha256-prefix>.json
+    └── ...
 ```
 
-`run_metadata.json` mô tả input policy và phạm vi batch. `comparison_summary.*` là chỉ mục kết quả theo từng file. Mỗi canonical JSON chứa giá trị, kỳ, source hash và metadata truy vết.
+`manifest.json` là chỉ mục batch, chứa schema version, số lượng báo cáo, source hash, kỳ báo cáo và đường dẫn tương đối tới từng report. Tên report lấy từ tên file Markdown đã chuẩn hóa, kèm hậu tố hash để tránh trùng; không cần mở manifest vẫn có thể nhận diện nguồn. Mỗi report JSON có cùng contract gồm `report`, `periods`, `statements`, `notes` và `quality`. Các mảng lồng nhau được lưu dưới dạng JSON native; giá trị số được chuẩn hóa thành number hoặc `null`.
+
+Các parser diagnostics, mapping score, raw IR và bảng so sánh không nằm trong output production. Khi cần đánh giá hoặc điều tra, bật profile audit:
+
+```powershell
+python .\app\pipeline.py .\md_reports `
+  --output .\output\current `
+  --notes `
+  --audit
+```
+
+Khi đó artifact giàu thông tin được đặt riêng dưới `output/current/audit/` (`*.canonical.json`, `*.comparison.json`, `notes_rows/`, `comparison_summary.*`, `run_metadata.json`). Đây là lớp phục vụ review/evaluation, không phải contract dữ liệu chính.
 
 `output/`, `ground_truth/` và `md_reports/` là dữ liệu cục bộ, bị Git bỏ qua để tránh đưa artifact lớn hoặc dữ liệu nguồn lên repository. Có thể tái tạo output từ Markdown bằng entrypoint ở trên.
 
@@ -244,7 +248,7 @@ python .\scripts\ground_truth\prepare_main_statement_gold.py `
 ```powershell
 python .\scripts\evaluation\compare_main_statement_ground_truth.py `
   --ground-truth .\ground_truth\main_statements `
-  --current .\output\current `
+  --current .\output\current\audit `
   --ground-truth-mode eligible `
   --sources .\md_reports `
   --report .\output\main_statement_comparison.json
@@ -254,31 +258,51 @@ python .\scripts\evaluation\compare_main_statement_ground_truth.py `
 
 Ground truth là công cụ đánh giá, không phải input runtime. Baseline chưa được human-review không nên được diễn giải như gold standard tuyệt đối.
 
-## Canonical schema và provenance
+## Production schema và provenance
 
 Ví dụ rút gọn:
 
 ```json
 {
-  "statement_type": "INCOME_STATEMENT",
-  "periods": {"current": 2025, "previous": 2024},
-  "nodes": [
-    {
-      "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
-      "canonical_name": "Doanh thu thuần",
-      "value": {"current": 1000, "previous": 900},
-      "extraction_meta": {
-        "source_line": 42,
-        "mapping_method": "exact_alias"
-      }
+  "output_schema": {"name": "vn_financial_report_output", "version": "1.0.0"},
+  "report": {"id": "r_<sha256-prefix>", "source_name": "<report>.md", "source_sha256": "<sha256>"},
+  "periods": {
+    "current": {"year": 2025, "start_date": null, "end_date": "2025-12-31"},
+    "previous": {"year": 2024, "start_date": null, "end_date": "2024-12-31"}
+  },
+  "statements": {
+    "income_statement": {
+      "nodes": [
+        {
+          "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
+          "canonical_name": "Doanh thu thuần",
+          "value": {"current": 1000, "previous": 900, "additional": null, "note": null, "unit": null},
+          "evidence": [{"source_line": 42, "confidence": 1.0}]
+        }
+      ],
+      "observations": []
     }
-  ],
-  "source_name": "<report>.md",
-  "source_sha256": "<sha256>"
+  },
+  "quality": {"status": "ok", "issues": []}
 }
 ```
 
-Parser chuẩn hóa dấu âm, dấu phân cách và unit nhưng không nội suy số liệu. `source_line`, `raw_text`, occurrence và mapping metadata cho phép quay lại Markdown nguồn.
+`observations` giữ bằng chứng nguồn chưa đủ điều kiện map vào semantic node; chúng có identity riêng và không được dùng như khóa nghiệp vụ. `source_name`, `source_sha256`, `source_line`, `source_label` và `confidence` là provenance gọn để truy ngược Markdown. Parser không đọc output hoặc ground truth của lần chạy trước để bổ sung dữ liệu.
+
+Để xem đầy đủ trường nội bộ phục vụ đánh giá, đọc các artifact trong `audit/`; không dùng chúng làm interface downstream ổn định.
+
+Ví dụ giá trị trong report production:
+
+```json
+{
+  "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
+  "canonical_name": "Doanh thu thuần",
+  "value": {"current": 1000, "previous": 900},
+  "evidence": [{"source_line": 42, "confidence": 1.0}]
+}
+```
+
+Parser chuẩn hóa dấu âm, dấu phân cách và unit nhưng không nội suy số liệu. Khi kỳ/năm có xung đột, `quality.status` là `review_required` và evidence được giữ lại thay vì ghi đè.
 
 ## Kiểm thử và phát triển
 
@@ -301,10 +325,11 @@ Khi thêm một parser rule mới:
 ## Quy trình review trước khi dùng nghiệp vụ
 
 1. Chạy pipeline source-first trên Markdown mới.
-2. Kiểm tra `run_metadata.json` và `comparison_summary.*`.
-3. Đối chiếu ở chế độ `eligible` để phát hiện `missing`/`unexpected`.
-4. Mở review queue, kiểm tra `raw_text`, `source_line`, period và conflict.
-5. Chỉ dùng canonical output cho kết luận nghiệp vụ sau khi các conflict trọng yếu được xác nhận.
+2. Kiểm tra `manifest.json` và report tương ứng trong `reports/`.
+3. Nếu cần đối chiếu baseline, chạy lại với `--audit` và dùng artifact dưới `audit/`.
+4. Đối chiếu ở chế độ `eligible` để phát hiện `missing`/`unexpected`.
+5. Mở review queue, kiểm tra `raw_text`, `source_line`, period và conflict.
+6. Chỉ dùng production output cho kết luận nghiệp vụ sau khi các conflict trọng yếu được xác nhận.
 
 Các báo cáo có `partial_mapping`, `partial_source_coverage`, confidence thấp hoặc conflict niên độ cần được đánh dấu review.
 
