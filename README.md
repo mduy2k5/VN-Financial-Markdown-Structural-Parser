@@ -1,232 +1,151 @@
 # VN-Financial-Markdown-Structural-Parser
 
-> Parser deterministic, source-first để trích xuất và chuẩn hóa Báo cáo tài chính Việt Nam từ Markdown được tạo bởi OCR/Vision-LLM.
+> Parser deterministic, source-first để đọc báo cáo tài chính tiếng Việt ở dạng Markdown và xuất dữ liệu chuẩn hóa thành JSON có provenance.
 
-Dự án xử lý đồng thời ba báo cáo chính:
+## Mục tiêu
 
-- **B01 — Financial Position:** Bảng cân đối kế toán.
-- **B02 — Income Statement:** Báo cáo kết quả hoạt động kinh doanh (KQKD).
-- **B03 — Cash Flow:** Báo cáo lưu chuyển tiền tệ (LCTT).
-- **Notes:** Thuyết minh báo cáo tài chính, được xuất thành Notes IR và các dòng phẳng để kiểm tra.
+Pipeline hiện tại xử lý độc lập bốn lớp dữ liệu:
 
-Bản parser hiện tại là **v23.1.0 — structural notes extraction**. Pipeline chạy trực tiếp trên Markdown nguồn, ghi lại provenance, suy luận niên độ theo từng báo cáo và không lấy output cũ làm dữ liệu đầu vào.
+- **B01 — Financial Position:** bảng cân đối kế toán.
+- **B02 — Income Statement:** báo cáo kết quả hoạt động kinh doanh.
+- **B03 — Cash Flow:** báo cáo lưu chuyển tiền tệ.
+- **Notes:** thuyết minh, xuất Notes IR và các dòng phẳng để review.
 
-## Kết quả hiện tại
+Runtime chỉ đọc Markdown nguồn. Nó không đọc output, ground truth hoặc artifact của lần chạy trước để bổ sung dữ liệu. Không có nhánh xử lý theo tên báo cáo, ticker, giá trị biết trước hay một layout riêng của một file.
 
-Phần này mô tả **kết quả kỹ thuật của lần chạy gần nhất**, không phải kết luận nghiệp vụ và không dùng tên, mã hay đặc điểm nhận diện của bộ dữ liệu. Số lượng file được phát hiện là biến động theo thư mục input; số liệu chính thức của từng lần chạy nằm trong `scan_manifest.json` và `comparison_summary.json`.
+## Trạng thái đã kiểm chứng
 
-### 1. Sức khỏe vận hành
+Snapshot local gần nhất được tạo từ entrypoint hiện tại:
 
-| Nhóm kiểm tra | Kết quả snapshot gần nhất | Ý nghĩa |
-| :--- | :--- | :--- |
-| Discovery | **100%** file được phát hiện có summary | Không có file nguồn bị bỏ qua ở bước điều phối |
-| Provenance | **100%** kết quả có `source_sha256` | Có thể xác minh output thuộc đúng source đã parse |
-| B01 | **100% `ok`** | Đường structural parser và source recovery đang hoạt động ổn định |
-| B02 | **56,14% `ok`**, **43,86% `partial_mapping`** | Đã đọc được dòng nguồn nhưng còn dòng chưa ánh xạ đầy đủ vào schema semantic |
-| B03 | **96,49% `ok`**, **1,75% `partial_mapping`**, **1,75% `partial_source_coverage`** | Cần tiếp tục xử lý layout, section hoặc method chưa đủ bằng chứng |
-| Notes | **100% `parsed`** | Đây là lớp bổ sung, không ghi đè giá trị của ba bảng chính |
-| Regression suite | **81 passed** | Code hiện tại vượt qua toàn bộ test tự động trong repository |
+| Hạng mục | Kết quả | Diễn giải |
+|---|---:|---|
+| Discovery | 57/57 | Tất cả Markdown trong input được chọn để xử lý |
+| B01 | 57/57 `ok` | Structural parser và source recovery hoàn tất |
+| B02 | 32 `ok`, 25 `partial_mapping` | Một số dòng đọc được nhưng chưa map đủ vào semantic schema |
+| B03 | 55 `ok`, 1 `partial_mapping`, 1 `partial_source_coverage` | Còn một số khác biệt về section/layout/phương pháp |
+| Notes | 57/57 `parsed` | Lớp bổ sung, không ghi đè primary statements |
+| Regression suite | **75 passed** | Kiểm thử tự động hiện hành |
 
-Các tỷ lệ trên được tính trên `N` file Markdown được discovery ở thời điểm chạy; `N` không phải tham số cố định và phải lấy từ manifest của lần chạy tương ứng.
+Các số liệu trên là snapshot của một lần chạy, không phải cam kết accuracy tuyệt đối. `partial_mapping` và `partial_source_coverage` là tín hiệu cần review; chúng không có nghĩa toàn bộ báo cáo bị loại bỏ.
 
-Trạng thái `ok` chỉ cho biết pipeline hoàn tất và có dữ liệu đạt điều kiện tối thiểu. Nó không đồng nghĩa với việc mọi giá trị đều đúng tuyệt đối. Ngược lại, `partial_mapping` hoặc `partial_source_coverage` là tín hiệu cần review, không phải lỗi hệ thống hoàn toàn.
-
-### 2. Độ bao phủ bằng chứng
-
-Kết quả đối chiếu hiện tại với parser-assisted baseline:
-
-| Bảng | Numeric pair match | Value-only coverage | Cách đọc |
-| :--- | ---: | ---: | :--- |
-| B01 | **96,90%** | **98,22%** | Bao phủ tốt, nhưng vẫn cần kiểm tra các dòng khác kỳ hoặc khác nhãn |
-| B02 | **99,60%** | **99,60%** | Giá trị thu được ổn định trên các observation đủ điều kiện |
-| B03 | **95,33%** | **96,90%** | Còn chênh lệch do section, method hoặc period pairing |
-
-Hai metric không phải accuracy tuyệt đối:
-
-- `Numeric pair match`: cùng semantic label, period và giá trị số sau chuẩn hóa.
-- `Value-only coverage`: chỉ kiểm tra giá trị số, bỏ qua nhãn và kỳ; metric này dùng để phát hiện dữ liệu đã được thu nhưng có thể gán sai ngữ cảnh.
-- `source_hash`: kiểm tra tính toàn vẹn của source, không kiểm tra tính đúng đắn kế toán.
-- `status`: phản ánh mức hoàn tất của parser, không phải đánh giá chất lượng nghiệp vụ.
-
-Baseline hiện tại vẫn là **parser-assisted baseline**, chưa phải gold standard được con người xác nhận hoàn toàn. Các observation mơ hồ về nhãn, kỳ, đơn vị hoặc nguồn phải được đưa vào review queue trước khi dùng cho báo cáo nghiệp vụ.
-
-### 3. Diễn giải theo từng bảng
-
-#### B01 — Financial Position
-
-B01 hiện là bảng ổn định nhất về mặt cấu trúc. Parser dựng scope, cây parent/child, semantic anchor và cột kỳ trước khi tạo canonical node. Source recovery chỉ bổ sung observation còn thiếu và giữ lại provenance. Các điểm cần tiếp tục audit là:
-
-- dòng bị tách thành nhiều cụm cột;
-- cặp kỳ không nằm trên cùng một dòng;
-- dòng tổng và dòng chi tiết có cấu trúc lồng nhau;
-- conflict giữa canonical node và source observation.
-
-#### B02 — Income Statement
-
-B02 có độ bao phủ giá trị cao, nhưng trạng thái `partial_mapping` thường phản ánh việc extractor đã tìm thấy dòng nhưng mapper chưa thể xác định semantic node duy nhất. Nguyên nhân cần theo dõi gồm:
-
-- nhãn bị OCR làm biến dạng;
-- cùng một nhãn xuất hiện trong nhiều context;
-- sector/schema không có node tương ứng;
-- dòng current/previous bị tách khỏi nhãn;
-- alias gần giống nhau nhưng chưa đủ margin để tự động chọn.
-
-#### B03 — Cash Flow
-
-B03 phụ thuộc đồng thời vào section và phương pháp dòng tiền. Một dòng có thể giống nhau về mặt chữ nhưng khác ý nghĩa nếu nằm ở section khác hoặc thuộc method khác. Các trạng thái partial thường cần kiểm tra:
-
-- nhận diện direct/indirect;
-- ranh giới giữa statutory section và supplemental section;
-- period pairing trong bảng nhiều cột;
-- bảng chỉ có mã biểu mẫu nhưng thiếu nhãn semantic;
-- công thức có thành phần tùy chọn hoặc thiếu trong source.
-
-### 4. Niên độ và provenance
-
-Niên độ được suy luận độc lập cho từng tài liệu từ nội dung nguồn. Resolver ưu tiên ngày kết thúc kỳ, header kỳ và câu dẫn báo cáo; tên file chỉ là bằng chứng phụ trợ. Khi có xung đột, parser giữ lại `year_resolution`, `confidence` và `conflict` trong provenance thay vì tự động ghi đè.
-
-### 5. Kết luận kỹ thuật
-
-Kết quả hiện tại đủ tốt để tiếp tục phát triển parser và tạo hàng đợi review, nhưng chưa nên coi toàn bộ canonical output là kết luận nghiệp vụ tự động. Ưu tiên tiếp theo là:
-
-1. review các observation `partial_mapping` và `partial_source_coverage`;
-2. kiểm tra các conflict period/label bằng `source_line` và `raw_text`;
-3. nâng baseline parser-assisted thành gold standard có người xác nhận;
-4. chỉ công bố metric sau khi tách rõ lỗi thu dòng, lỗi period và lỗi semantic mapping.
-
-## 1. Nguyên tắc thiết kế
+## Nguyên tắc thiết kế
 
 ### Source-first
 
-Pipeline chỉ đọc các file Markdown trong thư mục input. Pipeline không tự quét project root, `output/`, ground truth hoặc các kết quả của lần chạy trước. Mỗi output mang theo:
+Mỗi báo cáo có context riêng gồm cặp kỳ, sector, phạm vi bảng và provenance. Output lưu lại khi có thể:
 
-- `source_name` và `source_sha256`;
-- dòng nguồn và đoạn text gốc khi có thể;
-- phương pháp mapping và độ tin cậy;
-- `year_resolution` gồm bằng chứng, confidence và conflict.
+- `source_name`, `source_sha256`;
+- dòng nguồn và `raw_text`;
+- phương pháp mapping, confidence và conflict;
+- thông tin suy luận `current_year`/`previous_year`.
 
-### Không fix cứng theo báo cáo
+### Suy luận niên độ theo từng file
 
-- `current_year` và `previous_year` mặc định là `None`; mỗi file được suy luận độc lập.
-- Năm được chọn từ ngày kết thúc kỳ, cột kỳ hiện tại/kỳ trước và các câu dẫn báo cáo. Năm trong tên file chỉ là bằng chứng bổ trợ hoặc candidate khi khác nội dung.
-- Các ngày hành chính, ngày kiểm toán, ngày phát hành và ngày trong phần pháp lý bị giảm trọng số.
-- Ngày đầu tháng 1 được nhận diện là số đầu kỳ; kỳ quý/YTD được phân loại riêng, không tự động coi là kỳ trước.
-- Mã số biểu mẫu và số Thuyết minh không được dùng làm khóa identity, join, dedupe hoặc reconciliation. Chúng chỉ là metadata/provenance.
+Resolver ưu tiên ngày kết thúc kỳ, tiêu đề/cột kỳ và câu dẫn của báo cáo. Năm trong tên file chỉ là bằng chứng phụ trợ. Ngày kiểm toán, ngày phát hành và ngày hành chính được giảm trọng số. Khi có xung đột, parser giữ lại evidence và confidence thay vì tự động ghi đè.
 
-Các công cụ so sánh/review được tách khỏi runtime parser. Chúng chỉ đọc output hoặc ground truth khi được gọi tường minh sau một lần scan để đánh giá; không có đường fallback từ output về parser.
+### Không dùng mã làm khóa identity
+
+Mã biểu mẫu và số Thuyết minh chỉ là metadata/provenance. Chúng không được dùng làm khóa join, dedupe, identity hoặc reconciliation. Identity được xác định từ cấu trúc, nhãn, section, period và semantic context.
 
 ### Primary statements là nguồn chính
 
-B01, B02 và B03 được parse trực tiếp từ source Markdown. Notes là lớp bổ sung: có thể link/reconcile với primary nhưng không ghi đè giá trị primary nếu không có bằng chứng nguồn phù hợp.
+B01, B02 và B03 được parse trực tiếp từ Markdown. Notes có thể link/reconcile với primary khi đủ bằng chứng nhưng không được tự ý thay thế giá trị primary.
 
-## 2. Flow xử lý
+## Flow xử lý
 
 ```text
-md_reports/*.md
-      │
-      ▼
-Discovery + đọc Markdown + SHA-256
-      │
-      ▼
-Resolver niên độ/kỳ báo cáo theo từng file
-      │
-      ├── B01: structural recovery → semantic nodes → canonical
-      ├── B02: scope/sector → row extraction → alias/semantic mapping → validation
-      ├── B03: layout/sector detection → row extraction → cash-flow mapping
-      └── Notes: scope → sections → blocks/table/bullet → Notes IR → row export
-      │
-      ▼
+Markdown input
+    │
+    ▼
+Discovery + SHA-256 + chuẩn hóa dòng
+    │
+    ▼
+Resolver kỳ/năm và statement scope theo từng báo cáo
+    │
+    ├── B01: structural recovery → hierarchy → canonical nodes
+    ├── B02: scope/sector → row extraction → semantic mapping → validation
+    ├── B03: section/method → row extraction → cash-flow mapping
+    └── Notes: scope → section/block/table/bullet → Notes IR → row export
+    │
+    ▼
 Source recovery + hydration + reconciliation + provenance
-      │
-      ▼
-Canonical JSON theo từng báo cáo + summary CSV/JSON + manifest
+    │
+    ▼
+Canonical JSON + comparison summary + Notes row export
 ```
 
-Mỗi báo cáo có một resolver context chung để mọi engine dùng cùng current/previous period. Điều này tránh việc parser và evaluator suy luận hai cặp năm khác nhau.
+## Các engine
 
-## 3. Các engine
+### B01 — Financial Position
 
-### B01 — Bảng cân đối kế toán
+B01 xử lý bảng Markdown, dòng bị tách cột và cấu trúc bullet/OCR. Structural core phục hồi section, parent/child, nhãn và hai slot kỳ trước khi ánh xạ sang canonical schema. Source recovery chỉ bổ sung observation có bằng chứng và luôn giữ provenance.
 
-B01 xử lý cả bảng Markdown thông thường, bảng bị tách cột và cấu trúc bullet/OCR. Lớp structural recovery phục hồi section, parent/hierarchy, nhãn và hai slot kỳ trước khi ánh xạ sang semantic node. Kết quả được hydrate/reconcile từ source observation nhưng giữ lại raw text để kiểm toán.
+Mã chính nằm trong `src/b01_financial_position/` và `flat_parser/`.
 
-Thư mục chính: `src/b01_financial_position/` và `flat_parser/`.
+### B02 — Income Statement
 
-`flat_parser` có các chế độ debug:
+B02 xác định scope và sector (`bank`, `enterprise`, `securities`, `insurance`) từ source. Extractor thu dòng từ bảng, bullet hoặc plain OCR; mapper chuẩn hóa nhãn bằng alias và semantic matching có ngưỡng/margin; validator kiểm tra coverage và công thức khi đủ dữ liệu.
 
-- `v05`: pipeline hai lượt, tạo cây cấu trúc rồi ánh xạ ngữ nghĩa.
-- `flow`: chuỗi pattern structural P1–P34.
-- `hybrid`: dùng v05 làm nền và Flow fill các vị trí còn thiếu.
-- `compare`: chạy và so sánh ba engine.
+`form_code` chỉ được giữ để truy vết, không quyết định identity của dòng.
 
-Các engine debug này phục vụ phân tích B01; pipeline thống nhất vẫn là `pipeline.py` với Markdown làm nguồn duy nhất.
+Mã chính nằm trong `src/b02_income/`.
 
-### B02 — KQKD
+### B03 — Cash Flow
 
-B02 trước hết xác định phạm vi báo cáo và sector (`bank`, `enterprise`, `securities`, `insurance`). Sau đó extractor thu các dòng từ bảng/bullet/plain OCR, mapper chuẩn hóa nhãn bằng alias chính xác, regex có biên và semantic overlap có ngưỡng/margin. Validator kiểm tra cấu trúc và các quan hệ công thức khi có đủ dữ liệu.
+B03 phát hiện scope, sector và direct/indirect method từ chính phần LCTT. Parser phân biệt statutory section với supplemental/customer/broker section, ghép hai vector kỳ và giữ riêng các dòng có cùng mã nhưng khác ngữ nghĩa.
 
-Mapping không phụ thuộc ticker hoặc mã biểu mẫu; `form_code` chỉ được giữ để truy vết.
+Mã chính nằm trong `src/b03_cashflow/`.
 
-Thư mục chính: `src/b02_income/`.
+### Notes
 
-### B03 — LCTT
+Notes pipeline gồm:
 
-B03 tự phát hiện scope/sector từ chính phần LCTT, phân biệt dòng tiền statutory với supplemental/customer/broker sections và phục hồi các layout column-major. Extractor lấy giá trị theo hai vector kỳ, mapper dùng schema/alias LCTT và giữ riêng các nhóm có cùng mã biểu mẫu nhưng khác ngữ nghĩa.
+1. `scanner` tìm phạm vi thuyết minh;
+2. `sectionizer` chia theo đề mục;
+3. `block_classifier` nhận diện bảng, bullet, plain OCR và movement block;
+4. `table_parser`/`structural_parser` tách nhãn, hierarchy, unit và period slots;
+5. `linker`/`reconciliation` tạo liên kết có provenance;
+6. `row_exporter` xuất CSV/JSON để review.
 
-Thư mục chính: `src/b03_cashflow/`.
+Bullet được đọc như cây: thụt đầu dòng tạo context parent/child, dòng metadata được gắn với node gần nhất, còn dòng kỳ được tách thành giá trị theo period. Parser chỉ ghép các cụm cột khi section, cấu trúc và số lượng slot nhất quán.
 
-### Notes — Thuyết minh
+Mã chính nằm trong `src/notes/`.
 
-Notes pipeline gồm các lớp:
-
-1. `scanner` tìm phạm vi Thuyết minh.
-2. `sectionizer` chia theo đề mục.
-3. `block_classifier` nhận diện bảng, bullet, plain OCR và movement block.
-4. `table_parser`/`structural_parser` tách nhãn, hierarchy, đơn vị và các slot kỳ.
-5. `linker` liên kết với primary khi có bằng chứng; `reconciliation` chỉ tạo đề xuất có provenance.
-6. `row_exporter` xuất dòng phẳng CSV/JSON để review và xây ground truth.
-
-Bullet được xử lý như cấu trúc cây: thụt đầu dòng tạo parent/child context, dòng `Thuyết minh` là metadata của node, còn các dòng `Tại ngày`, `Năm nay`, `Năm trước` được tách thành giá trị theo period. Nếu layout bị tách thành nhiều cụm cột, parser chỉ ghép khi section, cấu trúc và số lượng slot nhất quán.
-
-Thư mục chính: `src/notes/`.
-
-## 4. Cấu trúc repository
+## Cấu trúc repository
 
 ```text
 Flatten/
-├── pipeline.py                         # Entry point cho B01 + B02 + B03 + Notes
-├── run_debug.py                        # Chạy/debug các engine B01
-├── run_notes.py                        # CLI riêng cho Notes
+├── app/
+│   ├── pipeline.py                 # Entry point B01 + B02 + B03 + Notes
+│   └── run_notes.py                # CLI riêng cho Notes
 ├── src/
-│   ├── b01_financial_position/         # Bảng cân đối và source integration
-│   ├── b02_income/                     # Scope, extractor, mapper, validator
-│   ├── b03_cashflow/                   # Extractor và mapper LCTT
-│   ├── common/                          # Period, source recovery, identity, reconciliation
-│   └── notes/                           # Notes IR, structural parser, linking, export
-├── flat_parser/                        # Engine structural/debug cho B01
-├── resources/                          # Schema, alias và structural guide
-├── md_reports/                         # Markdown nguồn do người dùng cung cấp
-├── ground_truth/                       # Baseline, Notes GT và review artifacts
-├── output/                             # Artifact chạy cục bộ, được gom theo nhóm
-├── scripts/                            # Demo, build GT, compare, audit/review
-├── tests/                              # Regression suite hiện hành
-│   └── legacy/                         # Test cũ, không chạy mặc định
-├── samples/                            # Fixture kiểm thử nhỏ
-├── DEMO_GUIDE.md
+│   ├── b01_financial_position/
+│   ├── b02_income/
+│   ├── b03_cashflow/
+│   ├── common/                     # Period, recovery, identity, reconciliation
+│   └── notes/                      # Notes IR, linking, export
+├── flat_parser/                   # Structural core và scanner dùng chung
+├── resources/
+│   ├── schemas/                    # Schema, aliases và manifest
+│   └── guides/                     # Guide nguồn và guide đã biên dịch
+├── md_reports/                    # Markdown input cục bộ
+├── ground_truth/                  # Baseline, gold/review và reconciliation artifacts
+├── output/                        # Output cục bộ; bị Git bỏ qua
+├── scripts/
+│   ├── ground_truth/              # Build, repair, audit, review
+│   ├── evaluation/                # Compare và coverage/quality evaluation
+│   └── maintenance/               # Rebuild guide và diagnostics
+├── tests/
+│   ├── b01/  ├── b02/  ├── b03/
+│   ├── notes/  ├── integration/  ├── quality/
+│   └── legacy/
 ├── VERSION.txt
 └── requirements.txt
 ```
 
-Các schema/alias chính trong `resources/`:
+## Cài đặt
 
-- `universal_financial_position_schema_v1_6.json` và alias tương ứng;
-- `income_statement_schema.json` và `income_statement_aliases.json`;
-- `cash_flow_schema.json` và `cash_flow_aliases.json`;
-- schema/alias supplemental ngân hàng và `universal_structural_guide_a1_a5.json`.
-
-## 5. Cài đặt
-
-Yêu cầu Python 3.10 trở lên, khuyến nghị 3.11 hoặc 3.12.
+Yêu cầu Python 3.10 trở lên.
 
 ```powershell
 python -m venv .venv
@@ -234,175 +153,123 @@ python -m venv .venv
 python -m pip install -r .\requirements.txt
 ```
 
-`requirements.txt` hiện chỉ yêu cầu `pytest`; parser runtime sử dụng thư viện chuẩn Python và các resource JSON trong repository.
+Runtime parser dùng thư viện chuẩn Python; `requirements.txt` hiện phục vụ test suite.
 
-## 6. Chạy pipeline
+## Chạy pipeline
 
-### Demo toàn bộ báo cáo trong input
-
-```powershell
-python .\scripts\run_demo.py
-```
-
-Lệnh mặc định tương đương:
+Chạy toàn bộ Markdown trong thư mục input và bật Notes:
 
 ```powershell
-python .\scripts\run_demo.py `
-  --input .\md_reports `
-  --output .\output\demo\latest
-```
-
-Chỉ định output khác hoặc tắt Notes:
-
-```powershell
-python .\scripts\run_demo.py `
-  --input .\md_reports `
-  --output .\output\demo\my_run `
-  --no-notes
-```
-
-Không cần truyền năm nếu muốn dùng resolver tự động. Có thể truyền `--current-year` và `--previous-year` cho một batch kiểm thử có kiểm soát; đây là override tường minh, không phải cấu hình mặc định.
-
-### Pipeline production trực tiếp
-
-```powershell
-python .\pipeline.py .\md_reports `
-  --output .\output\comparisons\current_run `
+python .\app\pipeline.py .\md_reports `
+  --output .\output\current `
   --notes
 ```
 
-`--sector auto` là mặc định. Có thể dùng `--sector bank|enterprise|securities|insurance` để override sector cho B02; B03 vẫn phát hiện scope độc lập.
-
-## 7. Debug engine B01
+Tùy chọn thường dùng:
 
 ```powershell
-# Chạy từng engine
-python .\run_debug.py .\md_reports --mode v05 --output .\output\demo\v05
-python .\run_debug.py .\md_reports --mode flow --output .\output\demo\flow
-python .\run_debug.py .\md_reports --mode hybrid --output .\output\demo\hybrid
+# Chỉ chạy ba bảng chính
+python .\app\pipeline.py .\md_reports `
+  --output .\output\current `
+  --no-notes
 
-# So sánh engine
-python .\run_debug.py .\md_reports --mode compare --output .\output\demo\engine_compare
+# Ép cặp năm cho một lần kiểm thử có kiểm soát
+python .\app\pipeline.py .\md_reports `
+  --output .\output\current `
+  --current-year 2025 `
+  --previous-year 2024 `
+  --notes
 
-# Bật strict regex fallback sau alias mapping
-python .\run_debug.py .\md_reports `
-  --mode hybrid `
-  --mapping-strategy alias-regex-fallback `
-  --output .\output\demo\mapping_fallback
+# Override sector cho B02; B03 vẫn tự phát hiện scope độc lập
+python .\app\pipeline.py .\md_reports `
+  --output .\output\current `
+  --sector bank `
+  --notes
 ```
 
-## 8. Ground truth và đối chiếu
+Nếu không truyền năm, resolver tự suy luận riêng cho từng file. Nếu input là một file Markdown, pipeline chỉ xử lý file đó.
 
-### Xây Notes ground truth
+### Chạy Notes riêng
 
 ```powershell
-python .\scripts\build_notes_ground_truth.py `
+python .\app\run_notes.py .\md_reports `
+  --output .\output\notes_current `
+  --write-ir
+```
+
+## Output
+
+Một lần chạy pipeline tạo cấu trúc tương tự:
+
+```text
+output/current/
+├── run_metadata.json
+├── comparison_summary.json
+├── comparison_summary.csv
+├── <report>.comparison.json
+├── <report>.financial_position.canonical.json
+├── <report>.income.canonical.json
+├── <report>.cashflow.canonical.json
+├── <report>.notes.ir.json
+└── notes_rows/
+    ├── <report>.notes_rows.csv
+    └── <report>.notes_rows.json
+```
+
+`run_metadata.json` mô tả input policy và phạm vi batch. `comparison_summary.*` là chỉ mục kết quả theo từng file. Mỗi canonical JSON chứa giá trị, kỳ, source hash và metadata truy vết.
+
+`output/`, `ground_truth/` và `md_reports/` là dữ liệu cục bộ, bị Git bỏ qua để tránh đưa artifact lớn hoặc dữ liệu nguồn lên repository. Có thể tái tạo output từ Markdown bằng entrypoint ở trên.
+
+## Ground truth và đối chiếu
+
+Build Notes ground truth:
+
+```powershell
+python .\scripts\ground_truth\build_notes_ground_truth.py `
   .\md_reports `
   --output .\ground_truth\notes
 ```
 
-Năm được suy luận theo từng source file nếu không truyền override.
-
-### Tạo gold-candidate và review queue
+Chuẩn bị gold-candidate/review queue cho ba bảng chính:
 
 ```powershell
-python .\scripts\prepare_main_statement_gold.py `
+python .\scripts\ground_truth\prepare_main_statement_gold.py `
   --baselines .\ground_truth\main_statements `
   --source-dir .\md_reports `
-  --output .\output\evaluations\main_statement_gold_queue
+  --output .\output\main_statement_gold_queue
 ```
 
-Lệnh này không ghi đè baseline. Các observation thiếu giá trị, mơ hồ về kỳ/nhãn, supplemental hoặc có conflict được tách sang review queue.
-
-### So sánh ba bảng chính
+Đối chiếu canonical hiện tại với baseline:
 
 ```powershell
-python .\scripts\compare_main_statement_ground_truth.py `
+python .\scripts\evaluation\compare_main_statement_ground_truth.py `
   --ground-truth .\ground_truth\main_statements `
-  --current .\output\demo\latest\results `
+  --current .\output\current `
   --ground-truth-mode eligible `
   --sources .\md_reports `
-  --report .\output\evaluations\comparison_main_statements.json
+  --report .\output\main_statement_comparison.json
 ```
 
-Hai chế độ:
+`raw` giữ mọi observation trong baseline; `eligible` loại observation mơ hồ hoặc cần review khỏi chỉ số chính. Comparator so sánh evidence chuẩn hóa `label + period + value`, tách `missing` và `unexpected`, đồng thời kiểm tra source hash.
 
-- `raw`: giữ toàn bộ observation đã lưu trong baseline.
-- `eligible`: loại observation không đủ điều kiện hoặc cần review khỏi chỉ số chính.
+Ground truth là công cụ đánh giá, không phải input runtime. Baseline chưa được human-review không nên được diễn giải như gold standard tuyệt đối.
 
-Comparator so sánh bằng chứng chuẩn hóa `label + period + value`, báo riêng `missing` và `unexpected`, đồng thời kiểm tra source hash. Kết quả không nên được đọc như tỷ lệ đúng tuyệt đối nếu baseline chưa được human-review.
+## Canonical schema và provenance
 
-### Đánh giá Notes coverage
-
-```powershell
-python .\scripts\evaluate_notes_coverage.py .\md_reports `
-  --output .\output\evaluations\notes_coverage `
-  --write-per-file
-```
-
-## 9. Cấu trúc output
-
-Demo mặc định tạo:
-
-```text
-output/demo/latest/
-├── scan.log
-├── scan_summary.md
-├── scan_manifest.json
-└── results/
-    ├── run_metadata.json
-    ├── comparison_summary.json
-    ├── comparison_summary.csv
-    ├── <report>.comparison.json
-    ├── <report>.financial_position.canonical.json
-    ├── <report>.income.canonical.json
-    ├── <report>.cashflow.canonical.json
-    ├── <report>.notes.ir.json
-    └── notes_rows/<report>.notes_rows.csv
-```
-
-`scan_manifest.json` là chỉ mục trung tâm, ghi trạng thái từng báo cáo, cặp năm được suy luận và đường dẫn tới tất cả artifact. Các artifact đánh giá thường nằm tại `output/evaluations/`; snapshot cũ nằm trong `output/archive/` khi được lưu riêng.
-
-Ground truth được tổ chức độc lập với output chạy:
-
-```text
-ground_truth/
-├── main_statements/                    # Baseline ba bảng chính
-├── notes/                              # Notes ground truth theo báo cáo
-├── notes_gold/                         # Gold/candidate đã lọc nếu có
-└── ...                                 # Audit/review queues và snapshot
-```
-
-Output và ground truth sinh cục bộ được Git bỏ qua để tránh commit nhầm dữ liệu lớn. Có thể tái tạo chúng từ `md_reports/` bằng các lệnh ở trên.
-
-## 10. Canonical schema và provenance
-
-Ví dụ rút gọn một canonical statement:
+Ví dụ rút gọn:
 
 ```json
 {
   "statement_type": "INCOME_STATEMENT",
-  "unit": "million_vnd",
-  "periods": {
-    "current": 2025,
-    "previous": 2024
-  },
+  "periods": {"current": 2025, "previous": 2024},
   "nodes": [
     {
-      "node_id": "INCOME.BANK.NET_INTEREST_INCOME",
-      "canonical_name": "Thu nhập lãi thuần",
-      "value": {
-        "current": 5088792,
-        "previous": 3035257
-      },
+      "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
+      "canonical_name": "Doanh thu thuần",
+      "value": {"current": 1000, "previous": 900},
       "extraction_meta": {
-        "occurrences": [
-          {
-            "source_line": 3,
-            "source_label": "Thu nhập lãi thuần",
-            "mapping_method": "exact_alias"
-          }
-        ]
+        "source_line": 42,
+        "mapping_method": "exact_alias"
       }
     }
   ],
@@ -411,36 +278,36 @@ Ví dụ rút gọn một canonical statement:
 }
 ```
 
-Giá trị được chuẩn hóa dấu âm, dấu phân cách và đơn vị nhưng không nội suy số liệu. `source_line`, `raw_text`, occurrence và mapping metadata cho phép quay lại Markdown nguồn. `canonical_mutated`/hydration metadata nếu có phải được đọc cùng provenance để phân biệt giá trị gốc và giá trị được phục hồi cấu trúc.
+Parser chuẩn hóa dấu âm, dấu phân cách và unit nhưng không nội suy số liệu. `source_line`, `raw_text`, occurrence và mapping metadata cho phép quay lại Markdown nguồn.
 
-## 11. Kiểm thử
+## Kiểm thử và phát triển
 
 ```powershell
-# Unit/regression suite
 python -m pytest -q
-
-# Kiểm tra cú pháp
 python -m compileall -q .
-
-# Kiểm tra whitespace trong diff
 git diff --check
 ```
 
-Regression suite hiện hành gồm các nhóm: structural edge cases, identity không phụ thuộc mã, period/year inference, source-only integrity, B01 recovery, B02 semantics, B03 cash-flow fidelity và Notes structural/coverage.
+Test suite bao phủ structural edge cases, period/year inference, source-only integrity, B01 recovery, B02 semantics, B03 cash-flow fidelity, Notes structural parsing và ground-truth quality.
 
-## 12. Quy trình review trước khi dùng nghiệp vụ
+Khi thêm một parser rule mới:
+
+1. thêm test tái hiện layout/hiện tượng;
+2. chứng minh rule dựa trên cấu trúc hoặc semantic context, không dựa trên tên file;
+3. kiểm tra provenance và period pairing;
+4. chạy toàn bộ regression suite;
+5. cập nhật schema/guide nếu thay đổi là tổng quát.
+
+## Quy trình review trước khi dùng nghiệp vụ
 
 1. Chạy pipeline source-first trên Markdown mới.
-2. Kiểm tra `scan_manifest.json`: số file, status, source hash, period confidence và conflict.
-3. Đối chiếu `eligible` để phát hiện missing/unexpected theo từng bảng.
-4. Mở review queue và kiểm tra các dòng cần adjudication bằng raw text/source line.
-5. Chỉ sau khi các conflict trọng yếu được xác nhận mới dùng canonical output cho kết luận nghiệp vụ.
+2. Kiểm tra `run_metadata.json` và `comparison_summary.*`.
+3. Đối chiếu ở chế độ `eligible` để phát hiện `missing`/`unexpected`.
+4. Mở review queue, kiểm tra `raw_text`, `source_line`, period và conflict.
+5. Chỉ dùng canonical output cho kết luận nghiệp vụ sau khi các conflict trọng yếu được xác nhận.
 
-Các báo cáo có `partial_mapping`, `partial_source_coverage`, confidence thấp hoặc conflict niên độ không nên tự động được coi là đã hoàn thiện.
+Các báo cáo có `partial_mapping`, `partial_source_coverage`, confidence thấp hoặc conflict niên độ cần được đánh dấu review.
 
-## 13. Tài liệu liên quan
+## Phiên bản
 
-- [DEMO_GUIDE.md](DEMO_GUIDE.md): chạy demo và cấu trúc artifact.
-- [VERSION.txt](VERSION.txt): phiên bản và phạm vi release.
-- `scripts/`: các lệnh build ground truth, compare, audit và review.
-- `tests/`: regression suite hiện hành.
+Phiên bản parser được ghi trong `VERSION.txt`. Repository này lưu code, schema, guide, test và script đánh giá; dữ liệu nguồn và output cục bộ không thuộc release artifact.

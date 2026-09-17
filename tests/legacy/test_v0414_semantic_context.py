@@ -5,13 +5,13 @@ from flat_parser.models import StructuralNode
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _catalog():
     return SemanticCatalog(
-        ROOT / 'resources/universal_financial_position_schema_v1_1.json',
-        ROOT / 'resources/universal_financial_position_aliases_v1_1.json',
+        ROOT / 'resources/schemas/financial_position_schema.json',
+        ROOT / 'resources/schemas/financial_position_aliases.json',
     )
 
 

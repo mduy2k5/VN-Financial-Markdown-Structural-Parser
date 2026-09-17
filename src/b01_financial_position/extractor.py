@@ -106,9 +106,9 @@ class FinancialPositionSourceParser:
 
         project_root = Path(__file__).resolve().parents[2]
         self.parser = FlatParserPipeline(
-            schema_path=schema_path or project_root / "resources" / "universal_financial_position_schema_v1_6.json",
-            aliases_path=aliases_path or project_root / "resources" / "universal_financial_position_aliases_v1_6_1.json",
-            universal_guide_path=guide_path or project_root / "resources" / "universal_structural_guide_a1_a5.json",
+            schema_path=schema_path or project_root / "resources" / "schemas" / "financial_position_schema.json",
+            aliases_path=aliases_path or project_root / "resources" / "schemas" / "financial_position_aliases.json",
+            universal_guide_path=guide_path or project_root / "resources" / "guides" / "compiled" / "structural_guide.json",
             scope_mode="financial_position",
             mapping_strategy="legacy",
         )

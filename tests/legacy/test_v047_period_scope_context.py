@@ -4,13 +4,13 @@ from flat_parser.context import financial_position_scope
 from flat_parser.pipeline import FlatParserPipeline
 from flat_parser.textnorm import normalize_lines, strip_inline_financial_metadata
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 def make_pipeline():
     return FlatParserPipeline(
-        schema_path=ROOT / "resources/universal_financial_position_schema_v1_1.json",
-        aliases_path=ROOT / "resources/universal_financial_position_aliases_v1_1.json",
-        universal_guide_path=ROOT / "resources/universal_structural_guide_a1_a5.json",
+        schema_path=ROOT / "resources/schemas/financial_position_schema.json",
+        aliases_path=ROOT / "resources/schemas/financial_position_aliases.json",
+        universal_guide_path=ROOT / "resources/guides/compiled/structural_guide.json",
     )
 
 def node_map(doc):

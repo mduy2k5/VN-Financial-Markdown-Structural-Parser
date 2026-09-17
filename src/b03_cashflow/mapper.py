@@ -17,7 +17,7 @@ def _find_root(start: Path) -> Path:
     return start.resolve().parents[1]
 
 ROOT = _find_root(Path(__file__))
-DEFAULT_SCHEMA = ROOT / "resources" / "cash_flow_schema.json"
+DEFAULT_SCHEMA = ROOT / "resources" / "schemas" / "cash_flow_schema.json"
 DEFAULT_ALIASES = ROOT / "resources" / "cash_flow_aliases.json"
 
 

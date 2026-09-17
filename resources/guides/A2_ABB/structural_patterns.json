@@ -29,7 +29,7 @@
       ],
       "extract": {
         "label": "Bỏ bullet marker và Markdown emphasis; giữ nguyên phần text còn lại làm raw label.",
-        "children": "Dựng bằng hierarchy_rules.json; không suy diễn child dựa trên nghiệp vụ."
+        "children": "Dựng theo quan hệ thụt dòng/parent-child quan sát được; không suy diễn child dựa trên nghiệp vụ."
       },
       "validate": [
         "label_not_empty"

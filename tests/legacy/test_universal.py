@@ -3,14 +3,59 @@ import json
 
 from flat_parser.pipeline import FlatParserPipeline
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
+
+SAMPLE_REPORT = """
+# BÁO CÁO TÌNH HÌNH TÀI CHÍNH
+Đơn vị tính: triệu đồng
+Năm 2025
+Năm 2024
+
+* **Tài sản**
+
+* **Hàng tồn kho** | 141 | | 22.179.036 | 21.055.950
+
+* **Tiền và các khoản tương đương tiền**
+    * **Tiền mặt, vàng bạc, đá quý**
+        * Thuyết minh: 5
+        * Số cuối năm: 493.695 triệu đồng
+        * Số đầu năm: 315.917 triệu đồng
+
+* **Tài sản cố định**
+    * **Tài sản cố định hữu hình**
+        * **Nguyên giá**
+            * Năm 2025: 1.200.000
+            * Năm 2024: 1.000.000
+
+* **Các khoản phải thu**
+    * **Số cuối năm**
+        * **Phải thu của khách hàng**: 123.000
+    * **Số đầu năm**
+        * **Phải thu của khách hàng**: 100.000
+
+| Mã số | Tài sản | Thuyết minh | Năm 2025 | Năm 2024 |
+| --- | --- | --- | ---: | ---: |
+| 270 | Tổng cộng tài sản |  | 50.000.000 | 45.000.000 |
+
+* Hàng tồn kho
+    * Năm 2025: 999.999.999
+    * Năm 2024: 888.888.888
+
+# BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH
+
+# THUYẾT MINH BÁO CÁO TÀI CHÍNH
+
+* Hàng tồn kho
+    * Năm 2025: 999.999.999
+    * Năm 2024: 888.888.888
+"""
 
 
 def pipeline():
     return FlatParserPipeline(
-        schema_path=ROOT / "resources/universal_financial_position_schema_v1_1.json",
-        aliases_path=ROOT / "resources/universal_financial_position_aliases_v1_1.json",
-        universal_guide_path=ROOT / "resources/universal_structural_guide_a1_a5.json",
+        schema_path=ROOT / "resources/schemas/financial_position_schema.json",
+        aliases_path=ROOT / "resources/schemas/financial_position_aliases.json",
+        universal_guide_path=ROOT / "resources/guides/compiled/structural_guide.json",
     )
 
 
@@ -18,9 +63,13 @@ def node_map(doc):
     return {x["node_id"]: x for x in doc["nodes"]}
 
 
+def parse_sample():
+    return pipeline().parse_text(SAMPLE_REPORT, source_name="inline_statement.md")
+
+
 def test_compiled_guide_has_a1_a5_sources():
     guide = json.loads(
-        (ROOT / "resources/universal_structural_guide_a1_a5.json").read_text(encoding="utf-8")
+        (ROOT / "resources/guides/compiled/structural_guide.json").read_text(encoding="utf-8")
     )
     ids = {p["id"] for p in guide["patterns"]}
     assert "SP_PERIOD_CONTAINER" in ids
@@ -31,7 +80,7 @@ def test_compiled_guide_has_a1_a5_sources():
 
 
 def test_alias_structure_and_first_value_policy():
-    result = pipeline().parse_file(ROOT / "samples/sample_a1_a5.md")
+    result = parse_sample()
     nodes = node_map(result["canonical"])
 
     inv = nodes["ASSET.INVENTORY"]
@@ -56,7 +105,7 @@ def test_alias_structure_and_first_value_policy():
 
 
 def test_period_container_propagation():
-    result = pipeline().parse_file(ROOT / "samples/sample_a1_a5.md")
+    result = parse_sample()
     nodes = node_map(result["canonical"])
 
     customer = nodes["ASSET.RECEIVABLES.CUSTOMER"]
@@ -65,7 +114,7 @@ def test_period_container_propagation():
 
 
 def test_first_value_per_period_never_overwrites():
-    result = pipeline().parse_file(ROOT / "samples/sample_a1_a5.md")
+    result = parse_sample()
     nodes = node_map(result["canonical"])
     inv = nodes["ASSET.INVENTORY"]
 
@@ -101,7 +150,7 @@ def test_period_formats_and_range_are_preserved():
     from flat_parser.guide import UniversalGuide
     from flat_parser.primitives import extract_periods, extract_values
 
-    guide = UniversalGuide(ROOT / "resources/universal_structural_guide_a1_a5.json")
+    guide = UniversalGuide(ROOT / "resources/guides/compiled/structural_guide.json")
 
     p1 = extract_periods("Tại ngày 31.12.2025", 1, guide)
     p2 = extract_periods("Ngày 31 tháng 12 năm 2024", 1, guide)

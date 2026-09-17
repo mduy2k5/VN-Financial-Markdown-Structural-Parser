@@ -7,8 +7,8 @@ from flat_parser.tables import detect_tables
 from flat_parser.guide import UniversalGuide
 from flat_parser.structural_classifier import StructuralClassifier
 
-ROOT = Path(__file__).resolve().parents[1]
-GUIDE = UniversalGuide(ROOT / 'resources' / 'universal_structural_guide_a1_a5.json')
+ROOT = Path(__file__).resolve().parents[2]
+GUIDE = UniversalGuide(ROOT / 'resources' / 'guides' / 'compiled' / 'structural_guide.json')
 
 
 def _node(text):
