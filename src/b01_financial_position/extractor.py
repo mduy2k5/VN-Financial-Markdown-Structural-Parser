@@ -5,11 +5,13 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
-    from src.common.source_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
+    from src.common.source_recovery import extract_financial_position_source_rows
+    from src.common.source_canonical_hydrator import augment_canonical_with_recovered_rows
     from src.common.source_reconciler import reconcile_source_observations
     from src.common.report_period import resolve_report_years
 except ImportError:
-    from source_recovery import extract_financial_position_source_rows, augment_canonical_with_recovered_rows
+    from source_recovery import extract_financial_position_source_rows
+    from source_canonical_hydrator import augment_canonical_with_recovered_rows
     from source_reconciler import reconcile_source_observations
     from report_period import resolve_report_years
 
@@ -68,8 +70,17 @@ def summarize_canonical(
         if p is not None:
             previous.append(n)
     valued_n = len(valued)
+    diagnostics = canonical.get("diagnostics") or {}
+    dedup = diagnostics.get("semantic_dedup") or {}
+    semantic_conflicts = int(dedup.get("conflict_count") or 0)
+    if not valued_n:
+        status = "no_financial_position_values"
+    elif semantic_conflicts:
+        status = "review_required"
+    else:
+        status = "ok"
     metrics = {
-        "status": "ok" if valued_n else "no_financial_position_values",
+        "status": status,
         "value_nodes": valued_n,
         "current_value_nodes": len(current),
         "previous_value_nodes": len(previous),
@@ -85,6 +96,7 @@ def summarize_canonical(
             "schema_id": canonical.get("schema_id"),
             "schema_version": canonical.get("schema_version"),
             "integration_mode": "source_parse",
+            "semantic_dedup_conflicts": semantic_conflicts,
         },
     }
     return metrics
@@ -209,6 +221,11 @@ class FinancialPositionSourceParser:
             "source_recovery_conflicts": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("conflicts", 0),
             "source_statement_health": raw_stats.get("statement_health"),
             "source_scope_health": raw_stats.get("scope_health"),
+            "locator_enabled": raw_stats.get("locator_enabled"),
+            "locator_activated": raw_stats.get("locator_activated"),
+            "locator_confidence": raw_stats.get("locator_confidence"),
+            "locator_alias_hits": raw_stats.get("locator_alias_hits"),
+            "locator_candidate_rows": raw_stats.get("locator_candidate_rows"),
         })
         metrics["parser"] = parser_metrics
         return {

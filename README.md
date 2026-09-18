@@ -20,11 +20,13 @@ Snapshot local gần nhất được tạo từ entrypoint hiện tại:
 | Hạng mục | Kết quả | Diễn giải |
 |---|---:|---|
 | Discovery | 57/57 | Tất cả Markdown trong input được chọn để xử lý |
-| B01 | 57/57 `ok` | Structural parser và source recovery hoàn tất |
-| B02 | 32 `ok`, 25 `partial_mapping` | Một số dòng đọc được nhưng chưa map đủ vào semantic schema |
-| B03 | 55 `ok`, 1 `partial_mapping`, 1 `partial_source_coverage` | Còn một số khác biệt về section/layout/phương pháp |
+| B01 | 57/57 đã chạy | Structural parser và source recovery hoàn tất; các conflict ngữ nghĩa vẫn được giữ ở trạng thái `review_required` để review |
+| B02 | 57/57 `ok` | Tỷ lệ ánh xạ theo dòng: 100%; đã chuẩn hóa nested note/carry-forward, vector column-major và các node chi phí chi tiết |
+| B03 | 57/57 `ok` | Tỷ lệ ánh xạ theo dòng: 100%; nhãn được lấy từ nội dung `Diễn giải` khi báo cáo serialize mã và giá trị thành các nhánh con |
 | Notes | 57/57 `parsed` | Lớp bổ sung, không ghi đè primary statements |
-| Regression suite | **77 passed** | Kiểm thử tự động hiện hành |
+| Locator | B01: 41/57; B02: 46/57; B03: 44/57 | Alias-assisted routing chỉ kích hoạt khi đủ bằng chứng; file còn lại dùng fallback an toàn |
+| Batch quality | 14 `ok`; 43 `review_required` | `review_required` phản ánh conflict/thiếu bằng chứng cần kiểm tra, không phải lỗi runtime |
+| Regression suite | **102 passed** | Kiểm thử tự động hiện hành |
 
 Các số liệu trên là snapshot của một lần chạy, không phải cam kết accuracy tuyệt đối. `partial_mapping` và `partial_source_coverage` là tín hiệu cần review; chúng không có nghĩa toàn bộ báo cáo bị loại bỏ.
 
@@ -34,7 +36,7 @@ Các số liệu trên là snapshot của một lần chạy, không phải cam 
 
 Mỗi báo cáo có context riêng gồm cặp kỳ, sector, phạm vi bảng và provenance. Output lưu lại khi có thể:
 
-- `source_name`, `source_sha256`;
+- `report.source.name`, `report.source.sha256`;
 - dòng nguồn và `raw_text`;
 - phương pháp mapping, confidence và conflict;
 - thông tin suy luận `current_year`/`previous_year`.
@@ -60,7 +62,10 @@ Markdown input
 Discovery + SHA-256 + chuẩn hóa dòng
     │
     ▼
-Resolver kỳ/năm và statement scope theo từng báo cáo
+Resolver kỳ/năm + alias-assisted locator theo từng báo cáo
+    │
+    ▼
+Candidate scope + candidate rows (chỉ là evidence định tuyến)
     │
     ├── B01: structural recovery → hierarchy → canonical nodes
     ├── B02: scope/sector → row extraction → semantic mapping → validation
@@ -74,17 +79,25 @@ Source recovery + hydration + reconciliation + provenance
 Production report JSON + batch manifest
 ```
 
+### Alias-assisted locator
+
+`StatementLocator` là lớp định tuyến trước khi parse, không phải mapper cuối cùng. Nó quét alias dùng chung của B01/B02/B03, nhận diện title/signature, kỳ báo cáo, mật độ số liệu và các dòng có khả năng thuộc bảng. Locator loại các dòng mục lục và vùng thuyết minh không liên quan, sau đó trả về `selected_scope` và `candidate_rows` cho parser.
+
+Scope chỉ được chấp nhận khi có title-backed evidence, mức chồng lấn với vùng scope hiện có và confidence đạt ngưỡng. Nếu bằng chứng yếu, pipeline giữ nguyên scope/fallback hiện hữu. Candidate rows chỉ giúp định tuyến và thu hẹp vùng tìm kiếm; chúng không được dùng để tự động map canonical node. Vì vậy mã biểu mẫu, số thuyết minh, tên file và giá trị biết trước không thể trở thành khóa identity.
+
+Thông tin locator phục vụ audit gồm `locator_enabled`, `locator_activated`, `locator_reason`, `locator_confidence`, `locator_alias_hits` và `locator_candidate_rows`. Các trường này không làm thay đổi production contract; chúng chỉ giúp giải thích vì sao một file được định tuyến hoặc fallback.
+
 ## Các engine
 
 ### B01 — Financial Position
 
-B01 xử lý bảng Markdown, dòng bị tách cột và cấu trúc bullet/OCR. Structural core phục hồi section, parent/child, nhãn và hai slot kỳ trước khi ánh xạ sang canonical schema. Source recovery chỉ bổ sung observation có bằng chứng và luôn giữ provenance.
+B01 xử lý bảng Markdown, dòng bị tách cột và cấu trúc bullet/OCR. Locator có thể thu hẹp vùng ứng viên, sau đó structural core phục hồi section, parent/child, nhãn và hai slot kỳ trước khi ánh xạ sang canonical schema. Source recovery chỉ bổ sung observation có bằng chứng và luôn giữ provenance.
 
 Mã chính nằm trong `src/b01_financial_position/` và `flat_parser/`.
 
 ### B02 — Income Statement
 
-B02 xác định scope và sector (`bank`, `enterprise`, `securities`, `insurance`) từ source. Extractor thu dòng từ bảng, bullet hoặc plain OCR; mapper chuẩn hóa nhãn bằng alias và semantic matching có ngưỡng/margin; validator kiểm tra coverage và công thức khi đủ dữ liệu.
+B02 xác định scope và sector (`bank`, `enterprise`, `securities`, `insurance`) từ source. Locator chỉ định tuyến vùng ứng viên khi có đủ bằng chứng; extractor thu dòng từ bảng, bullet hoặc plain OCR; mapper chuẩn hóa nhãn bằng alias và semantic matching có ngưỡng/margin; validator kiểm tra coverage và công thức khi đủ dữ liệu.
 
 `form_code` chỉ được giữ để truy vết, không quyết định identity của dòng.
 
@@ -92,7 +105,7 @@ Mã chính nằm trong `src/b02_income/`.
 
 ### B03 — Cash Flow
 
-B03 phát hiện scope, sector và direct/indirect method từ chính phần LCTT. Parser phân biệt statutory section với supplemental/customer/broker section, ghép hai vector kỳ và giữ riêng các dòng có cùng mã nhưng khác ngữ nghĩa.
+B03 phát hiện scope, sector và direct/indirect method từ chính phần LCTT. Locator hỗ trợ chọn vùng ứng viên, còn parser vẫn phân biệt statutory section với supplemental/customer/broker section, ghép hai vector kỳ và giữ riêng các dòng có cùng mã nhưng khác ngữ nghĩa.
 
 Mã chính nằm trong `src/b03_cashflow/`.
 
@@ -124,7 +137,7 @@ Flatten/
 │   ├── b03_cashflow/
 │   ├── common/                     # Period, recovery, identity, reconciliation
 │   └── notes/                      # Notes IR, linking, export
-├── flat_parser/                   # Structural core và scanner dùng chung
+├── flat_parser/                   # Structural core, locator và scanner dùng chung
 ├── resources/
 │   ├── schemas/                    # Schema, aliases và manifest
 │   └── guides/                     # Guide nguồn và guide đã biên dịch
@@ -209,7 +222,7 @@ output/current/
     └── ...
 ```
 
-`manifest.json` là chỉ mục batch, chứa schema version, số lượng báo cáo, source hash, kỳ báo cáo và đường dẫn tương đối tới từng report. Tên report lấy từ tên file Markdown đã chuẩn hóa, kèm hậu tố hash để tránh trùng; không cần mở manifest vẫn có thể nhận diện nguồn. Mỗi report JSON có cùng contract gồm `report`, `periods`, `statements`, `notes` và `quality`. Các mảng lồng nhau được lưu dưới dạng JSON native; giá trị số được chuẩn hóa thành number hoặc `null`.
+`manifest.json` là chỉ mục batch, chứa contract version, số lượng báo cáo, source hash, kỳ báo cáo và đường dẫn tương đối tới từng report. Tên report lấy từ tên file Markdown đã chuẩn hóa, kèm hậu tố hash để tránh trùng; không cần mở manifest vẫn có thể nhận diện nguồn. Mỗi report JSON dùng `vn_financial_report_output@2.0.0`, gồm `contract`, `report`, `periods`, `statements`, `notes` và `quality`. Các mảng lồng nhau được lưu dưới dạng JSON native; giá trị số được chuẩn hóa thành number hoặc `null`.
 
 Các parser diagnostics, mapping score, raw IR và bảng so sánh không nằm trong output production. Khi cần đánh giá hoặc điều tra, bật profile audit:
 
@@ -220,7 +233,15 @@ python .\app\pipeline.py .\md_reports `
   --audit
 ```
 
-Khi đó artifact giàu thông tin được đặt riêng dưới `output/current/audit/` (`*.canonical.json`, `*.comparison.json`, `notes_rows/`, `comparison_summary.*`, `run_metadata.json`). Đây là lớp phục vụ review/evaluation, không phải contract dữ liệu chính.
+Khi đó artifact giàu thông tin được đặt riêng dưới `output/current/audit/` (`*.canonical.json`, `*.comparison.json`, `notes_rows/`, `comparison_summary.*`, `run_metadata.json`). Mỗi statement audit có thêm `error_taxonomy` để tách nhiễu cấu trúc, thiếu slot kỳ, lỗi column-major, duplicate và semantic mapping gap. Đây là lớp phục vụ review/evaluation, không phải contract dữ liệu chính.
+
+Để kiểm tra trực quan toàn bộ output hiện tại, chạy viewer không phụ thuộc thư viện:
+
+```powershell
+python .\scripts\visualize_output.py --open
+```
+
+Viewer được tạo tại `output/inspection/output_viewer.html`, cho phép lọc theo file, bảng, nhãn, giá trị, mapping, raw text và dòng nguồn.
 
 `output/`, `ground_truth/` và `md_reports/` là dữ liệu cục bộ, bị Git bỏ qua để tránh đưa artifact lớn hoặc dữ liệu nguồn lên repository. Có thể tái tạo output từ Markdown bằng entrypoint ở trên.
 
@@ -264,30 +285,87 @@ Ví dụ rút gọn:
 
 ```json
 {
-  "output_schema": {"name": "vn_financial_report_output", "version": "1.0.0"},
-  "report": {"id": "r_<sha256-prefix>", "source_name": "<report>.md", "source_sha256": "<sha256>"},
+  "contract": {"name": "vn_financial_report_output", "version": "2.0.0"},
+  "report": {
+    "id": "r_<sha256-prefix>",
+    "source": {"name": "<report>.md", "sha256": "<sha256>"}
+  },
   "periods": {
     "current": {"year": 2025, "start_date": null, "end_date": "2025-12-31"},
     "previous": {"year": 2024, "start_date": null, "end_date": "2024-12-31"}
   },
   "statements": {
-    "income_statement": {
-      "nodes": [
+    "cash_flow": {
+      "status": "ok",
+      "statement_type": "CASH_FLOW_STATEMENT",
+      "schema": {"id": "cash_flow", "version": "<schema-version>"},
+      "context": {"sector": "bank", "method": "direct", "unit": "million_vnd"},
+      "items": [
         {
-          "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
-          "canonical_name": "Doanh thu thuần",
-          "value": {"current": 1000, "previous": 900, "additional": null, "note": null, "unit": null},
-          "evidence": [{"source_line": 42, "confidence": 1.0}]
+          "record_type": "semantic_item",
+          "id": "CASHFLOW.BANK.DIRECT.INTEREST_RECEIVED",
+          "source_id": null,
+          "label": "Thu nhập lãi và các khoản thu nhập tương tự nhận được",
+          "attributes": {
+            "kind": null,
+            "parent_id": null,
+            "children": [],
+            "section": "operating",
+            "sector": "bank",
+            "method": "direct",
+            "form_code": "01",
+            "code": null,
+            "note_ref": null
+          },
+          "value": {
+            "current": 12919243,
+            "previous": 9453794,
+            "additional": {},
+            "note": null,
+            "unit": "million_vnd",
+            "raw_text": "* **Thu nhập lãi và các khoản thu nhập tương tự nhận được:** 12.919.243 triệu đồng (Năm nay), 9.453.794 triệu đồng (Năm trước)",
+            "raw_values": {"current": null, "previous": null}
+          },
+          "provenance": {
+            "evidence": [{
+              "source_line": 42,
+              "source_label": "Thu nhập lãi và các khoản thu nhập tương tự nhận được",
+              "raw_text": "* **Thu nhập lãi và các khoản thu nhập tương tự nhận được:** 12.919.243 triệu đồng (Năm nay), 9.453.794 triệu đồng (Năm trước)",
+              "confidence": 1.0
+            }],
+            "mapping": {
+              "status": "mapped",
+              "target_id": "CASHFLOW.BANK.DIRECT.INTEREST_RECEIVED",
+              "method": "exact_label",
+              "confidence": 1.0
+            }
+          }
         }
       ],
-      "observations": []
+      "observations": [],
+      "summary": {
+        "counts": {"items": 1, "observations": 0, "valued_items": 1},
+        "mapping": {"input_rows": 1, "mapped_rows": 1, "unmapped_rows": 0, "rate": 1.0},
+        "coverage": {"current": 1.0, "previous": 1.0}
+      },
+      "validation": {
+        "status": "ok",
+        "formulas": {"evaluated": 0, "passed": 0, "failed": 0, "pass_rate": null}
+      }
     }
   },
+  "notes": {"status": "not_detected", "schema": {"id": null, "version": null}, "sections": [], "rows": [], "links": [], "summary": {"section_count": 0, "row_count": 0, "link_count": 0}},
   "quality": {"status": "ok", "issues": []}
 }
 ```
 
-`observations` giữ bằng chứng nguồn chưa đủ điều kiện map vào semantic node; chúng có identity riêng và không được dùng như khóa nghiệp vụ. `source_name`, `source_sha256`, `source_line`, `source_label` và `confidence` là provenance gọn để truy ngược Markdown. Parser không đọc output hoặc ground truth của lần chạy trước để bổ sung dữ liệu.
+Ba statement dùng cùng một record shape: `items` là các mục semantic, `observations` là các dòng quan sát nguồn. Hai mảng không phải hai khóa nghiệp vụ thay thế nhau; `observations` chỉ là provenance/reconciliation layer. Mỗi record luôn có `attributes`, `value` và `provenance`; mỗi `provenance` luôn có `evidence` và `mapping`. Nếu chưa có liên kết semantic, observation có `mapping.status = "source_only"`; nếu metadata mapping chưa được báo cáo, semantic item có `mapping.status = "not_reported"`.
+
+`report.source` là metadata nhận diện input; `source_line`, `source_label`, `raw_text` và `confidence` là provenance để truy ngược Markdown. `value.raw_text` giữ nguyên dòng Markdown đã dùng để lấy giá trị; `value.raw_values` giữ chuỗi số gốc khi parser có chuỗi đó. `value.additional` luôn là object (rỗng khi không có dữ liệu bổ sung), còn giá trị không xác định dùng `null`. Parser không đọc output hoặc ground truth của lần chạy trước để bổ sung dữ liệu.
+
+`notes` dùng contract bảng riêng vì một dòng thuyết minh có thể có nhiều giá trị, chiều phân tích và liên kết. Tuy vậy, section, row, value, source và link đều có bố cục cố định; không trộn các cột phẳng nội bộ vào report production.
+
+Contract được mô tả tương ứng tại `resources/schemas/production_report.schema.json` và `resources/schemas/batch_manifest.schema.json`. Đây là interface production; các artifact trong `audit/` vẫn là dữ liệu kiểm tra nội bộ và có thể thay đổi theo engine.
 
 Để xem đầy đủ trường nội bộ phục vụ đánh giá, đọc các artifact trong `audit/`; không dùng chúng làm interface downstream ổn định.
 
@@ -295,10 +373,32 @@ Ví dụ giá trị trong report production:
 
 ```json
 {
-  "node_id": "INCOME.ENTERPRISE.NET_REVENUE",
-  "canonical_name": "Doanh thu thuần",
-  "value": {"current": 1000, "previous": 900},
-  "evidence": [{"source_line": 42, "confidence": 1.0}]
+  "record_type": "semantic_item",
+  "id": "INCOME.ENTERPRISE.NET_REVENUE",
+  "label": "Doanh thu thuần",
+  "value": {
+    "current": 1000,
+    "previous": 900,
+    "additional": {},
+    "note": null,
+    "unit": null,
+    "raw_text": "* Doanh thu thuần: 1.000 (Năm nay), 900 (Năm trước)",
+    "raw_values": {"current": null, "previous": null}
+  },
+  "provenance": {
+    "evidence": [{
+      "source_line": 42,
+      "source_label": "Doanh thu thuần",
+      "raw_text": "* Doanh thu thuần: 1.000 (Năm nay), 900 (Năm trước)",
+      "confidence": 1.0
+    }],
+    "mapping": {
+      "status": "mapped",
+      "target_id": "INCOME.ENTERPRISE.NET_REVENUE",
+      "method": "exact_label",
+      "confidence": 1.0
+    }
+  }
 }
 ```
 

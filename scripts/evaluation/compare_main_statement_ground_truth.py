@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
-import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -26,7 +24,6 @@ try:
     from src.common.ground_truth_quality import (
         assess_observation,
         evidence_key,
-        fold_text as quality_fold_text,
         infer_year_pair,
         iter_observations,
         normalize_label,
@@ -40,7 +37,6 @@ except ImportError:
     from common.ground_truth_quality import (
         assess_observation,
         evidence_key,
-        fold_text as quality_fold_text,
         infer_year_pair,
         iter_observations,
         normalize_label,

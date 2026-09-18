@@ -64,6 +64,7 @@ def resolve_observation(
     context: StatementContext,
     *,
     allow_structure_unknown: bool = False,
+    source_context: dict | None = None,
 ):
     c = obs.selected
     if not obs.pattern_id and not allow_structure_unknown:
@@ -195,4 +196,5 @@ def resolve_observation(
         code=obs.code,
         unit=_financial_unit(None, obs.unit, context.unit),
         warnings=warnings,
+        source_context=dict(source_context or {}),
     ), None

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-from .document import descendants
 from .guide import UniversalGuide
 from .models import FieldObservation, StructuralNode
 from .primitives import extract_periods, extract_values, whole_text_period
@@ -89,6 +88,28 @@ def _bounded_descendants(
 
         if idx in semantic_anchor_indices:
             # Semantic child boundary: do not consume it and do not enter subtree.
+            continue
+
+        # Mixed plain/bullet reports often contain a valid but unmapped row
+        # container between a section total and its detail rows.  Treat those
+        # structural record containers as boundaries too; otherwise the
+        # section total absorbs every descendant value and looks duplicated.
+        keyed_wrapper = fold(node.lhs or "") in {
+            "ten chi tieu",
+            "ten khoan muc",
+            "khoan muc",
+            "chi tieu",
+        }
+        if (
+            node.children
+            and not keyed_wrapper
+            and not node.lhs
+            and node.pattern_id in {
+                "SP_PERIOD_CHILDREN",
+                "SP_POSITIONAL_VALUE_CHILDREN",
+                "SP_KEYED_ATTRIBUTE_CHILDREN",
+            }
+        ):
             continue
 
         out.append(node)

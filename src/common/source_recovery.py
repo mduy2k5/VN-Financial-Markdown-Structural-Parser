@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -28,6 +27,29 @@ def fold(s: Any) -> str:
     s = s.replace("đ", "d").replace("Đ", "D").lower()
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
+
+
+def _structural_context_key(value: Any) -> str:
+    """Normalize hierarchy context without retaining period-specific payloads."""
+
+    if value is None:
+        return ""
+    parts = re.split(r"\s*>\s*", clean(value))
+    normalized = []
+    for part in parts:
+        # Period-section parents often carry their own value, e.g.
+        # `A. TÀI SẢN NGẮN HẠN: 32.904.606.406.685 đồng`.  The value changes
+        # between the current and comparative blocks and is not part of the
+        # structural identity used to pair them.
+        part = re.sub(
+            r"\s*:\s*\(?-?[\d][\d., ]*\)?\s*(?:triệu|trieu|nghìn|nghin)?\s*"
+            r"(?:đồng|dong|vnd|vnđ)?\s*$",
+            "",
+            part,
+            flags=re.I,
+        )
+        normalized.append(fold(part))
+    return " > ".join(x for x in normalized if x)
 
 
 def parse_number(v: Any):
@@ -511,8 +533,33 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
     return rows
 
 
-def _period_header_year(text: str):
+def _period_header_role(text: str, current_year: int, previous_year: int):
     c = re.sub(r"^[*+\-]\s+", "", clean(text))
+    # A financial-position report may serialize period blocks as standalone
+    # date headings rather than table columns.  `01/01/current_year` is the
+    # comparative opening balance, so it must resolve to `previous`, not to
+    # the calendar year embedded in the date.
+    date_patterns = [
+        r"(?i)^(?:(?:tại|tai|ngày|ngay|số\s+liệu\s+ngày|so\s+lieu\s+ngay)\s+)?"
+        r"(?P<day>\d{1,2})[./-](?P<month>\d{1,2})[./-](?P<year>20\d{2})"
+        r"(?:\s+(?:triệu|trieu|nghìn|nghin)\s*(?:đồng|dong|vnd|vnđ))?"
+        r"(?:\s*\([^)]*\))*\s*:?\s*$",
+        r"(?i)^(?:(?:tại|tai|ngày|ngay|số\s+liệu\s+ngày|so\s+lieu\s+ngay)\s+)?"
+        r"(?P<day>\d{1,2})\s+tháng\s+(?P<month>\d{1,2})\s+năm\s+(?P<year>20\d{2})"
+        r"(?:\s+(?:triệu|trieu|nghìn|nghin)\s*(?:đồng|dong|vnd|vnđ))?"
+        r"(?:\s*\([^)]*\))*\s*:?\s*$",
+    ]
+    for p in date_patterns:
+        m = re.match(p, c)
+        if m:
+            return period_role_for_date(
+                int(m.group("day")),
+                int(m.group("month")),
+                int(m.group("year")),
+                current_year,
+                previous_year,
+            )
+
     pats = [
         r"(?i)^Năm\s+kết\s+thúc\s+31[./-]12[./-](20\d{2})(?:\s*\([^)]*\))*\s*:?\s*$",
         r"(?i)^(?:Năm\s*)?(20\d{2})(?:\s*\([^)]*\))*\s*:?\s*$",
@@ -520,8 +567,76 @@ def _period_header_year(text: str):
     for p in pats:
         m = re.match(p, c)
         if m:
-            return int(m.group(1))
+            year = int(m.group(1))
+            if year == current_year:
+                return "current"
+            if year == previous_year:
+                return "previous"
     return None
+
+
+def _is_period_column_year_header(
+    scoped: list[str],
+    index: int,
+    current_year: int,
+    previous_year: int,
+) -> bool:
+    """Detect year labels that describe two value columns, not two row blocks.
+
+    A common continuation-page layout writes ``Tại ngày ... năm`` followed by
+    metadata and the two column labels ``2025 (VND)`` / ``2024 (VND)``.  The
+    period-section collector must not interpret those labels as the start of
+    a previous-period block; subsequent ``label: current | previous`` rows
+    already carry both observations on the same line.
+    """
+
+    candidate = clean(scoped[index])
+    year_match = re.fullmatch(r"(20\d{2})(?:\s*\([^)]*\))?", candidate)
+    if not year_match:
+        return False
+    year = int(year_match.group(1))
+    if year not in {current_year, previous_year}:
+        return False
+
+    def previous_nonempty(position: int):
+        for cursor in range(position - 1, max(-1, position - 7), -1):
+            if clean(scoped[cursor]):
+                return cursor
+        return None
+
+    def next_nonempty(position: int):
+        for cursor in range(position + 1, min(len(scoped), position + 7)):
+            if clean(scoped[cursor]):
+                return cursor
+        return None
+
+    if year == current_year:
+        other_index = next_nonempty(index)
+        other = clean(scoped[other_index]) if other_index is not None else ""
+        if not re.fullmatch(rf"{previous_year}(?:\s*\([^)]*\))?", other):
+            return False
+        first_year_index = index
+    else:
+        other_index = previous_nonempty(index)
+        other = clean(scoped[other_index]) if other_index is not None else ""
+        if not re.fullmatch(rf"{current_year}(?:\s*\([^)]*\))?", other):
+            return False
+        first_year_index = other_index
+
+    anchor_index = previous_nonempty(first_year_index)
+    while anchor_index is not None:
+        anchor = fold(scoped[anchor_index])
+        if re.search(r"\btai ngay\b.*\bnam\s*$", anchor):
+            return True
+        # Metadata may sit between the date header and the year columns, but
+        # a new data row means this is no longer a column-header sequence.
+        if ":" in clean(scoped[anchor_index]) and not re.match(
+            r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Ma\s*so|Thuyet\s*minh)\s*:",
+            clean(scoped[anchor_index]),
+        ):
+            return False
+        anchor_index = previous_nonempty(anchor_index)
+    return False
 
 
 def _inline_form_code_child_rows(scoped: list[str], s: int, current_year: int,
@@ -662,6 +777,50 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
     scoped = lines[s:e]
     rows: list[RecoveredRow] = []
     hierarchy = _hierarchy_context(scoped)
+
+    # Continuation pages may serialize the two period columns as a single bar
+    # separated row, e.g. ``300 Nợ phải trả: 180 (đồng) | 90 (đồng)``.
+    # This is a structural two-period observation, not a Markdown table with
+    # three or more separators, so handle it before the regular pipe-table
+    # collector.
+    amount_token = r"\(?-?\d[\d., ]*\)?|-"
+    amount_tail = r"(?:\s*(?:\([^)]*\)|triệu\s*(?:đồng|vnd|vnđ)|nghìn\s*đồng|đồng|vnd|vnđ))*"
+    inline_bar_left = re.compile(
+        rf"^(?P<label>.+?):\s*(?P<current>{amount_token}){amount_tail}\s*$",
+        re.I,
+    )
+    inline_bar_right = re.compile(
+        rf"^\s*(?P<previous>{amount_token}){amount_tail}\s*$",
+        re.I,
+    )
+    for idx, raw in enumerate(scoped):
+        if raw.count("|") != 1:
+            continue
+        cells = [clean(cell) for cell in clean(raw).split("|")]
+        if len(cells) != 2:
+            continue
+        left_match = inline_bar_left.match(cells[0])
+        right_match = inline_bar_right.match(cells[1])
+        if not left_match or not right_match:
+            continue
+        base_label, suffix_code, suffix_note = _extract_suffix_meta(left_match.group("label"))
+        base_label, trailing_code = _extract_trailing_form_code(base_label)
+        code, label = _split_code_label(base_label)
+        label = _normalize_row_label(label)
+        if not _valid_label(label):
+            continue
+        parent, path = hierarchy.get(idx, (None, None))
+        rows.append(RecoveredRow(
+            label=label,
+            current=parse_number(left_match.group("current")),
+            previous=parse_number(right_match.group("previous")),
+            code=suffix_code or trailing_code or code,
+            note=suffix_note,
+            source_line=s + idx + 1,
+            pattern=f"{statement}_RAW_INLINE_BAR_PAIR",
+            parent_label=parent,
+            hierarchy_path=path,
+        ))
 
     # Pipe tables.  Identify period columns from header when possible; otherwise last two numeric cells.
     for idx, raw in enumerate(scoped):
@@ -1023,49 +1182,62 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
     # Period-section child lists. Example:
     # `31/12/2025 ...: total` followed by nested `Sub-label: value`, then a 2024 block.
     period_children: dict[tuple, RecoveredRow] = {}
-    active_year = None
+    active_role = None
     active_indent = None
     for idx, raw in enumerate(scoped):
         cc = clean(raw)
         indent = len(raw) - len(raw.lstrip(" \t"))
-        found_year = _period_header_year(cc)
-        if found_year is None:
-            section_cc = re.sub(r"^[*+\-]\s+", "", cc)
-            for yp in _YEAR_VALUE_PATTERNS:
-                my = yp.match(section_cc)
-                if my:
-                    found_year = int(my.group(1)); break
-        if found_year in {current_year, previous_year}:
-            active_year, active_indent = found_year, indent
+        if _is_period_column_year_header(scoped, idx, current_year, previous_year):
+            active_role = active_indent = None
             continue
-        if active_year is None or active_indent is None:
+        found_role = _period_header_role(cc, current_year, previous_year)
+        if found_role:
+            active_role, active_indent = found_role, indent
             continue
-        # leave the period section when a structural sibling at the same/shallower indent appears
-        if indent <= active_indent and re.search(r"[A-Za-zÀ-ỹ]", cc):
-            active_year = active_indent = None
-            continue
-        if indent <= active_indent:
+        if active_role is None or active_indent is None:
             continue
         section_cc = re.sub(r"^[*+\-]\s+", "", cc)
-        m = re.match(r"^(.+?):\s*(\(?-?\d[\d., ]*\)?|-)(?:\s|$)", section_cc)
-        if not m:
+        row_match = re.match(r"^(.+?):\s*(\(?-?\d[\d., ]*\)?|-)(?:\s|$)", section_cc)
+        is_period_container = bool(
+            section_cc
+            and section_cc.upper() == section_cc
+            and len(section_cc) <= 180
+        )
+        # leave the period section when a structural sibling at the same/shallower indent appears
+        if (
+            indent <= active_indent
+            and re.search(r"[A-Za-zÀ-ỹ]", cc)
+            and not row_match
+            and not is_period_container
+        ):
+            active_role = active_indent = None
             continue
-        label = clean(m.group(1))
+        if indent <= active_indent and not row_match:
+            continue
+        if not row_match:
+            continue
+        label = clean(row_match.group(1))
         if not _valid_label(label) or fold(label) in {"thuyet minh", "ma so", "trang"}:
             continue
-        value = parse_number(m.group(2))
+        value = parse_number(row_match.group(2))
         code, label = _split_code_label(label)
         # Period sections are paired by semantic label and hierarchy.  A
         # statement code can be missing, duplicated, or belong to the Notes
         # layer, so it is never part of this identity.
         parent, path = hierarchy.get(idx, (None, None))
-        key = (fold(label), fold(parent or ""), fold(path or ""))
+        key = (
+            fold(label),
+            _structural_context_key(parent),
+            _structural_context_key(path),
+        )
         rr = period_children.get(key)
         if rr is None:
             rr = RecoveredRow(label=label, current=None, previous=None, code=code, source_line=s+idx+1, pattern=f"{statement}_RAW_PERIOD_SECTION", parent_label=parent, hierarchy_path=path)
             period_children[key] = rr
-        if active_year == current_year: rr.current = value
-        else: rr.previous = value
+        if active_role == "current":
+            rr.current = value
+        elif active_role == "previous":
+            rr.previous = value
     rows.extend(period_children.values())
 
     # Flat/column-major positional layout recovery (code/note/current/previous as separate sibling lines).
@@ -1085,8 +1257,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             statement,
             fold(r.section or ""),
             fold(r.label),
-            fold(r.parent_label or ""),
-            fold(r.hierarchy_path or ""),
+            _structural_context_key(r.parent_label),
+            _structural_context_key(r.hierarchy_path),
         )
         if key not in merged:
             merged[key] = r; order.append(key); continue
@@ -1262,8 +1434,8 @@ def extract_financial_position_source_rows(text: str, current_year=None, previou
     for r in rows:
         key = (
             fold(r.label),
-            fold(r.parent_label or ""),
-            fold(r.hierarchy_path or ""),
+            _structural_context_key(r.parent_label),
+            _structural_context_key(r.hierarchy_path),
         )
         if key not in merged:
             merged[key] = r; order.append(key); continue
@@ -1368,21 +1540,4 @@ def extract_securities_supplemental_cashflow_rows(
         "scope_end_line": end,
         "rows": rows,
     }
-
-
-try:
-    from .source_canonical_hydrator import (
-        _source_id,
-        augment_canonical_with_recovered_rows,
-        extract_code_period_table,
-        hydrate_canonical_by_form_code,
-    )
-except ImportError:
-    from source_canonical_hydrator import (
-        _source_id,
-        augment_canonical_with_recovered_rows,
-        extract_code_period_table,
-        hydrate_canonical_by_form_code,
-    )
-
 

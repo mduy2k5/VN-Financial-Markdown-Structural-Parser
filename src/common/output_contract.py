@@ -20,7 +20,9 @@ from .source_recovery import parse_number
 
 
 OUTPUT_SCHEMA_NAME = "vn_financial_report_output"
-OUTPUT_SCHEMA_VERSION = "1.0.0"
+OUTPUT_SCHEMA_VERSION = "2.0.0"
+BATCH_SCHEMA_NAME = "vn_financial_report_batch"
+BATCH_SCHEMA_VERSION = "2.0.0"
 
 _NESTED_ROW_FIELDS = {
     "pages",
@@ -68,24 +70,38 @@ def _number(value: Any) -> int | float | None:
     return None
 
 
+def _nullable(value: Any) -> Any:
+    """Turn serializer-level empty strings into explicit JSON nulls."""
+
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
 def _value(value: Any) -> dict[str, Any]:
     value = value if isinstance(value, dict) else {}
     current_raw = value.get("current")
     previous_raw = value.get("previous")
+    additional = value.get("additional")
+    if additional is None:
+        additional = {}
     result = {
         "current": _number(current_raw),
         "previous": _number(previous_raw),
-        "additional": _json_value(value.get("additional")),
-        "note": value.get("note"),
-        "unit": value.get("unit"),
+        "additional": _json_value(additional),
+        "note": _nullable(value.get("note")),
+        "unit": _nullable(value.get("unit")),
     }
-    raw = {}
-    if isinstance(current_raw, str):
-        raw["current"] = current_raw
-    if isinstance(previous_raw, str):
-        raw["previous"] = previous_raw
-    if raw:
-        result["raw"] = raw
+    raw_text = value.get("raw_text", value.get("source_text"))
+    # Keep the original Markdown/source serialization separate from the
+    # normalized numeric values.  The key is always present so consumers have
+    # a stable contract; ``null`` means this value was derived without a
+    # recoverable source serialization.
+    result["raw_text"] = _json_value(raw_text)
+    result["raw_values"] = {
+        "current": current_raw if isinstance(current_raw, str) else None,
+        "previous": previous_raw if isinstance(previous_raw, str) else None,
+    }
     return result
 
 
@@ -97,66 +113,139 @@ def _evidence(extraction_meta: Any) -> list[dict[str, Any]]:
     for occurrence in occurrences:
         if not isinstance(occurrence, dict):
             continue
-        evidence: dict[str, Any] = {}
+        evidence: dict[str, Any] = {
+            "source_line": None,
+            "source_label": None,
+            "raw_text": None,
+            "confidence": None,
+        }
         line = occurrence.get("source_line", occurrence.get("line"))
         if line is not None:
             evidence["source_line"] = line
         label = occurrence.get("source_label")
         if label:
             evidence["source_label"] = label
+        raw_text = occurrence.get("raw_text", occurrence.get("source_text"))
+        if raw_text is not None:
+            evidence["raw_text"] = _json_value(raw_text)
         confidence = occurrence.get("mapping_confidence", occurrence.get("confidence"))
         if confidence is not None:
             evidence["confidence"] = confidence
-        if evidence:
-            result.append(evidence)
+        result.append(evidence)
     return result
 
 
-def _node(node: dict[str, Any], *, observation_id: str | None = None) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    if observation_id is not None:
-        result["observation_id"] = observation_id
-        if node.get("node_id"):
-            result["source_node_id"] = node["node_id"]
-    else:
-        result["node_id"] = node.get("node_id")
+def _mapping(node: dict[str, Any], *, observation: bool) -> dict[str, Any]:
+    """Normalize semantic/source mapping into one stable provenance object."""
 
-    for key in (
-        "canonical_name",
-        "kind",
-        "parent_id",
-        "section",
-        "sector",
-        "method",
-        "form_code",
-        "code",
-        "note_ref",
-    ):
-        if node.get(key) is not None:
-            result[key] = _json_value(node[key])
-    if isinstance(node.get("children"), list):
-        result["children"] = list(node["children"])
-    result["value"] = _value(node.get("value"))
-    result["evidence"] = _evidence(node.get("extraction_meta"))
-    return result
+    meta = node.get("extraction_meta") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    existing = node.get("mapping")
+    if not isinstance(existing, dict):
+        existing = {}
 
+    status = existing.get("status") or meta.get("mapping_status")
+    target_id = (
+        existing.get("target_id")
+        or existing.get("mapped_node_id")
+        or meta.get("target_id")
+        or meta.get("mapped_node_id")
+    )
+    method = existing.get("method") or meta.get("mapping_method")
+    confidence = existing.get("confidence", meta.get("mapping_confidence"))
 
-def _statement_summary(metrics: dict[str, Any], node_count: int, observation_count: int) -> dict[str, Any]:
-    mapping = metrics.get("mapping") or {}
-    quality = metrics.get("quality") or {}
+    if observation:
+        status = status or "source_only"
+    elif status is None:
+        occurrences = [
+            occurrence
+            for occurrence in (meta.get("occurrences") or [])
+            if isinstance(occurrence, dict)
+            and (occurrence.get("mapping_method") or occurrence.get("mapping_confidence") is not None)
+        ]
+        status = "mapped" if occurrences else "not_reported"
+        if status == "mapped":
+            target_id = target_id or node.get("node_id")
+            methods = sorted({
+                str(occurrence["mapping_method"])
+                for occurrence in occurrences
+                if occurrence.get("mapping_method")
+            })
+            if methods:
+                method = methods[0] if len(methods) == 1 else "multiple_evidence_methods"
+            confidences = [
+                occurrence.get("mapping_confidence")
+                for occurrence in occurrences
+                if isinstance(occurrence.get("mapping_confidence"), (int, float))
+            ]
+            if confidences:
+                confidence = min(confidences)
+
     return {
-        "node_count": node_count,
-        "observation_count": observation_count,
-        "input_rows": mapping.get("input_rows"),
-        "mapped_rows": mapping.get("mapped_rows"),
-        "unmapped_rows": mapping.get("unmapped_rows"),
-        "mapping_rate": mapping.get("mapping_rate"),
-        "current_coverage": mapping.get("current_coverage"),
-        "previous_coverage": mapping.get("previous_coverage"),
-        "formula_evaluated": quality.get("formula_evaluated"),
-        "formula_passed": quality.get("formula_passed"),
-        "formula_failed": quality.get("formula_failed"),
-        "formula_pass_rate": quality.get("formula_pass_rate"),
+        "status": status,
+        "target_id": target_id,
+        "method": method,
+        "confidence": confidence,
+    }
+
+
+def _attributes(node: dict[str, Any]) -> dict[str, Any]:
+    """Return the same metadata shape for every statement record."""
+
+    children = node.get("children")
+    if not isinstance(children, list):
+        children = []
+    return {
+        "kind": _nullable(node.get("kind")),
+        "parent_id": _nullable(node.get("parent_id")),
+        "children": list(children),
+        "section": _nullable(node.get("section")),
+        "sector": _nullable(node.get("sector")),
+        "method": _nullable(node.get("method")),
+        "form_code": _nullable(node.get("form_code")),
+        "code": _nullable(node.get("code")),
+        "note_ref": _nullable(node.get("note_ref")),
+        # Source hierarchy is an independent evidence dimension.  It does not
+        # change the semantic parent_id used by downstream consumers.
+        "source_context": _json_value(node.get("source_context")),
+    }
+
+
+def _record(node: dict[str, Any], *, observation_id: str | None = None) -> dict[str, Any]:
+    is_observation = observation_id is not None
+    return {
+        "record_type": "source_observation" if is_observation else "semantic_item",
+        "id": observation_id if is_observation else node.get("node_id"),
+        "source_id": node.get("node_id") if is_observation else None,
+        "label": _nullable(node.get("canonical_name")),
+        "attributes": _attributes(node),
+        "value": _value(node.get("value")),
+        "provenance": {
+            "evidence": _evidence(node.get("extraction_meta")),
+            "mapping": _mapping(node, observation=is_observation),
+        },
+    }
+
+
+def _statement_summary(metrics: dict[str, Any], item_count: int, observation_count: int) -> dict[str, Any]:
+    mapping = metrics.get("mapping") or {}
+    return {
+        "counts": {
+            "items": item_count,
+            "observations": observation_count,
+            "valued_items": metrics.get("value_nodes"),
+        },
+        "mapping": {
+            "input_rows": mapping.get("input_rows"),
+            "mapped_rows": mapping.get("mapped_rows"),
+            "unmapped_rows": mapping.get("unmapped_rows"),
+            "rate": mapping.get("mapping_rate"),
+        },
+        "coverage": {
+            "current": mapping.get("current_coverage"),
+            "previous": mapping.get("previous_coverage"),
+        },
     }
 
 
@@ -169,7 +258,7 @@ def clean_statement(
     canonical = canonical or {}
     metrics = metrics or {}
     parser = metrics.get("parser") or {}
-    nodes: list[dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
     source_counts: Counter[str] = Counter()
 
@@ -182,11 +271,19 @@ def clean_statement(
         if is_observation:
             source_counts[node_id] += 1
             observation_id = f"{node_id or 'source'}#{source_counts[node_id]}"
-            observations.append(_node(raw_node, observation_id=observation_id))
+            observations.append(_record(raw_node, observation_id=observation_id))
         else:
-            nodes.append(_node(raw_node))
+            items.append(_record(raw_node))
 
     quality = metrics.get("quality") or {}
+    valued_node = next(
+        (node for node in canonical.get("nodes") or [] if node.get("value")),
+        {},
+    )
+    parser_sector = parser.get("sector")
+    parser_method = parser.get("method")
+    sector = canonical.get("sector") or parser_sector or valued_node.get("sector")
+    method = canonical.get("method") or parser_method or valued_node.get("method")
     return {
         "status": metrics.get("status") or canonical.get("status") or "not_available",
         "statement_type": canonical.get("statement_type") or statement_type,
@@ -194,18 +291,22 @@ def clean_statement(
             "id": canonical.get("schema_id"),
             "version": canonical.get("schema_version"),
         },
-        "sector": canonical.get("sector") or parser.get("sector"),
-        "method": canonical.get("method") or parser.get("method"),
-        "unit": canonical.get("unit"),
-        "nodes": nodes,
+        "context": {
+            "sector": _nullable(sector),
+            "method": _nullable(method),
+            "unit": _nullable(canonical.get("unit") or parser.get("unit")),
+        },
+        "items": items,
         "observations": observations,
-        "summary": _statement_summary(metrics, len(nodes), len(observations)),
+        "summary": _statement_summary(metrics, len(items), len(observations)),
         "validation": {
             "status": quality.get("canonical_status") or metrics.get("status"),
-            "formula_evaluated": quality.get("formula_evaluated"),
-            "formula_passed": quality.get("formula_passed"),
-            "formula_failed": quality.get("formula_failed"),
-            "formula_pass_rate": quality.get("formula_pass_rate"),
+            "formulas": {
+                "evaluated": quality.get("formula_evaluated"),
+                "passed": quality.get("formula_passed"),
+                "failed": quality.get("formula_failed"),
+                "pass_rate": quality.get("formula_pass_rate"),
+            },
         },
     }
 
@@ -225,6 +326,99 @@ def _native_row(row: dict[str, Any], index: int) -> dict[str, Any]:
     return result
 
 
+def _note_value(value: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "raw": value.get("raw"),
+        "normalized": value.get("normalized"),
+        "period": {
+            "label": value.get("period_label"),
+            "role": value.get("period_role"),
+        },
+        "movement_role": value.get("movement_role"),
+        "measure": value.get("measure"),
+        "unit": {
+            "raw": value.get("unit"),
+            "canonical": value.get("unit_canonical"),
+        },
+        "source": {
+            "line": value.get("source_line"),
+            "column": value.get("source_column"),
+        },
+    }
+
+
+def _note_section(section: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": section.get("note_id_normalized") or section.get("note_id_raw"),
+        "title": section.get("title_raw"),
+        "title_normalized": section.get("title_normalized"),
+        "source": {
+            "start_line": section.get("source_start_line"),
+            "end_line": section.get("source_end_line"),
+            "pages": _json_value(section.get("pages") or []),
+        },
+        "context": {
+            "unit": section.get("unit_canonical") or section.get("unit"),
+            "sector_topic": section.get("sector_topic"),
+        },
+    }
+
+
+def _note_row(row: dict[str, Any], index: int) -> dict[str, Any]:
+    row = _native_row(row, index)
+    return {
+        "id": row.get("row_id"),
+        "note": {
+            "id": row.get("note_id_normalized") or row.get("note_id_raw"),
+            "title": row.get("note_title"),
+            "title_normalized": row.get("note_title_normalized"),
+        },
+        "label": {
+            "raw": row.get("row_label"),
+            "normalized": row.get("row_label_normalized"),
+        },
+        "role": row.get("row_role"),
+        "values": [
+            _note_value(value)
+            for value in (row.get("values") or [])
+            if isinstance(value, dict)
+        ],
+        "dimensions": _json_value(row.get("dimensions") or []),
+        "context": {
+            "sector": row.get("sector"),
+            "sector_topic": row.get("sector_topic"),
+            "unit": {
+                "raw": row.get("row_unit"),
+                "canonical": row.get("row_unit_canonical"),
+            },
+        },
+        "source": {
+            "name": row.get("source_name"),
+            "line": row.get("row_source_line"),
+            "pages": _json_value(row.get("pages") or []),
+            "section": {
+                "start_line": row.get("section_start_line"),
+                "end_line": row.get("section_end_line"),
+            },
+            "block": {
+                "id": row.get("block_id"),
+                "form": row.get("block_form"),
+                "start_line": row.get("block_start_line"),
+                "end_line": row.get("block_end_line"),
+            },
+            "raw_cells": _json_value(row.get("raw_cells") or []),
+        },
+        "metadata": {
+            "row_code": row.get("row_code"),
+            "row_note_ref": row.get("row_note_ref"),
+            "semantic_shape": row.get("semantic_shape"),
+            "headers": _json_value(row.get("headers") or []),
+            "value_count": row.get("value_count") or len(row.get("values") or []),
+        },
+        "links": _json_value(row.get("linked_targets") or []),
+    }
+
+
 def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | None) -> dict[str, Any]:
     if not note_ir:
         return {
@@ -237,22 +431,11 @@ def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | Non
         }
 
     diagnostics = note_ir.get("diagnostics") or {}
-    sections = []
-    for section in note_ir.get("sections") or []:
-        if not isinstance(section, dict):
-            continue
-        sections.append(
-            {
-                "note_id": section.get("note_id_normalized") or section.get("note_id_raw"),
-                "title": section.get("title_raw"),
-                "title_normalized": section.get("title_normalized"),
-                "source_start_line": section.get("source_start_line"),
-                "source_end_line": section.get("source_end_line"),
-                "pages": _json_value(section.get("pages") or []),
-                "unit": section.get("unit_canonical") or section.get("unit"),
-                "sector_topic": section.get("sector_topic"),
-            }
-        )
+    sections = [
+        _note_section(section)
+        for section in note_ir.get("sections") or []
+        if isinstance(section, dict)
+    ]
 
     links = []
     for link in note_ir.get("links") or []:
@@ -260,13 +443,18 @@ def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | Non
             continue
         links.append(
             {
-                key: _json_value(link.get(key))
-                for key in ("source_ref", "target_ref", "relation", "confidence")
-                if link.get(key) is not None
+                "source_ref": link.get("source_ref"),
+                "target_ref": link.get("target_ref"),
+                "relation": link.get("relation"),
+                "confidence": link.get("confidence"),
             }
         )
 
-    native_rows = [_native_row(row, index) for index, row in enumerate(rows or [], start=1)]
+    native_rows = [
+        _note_row(row, index)
+        for index, row in enumerate(rows or [], start=1)
+        if isinstance(row, dict)
+    ]
     return {
         "status": "parsed" if diagnostics.get("notes_found") else "not_detected",
         "schema": {
@@ -343,38 +531,45 @@ def build_production_report(
         issues.append(f"notes:{notes.get('status')}")
     quality_status = "ok" if not issues and not (year_resolution or {}).get("conflict") else "review_required"
     return {
-        "output_schema": {
+        "contract": {
             "name": OUTPUT_SCHEMA_NAME,
             "version": OUTPUT_SCHEMA_VERSION,
         },
         "report": {
             "id": stable_report_id(source_sha256),
-            "source_name": source_name,
-            "source_sha256": source_sha256,
+            "source": {
+                "name": source_name,
+                "sha256": source_sha256,
+            },
         },
         "periods": build_periods(current_year, previous_year, year_resolution),
-        "sector": income_statement.get("sector") or cash_flow.get("sector"),
         "statements": statements,
         "notes": notes,
         "quality": {
             "status": quality_status,
             "issues": issues,
-            "statement_statuses": statement_statuses,
+            "statements": statement_statuses,
+            "periods": {
+                "conflict": bool((year_resolution or {}).get("conflict")),
+            },
         },
     }
 
 
 def manifest_entry(report: dict[str, Any]) -> dict[str, Any]:
     report_meta = report.get("report") or {}
+    source = report_meta.get("source") or {}
     periods = report.get("periods") or {}
     return {
         "report_id": report_meta.get("id"),
-        "source_name": report_meta.get("source_name"),
-        "source_sha256": report_meta.get("source_sha256"),
-        "path": f"reports/{report_filename(report_meta.get('source_name'), report_meta.get('source_sha256'))}",
+        "source": {
+            "name": source.get("name"),
+            "sha256": source.get("sha256"),
+        },
+        "path": f"reports/{report_filename(source.get('name'), source.get('sha256'))}",
         "current_year": ((periods.get("current") or {}).get("year")),
         "previous_year": ((periods.get("previous") or {}).get("year")),
         "status": (report.get("quality") or {}).get("status"),
-        "statement_statuses": (report.get("quality") or {}).get("statement_statuses", {}),
+        "statements": (report.get("quality") or {}).get("statements", {}),
         "notes_status": (report.get("notes") or {}).get("status"),
     }

@@ -10,6 +10,9 @@
     "Khấu hao và hao mòn tài sản cố định",
     "Khấu hao và hao mòn"
   ],
+  "CASHFLOW.ENTERPRISE.INDIRECT.INVESTING_GAIN_LOSS": [
+    "Phần lãi trong công ty liên doanh, liên kết"
+  ],
   "CASHFLOW.ENTERPRISE.NET_CHANGE_IN_CASH": [
     "Lưu chuyển tiền thuần trong năm",
     "Lưu chuyển tiền và tương đương tiền thuần trong năm"
@@ -369,7 +372,9 @@
     "Tăng giảm các khoản dự phòng",
     "Dự phòng giảm giá hàng tồn kho và đầu tư",
     "Các khoản trích lập dự phòng",
-    "Dự phòng"
+    "Dự phòng",
+    "Hoàn nhập dự phòng",
+    "(Hoàn nhập dự phòng) dự phòng"
   ],
   "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX": [
     "Lỗ/lãi chênh lệch tỷ giá hối đoái chưa thực hiện",
@@ -479,7 +484,8 @@
     "Tiền thu từ thanh lý tài sản cố định",
     "Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác",
     "Tiền thu từ thanh lý tài sản cố định và tài sản dài hạn khác",
-    "Tiền thu từ thanh lý, nhượng bán TSCĐ"
+    "Tiền thu từ thanh lý, nhượng bán TSCĐ",
+    "Tiền thu để nhượng bán tài sản cố định"
   ],
   "CASHFLOW.BANK.DIRECT.RECOVERED_WRITTEN_OFF_DEBT": [
     "Tiền thu các khoản nợ đã được xử lý bằng nguồn dự phòng rủi ro"
@@ -506,7 +512,8 @@
   ],
   "CASHFLOW.ENTERPRISE.FINANCING.CAPITAL_REPAYMENT": [
     "Mua lại cổ phiếu của doanh nghiệp đã phát hành",
-    "Chỉ tiêu 32: Tiền trả lại phần ứng trước vốn góp cho chủ sở hữu"
+    "Chỉ tiêu 32: Tiền trả lại phần ứng trước vốn góp cho chủ sở hữu",
+    "Tiền trả lại vốn góp cho các cổ đông không kiểm soát"
   ],
   "CASHFLOW.ENTERPRISE.FINANCING.NET_CASH": [
     "Lưu chuyển tiền thuần sử dụng vào hoạt động tài chính",
@@ -518,13 +525,15 @@
     "Tiền chi cho vay",
     "Tiền chi cho vay, mua các công cụ nợ của đơn vị khác",
     "Tiền chi cho vay, gửi ngân hàng có kỳ hạn",
-    "Tiền chi cho vay, tiền gửi có kỳ hạn"
+    "Tiền chi cho vay, tiền gửi có kỳ hạn",
+    "Tiền chi đầu tư vào khoản tiền gửi có kỳ hạn"
   ],
   "CASHFLOW.ENTERPRISE.INVESTING.LOANS_COLLECTED": [
     "Rút tiền gửi có kỳ hạn với thời hạn trên 3 tháng bán lại các công cụ nợ của các đơn vị khác",
     "Tiền thu tiền gửi ngân hàng có kỳ hạn",
     "Tiền thu hồi cho vay",
-    "Tiền thu hồi từ tiền cho vay, tiền gửi có kỳ hạn"
+    "Tiền thu hồi từ tiền cho vay, tiền gửi có kỳ hạn",
+    "Tiền thu hồi lại khoản tiền gửi có kỳ hạn"
   ],
   "CASHFLOW.ENTERPRISE.INVESTING.EQUITY_INVESTMENTS": [
     "Tiền chi đầu tư vào đơn vị khác",
@@ -553,7 +562,8 @@
   ],
   "CASHFLOW.ENTERPRISE.INDIRECT.INTEREST_EXPENSE": [
     "Chi phí repo, lãi vay",
-    "Chi phí lãi vay và chi phí repo"
+    "Chi phí lãi vay và chi phí repo",
+    "Chi phí đi vay và phát hành trái phiếu"
   ],
   "CASHFLOW.SECURITIES.INDIRECT.PURCHASE_PPE": [
     "Tiền chi để mua sắm, xây dựng TSCĐ",

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import re
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 from .note_ir import NoteDocument, NoteLink
-from .sectionizer import normalize_note_id, fold_text
+from .sectionizer import normalize_note_id
 from .sector_profile import possible_targets
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from .note_ir import NoteDocument, ReconciliationResult
 from .sectionizer import fold_text

@@ -10,7 +10,6 @@ import argparse
 import copy
 import json
 import re
-import shutil
 from collections import Counter
 from pathlib import Path
 from typing import Any

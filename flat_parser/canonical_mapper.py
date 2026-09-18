@@ -4,6 +4,14 @@ from .models import ResolvedField
 from .semantic_catalog import SemanticCatalog
 
 
+def _value_signature(value) -> tuple[str, str]:
+    """Compare duplicate payloads by normalized value where available."""
+
+    if value.normalized_candidate is not None:
+        return "normalized", str(value.normalized_candidate)
+    return "raw", (value.raw_value or "").strip().casefold()
+
+
 def map_first_value_per_period(
     fields: list[ResolvedField],
     catalog: SemanticCatalog,
@@ -12,6 +20,7 @@ def map_first_value_per_period(
     Default dedup policy:
       - first non-null/raw value found for each node_id + period_key wins;
       - later duplicates never overwrite an existing period;
+      - conflicting later duplicates are recorded as review evidence;
       - later occurrence may fill a period that was missing in the first occurrence;
       - first note/code also wins.
 
@@ -37,6 +46,8 @@ def map_first_value_per_period(
                 "code_set": False,
                 "first_line": field.source_line,
                 "has_any_payload": False,
+                "raw_by_period": {},
+                "conflict_periods": [],
             },
         )
 
@@ -44,18 +55,43 @@ def map_first_value_per_period(
         actions = []
         accepted_any = False
 
+        if field.source_context:
+            target.setdefault("source_context", field.source_context)
+
         for v in field.values:
             lock_key = v.period_key
             if lock_key in st["periods"]:
-                actions.append({
-                    "action": "skip_existing_period",
-                    "period_key": lock_key,
-                    "raw_value": v.raw_value,
-                    "source_line": field.source_line,
-                })
+                existing = st["raw_by_period"].get(lock_key)
+                incoming = _value_signature(v)
+                if existing is not None and existing["signature"] != incoming:
+                    conflict = {
+                        "period_key": lock_key,
+                        "first_source_line": existing["source_line"],
+                        "conflicting_source_line": field.source_line,
+                        "first_raw_value": existing["raw_value"],
+                        "conflicting_raw_value": v.raw_value,
+                    }
+                    if conflict not in st["conflict_periods"]:
+                        st["conflict_periods"].append(conflict)
+                    actions.append({
+                        "action": "conflict_existing_period",
+                        **conflict,
+                    })
+                else:
+                    actions.append({
+                        "action": "skip_existing_period",
+                        "period_key": lock_key,
+                        "raw_value": v.raw_value,
+                        "source_line": field.source_line,
+                    })
                 continue
 
             st["periods"].add(lock_key)
+            st["raw_by_period"][lock_key] = {
+                "signature": _value_signature(v),
+                "raw_value": v.raw_value,
+                "source_line": field.source_line,
+            }
             st["has_any_payload"] = True
             accepted_any = True
 
@@ -111,7 +147,9 @@ def map_first_value_per_period(
             "actions": actions,
         })
 
-        # Extraction meta is append-only provenance; canonical value itself is first-wins.
+        # Extraction meta is append-only provenance; canonical value itself is
+        # first-wins, while conflicting alternatives remain in the occurrence
+        # audit and make the canonical statement review-required.
         meta = target.setdefault("extraction_meta", {
             "policy": "first_value_per_period_wins",
             "occurrences": [],
@@ -125,6 +163,7 @@ def map_first_value_per_period(
             "confidence": field.confidence,
             "code_candidate": field.code,
             "note_candidate": field.note,
+            "source_context": field.source_context,
             "values": [
                 {
                     "period_key": v.period_key,
@@ -141,5 +180,23 @@ def map_first_value_per_period(
             ],
             "actions": actions,
         })
+
+    conflict_nodes = [
+        node_id for node_id, state_item in state.items()
+        if state_item.get("conflict_periods")
+    ]
+    canonical.setdefault("diagnostics", {})["semantic_dedup"] = {
+        "policy": "first_value_per_period_wins_with_conflict_audit",
+        "conflicting_nodes": conflict_nodes,
+        "conflict_count": sum(
+            len(state_item.get("conflict_periods") or [])
+            for state_item in state.values()
+        ),
+    }
+    if conflict_nodes:
+        # Keep the first source value for backward compatibility, but make the
+        # ambiguity explicit.  The complete conflicting evidence remains in
+        # extraction_meta and the source-observation layer.
+        canonical["status"] = "review_required"
 
     return canonical, accepted, duplicate_log

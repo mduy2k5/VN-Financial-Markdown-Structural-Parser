@@ -109,6 +109,174 @@ def _semantic_candidates(semantic: list[dict], statement: str, section: str, lab
     return out
 
 
+def _node_occurrences(node: dict) -> list[dict]:
+    """Return provenance records usable for source-to-semantic linking."""
+
+    meta = node.get("extraction_meta") or {}
+    records = []
+    for key in ("occurrences", "source_recovery_occurrences"):
+        for occurrence in meta.get(key) or []:
+            if isinstance(occurrence, dict):
+                records.append(occurrence)
+    if not records:
+        records.append({
+            "source_line": _source_line(node) if _source_line(node) < 10**9 else None,
+            "source_label": node.get("canonical_name"),
+            "current": (node.get("value") or {}).get("current"),
+            "previous": (node.get("value") or {}).get("previous"),
+        })
+    return records
+
+
+def _record_value(node: dict, occurrence: dict, period: str):
+    value = occurrence.get(period)
+    if value is not None:
+        return value
+    return (node.get("value") or {}).get(period)
+
+
+def _record_label(node: dict, occurrence: dict) -> str:
+    return fold(occurrence.get("source_label") or occurrence.get("label") or node.get("canonical_name"))
+
+
+def _period_values_match(source_node: dict, source_occurrence: dict, semantic_node: dict, semantic_occurrence: dict) -> bool:
+    """Compare evidence values without treating a source code as identity."""
+
+    compared = False
+    for period in ("current", "previous"):
+        source_value = _record_value(source_node, source_occurrence, period)
+        semantic_value = _record_value(semantic_node, semantic_occurrence, period)
+        if source_value is None or semantic_value is None:
+            continue
+        compared = True
+        if _value_key(source_value) != _value_key(semantic_value):
+            return False
+    return compared
+
+
+def _context_matches(source_node: dict, semantic_node: dict, statement: str) -> bool:
+    if statement == "CASHFLOW":
+        source_section = clean(source_node.get("section") or "")
+        semantic_section = clean(semantic_node.get("section") or "")
+        if source_section and semantic_section and source_section != semantic_section:
+            return False
+    if statement == "FINANCIAL_POSITION":
+        source_context = fold(source_node.get("hierarchy_path") or source_node.get("parent_label") or "")
+        semantic_context = fold(semantic_node.get("hierarchy_path") or semantic_node.get("parent_label") or "")
+        if source_context and semantic_context and source_context != semantic_context:
+            return False
+    return True
+
+
+def _link_source_observations(semantic: list[dict], source: list[dict], statement: str) -> dict:
+    """Link retained source evidence to semantic nodes when evidence is unambiguous.
+
+    This is a provenance reconciliation step, not a new identity rule.  It uses the
+    extracted source line, normalized source label, period values, and structural
+    context.  Form codes are intentionally absent from every lookup key.
+    """
+
+    by_line: dict[str, list[tuple[dict, dict]]] = collections.defaultdict(list)
+    by_label_values: dict[tuple[str, Any, Any], list[tuple[dict, dict]]] = collections.defaultdict(list)
+    for semantic_node in semantic:
+        seen_records = set()
+        for occurrence in _node_occurrences(semantic_node):
+            record_key = (
+                occurrence.get("source_line"),
+                _record_label(semantic_node, occurrence),
+                _value_key(_record_value(semantic_node, occurrence, "current")),
+                _value_key(_record_value(semantic_node, occurrence, "previous")),
+            )
+            if record_key in seen_records:
+                continue
+            seen_records.add(record_key)
+            line = occurrence.get("source_line")
+            if line is not None:
+                by_line[str(line)].append((semantic_node, occurrence))
+            by_label_values[
+                (
+                    _record_label(semantic_node, occurrence),
+                    _value_key(_record_value(semantic_node, occurrence, "current")),
+                    _value_key(_record_value(semantic_node, occurrence, "previous")),
+                )
+            ].append((semantic_node, occurrence))
+
+    linked = 0
+    source_only = 0
+    ambiguous = 0
+    for source_node in source:
+        candidates: list[tuple[dict, dict, str, float]] = []
+        for source_occurrence in _node_occurrences(source_node):
+            line = source_occurrence.get("source_line")
+            if line is not None:
+                for semantic_node, semantic_occurrence in by_line.get(str(line), []):
+                    if not _context_matches(source_node, semantic_node, statement):
+                        continue
+                    if not _period_values_match(source_node, source_occurrence, semantic_node, semantic_occurrence):
+                        continue
+                    candidates.append((semantic_node, semantic_occurrence, "source_line_and_values", 1.0))
+
+            label_key = (
+                _record_label(source_node, source_occurrence),
+                _value_key(_record_value(source_node, source_occurrence, "current")),
+                _value_key(_record_value(source_node, source_occurrence, "previous")),
+            )
+            for semantic_node, semantic_occurrence in by_label_values.get(label_key, []):
+                if _context_matches(source_node, semantic_node, statement):
+                    candidates.append((semantic_node, semantic_occurrence, "normalized_label_and_values", 0.98))
+
+        unique: dict[str, tuple[dict, dict, str, float]] = {}
+        for candidate in candidates:
+            semantic_node = candidate[0]
+            key = str(semantic_node.get("node_id") or id(semantic_node))
+            previous = unique.get(key)
+            if previous is None or candidate[3] > previous[3]:
+                unique[key] = candidate
+
+        meta = source_node.setdefault("extraction_meta", {})
+        if len(unique) == 1:
+            semantic_node, semantic_occurrence, method, confidence = next(iter(unique.values()))
+            mapped_node_id = semantic_node.get("node_id")
+            meta["mapping_status"] = "mapped"
+            meta["mapping_method"] = "source_evidence_link"
+            meta["mapping_confidence"] = confidence
+            meta["mapped_node_id"] = mapped_node_id
+            meta["source_semantic_link"] = {
+                "mapped_node_id": mapped_node_id,
+                "relation": "source_evidence_for",
+                "method": method,
+                "confidence": confidence,
+            }
+            source_node["mapping"] = {
+                "status": "mapped",
+                "mapped_node_id": mapped_node_id,
+                "method": "source_evidence_link",
+                "confidence": confidence,
+            }
+            linked += 1
+        else:
+            if len(unique) > 1:
+                ambiguous += 1
+            meta.setdefault("mapping_status", "source_only")
+            meta.setdefault("mapping_method", "source_preservation")
+            meta.setdefault("source_only_reason", "no_unique_semantic_evidence_link")
+            source_node["mapping"] = {
+                "status": meta["mapping_status"],
+                "method": meta["mapping_method"],
+            }
+            if meta.get("source_only_reason"):
+                source_node["mapping"]["reason"] = meta["source_only_reason"]
+            source_only += 1
+
+    return {
+        "policy": "source_evidence_link_v1",
+        "source_nodes": len(source),
+        "linked_source_nodes": linked,
+        "source_only_nodes": source_only,
+        "ambiguous_source_nodes": ambiguous,
+    }
+
+
 def reconcile_source_observations(canonical: dict | None, statement: str) -> dict | None:
     """v16 structural-identity, non-destructive source reconciliation.
 
@@ -129,6 +297,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
     nodes = canonical.get("nodes") or []
     semantic = [n for n in nodes if n.get("kind") != "source_observation"]
     src = [n for n in nodes if n.get("kind") == "source_observation"]
+    source_mapping = _link_source_observations(semantic, src, statement)
 
     # Family identity deliberately ignores form code: code is supporting evidence and continuation
     # pages often drop it. Cash Flow section remains part of identity because labels/codes can repeat.
@@ -232,5 +401,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
         "preferred_completed_nodes": 0,
         "semantic_nodes_filled": semantic_fills,
         "preserves_all_source_observations": True,
+        "source_mapping": source_mapping,
     }
+    canonical.setdefault("diagnostics", {})["source_observation_mapping"] = source_mapping
     return canonical

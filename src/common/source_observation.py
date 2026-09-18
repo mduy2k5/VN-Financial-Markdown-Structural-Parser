@@ -52,6 +52,25 @@ def _number(v: Any):
         return None
 
 
+def _row_raw_text(row: Any, fallback: str) -> str:
+    """Return preserved source serialization when an extractor supplied it."""
+
+    direct = getattr(row, "raw_text", None)
+    if direct:
+        return str(direct).strip()
+    raw = getattr(row, "raw", None)
+    if isinstance(raw, dict):
+        for key in ("raw_text", "source_text"):
+            if raw.get(key):
+                return str(raw[key]).strip()
+        lines = raw.get("raw_lines")
+        if isinstance(lines, list):
+            joined = "\n".join(str(line).strip() for line in lines if str(line).strip())
+            if joined:
+                return joined
+    return fallback
+
+
 def _source_id(
     statement: str,
     label: str,
@@ -119,6 +138,7 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
         note_ref = _clean(
             getattr(r, "note_ref", None) or getattr(r, "note", None) or ""
         )
+        raw_text = _row_raw_text(r, label)
         parent_label = _clean(getattr(r, "parent_label", None) or "")
         hierarchy_path = _clean(getattr(r, "hierarchy_path", None) or "")
         base_identity = structural_identity(
@@ -183,7 +203,7 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
                 "previous": previous,
                 "note": note_ref or None,
                 "unit": getattr(r, "unit", None),
-                "raw_text": label,
+                "raw_text": raw_text,
             },
             "extraction_meta": {
                 "source_preservation": True,
@@ -192,6 +212,7 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
                 "occurrences": [{
                     "source_line": getattr(r, "source_line", None),
                     "source_label": label,
+                    "raw_text": raw_text,
                     "pattern": getattr(r, "pattern", None),
                     "current": current,
                     "previous": previous,

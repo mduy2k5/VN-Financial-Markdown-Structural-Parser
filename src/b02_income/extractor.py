@@ -56,6 +56,16 @@ except ImportError:
         strip_md,
     )
 
+try:
+    from .mapper import parse_number, strip_mapping_qualifiers
+except ImportError:
+    from b02_income.mapper import parse_number, strip_mapping_qualifiers
+
+try:
+    from flat_parser.statement_locator import StatementLocator
+except ImportError:
+    from statement_locator import StatementLocator
+
 BULLET_RE = re.compile(r"^(\s*)[*+-]\s+(.*)$")
 NOTE_LIKE_RE = re.compile(r"^(?:(?:\d{1,3}|[IVXLC]+)(?:\.\d{1,3})+|\d{1,3}|[IVXLC]+)$", re.I)
 ENTERPRISE_CODES = {"01","02","10","11","20","21","22","23","24","25","26","30","31","32","40","50","51","52","60","61","62","70","71"}
@@ -63,10 +73,12 @@ ENTERPRISE_CODES = {"01","02","10","11","20","21","22","23","24","25","26","30",
 
 
 def fold(s: Any) -> str:
-    s = strip_md(s)
+    s = strip_mapping_qualifiers(strip_md(s))
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = s.replace("đ", "d").replace("Đ", "D").lower()
+    s = re.sub(r"^\s*\d+(?:\.\d+)+[.)]?\s*", "", s)
+    s = re.sub(r"^\s*don\s+vi\s*:\s*.*?\bma\s+so\b(?:\s+\w+)?\s+", "", s)
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
 
@@ -92,6 +104,9 @@ def is_non_item_header_or_noise(label: Any) -> bool:
     f = fold(s)
     if not f:
         return True
+    # Keyed serializers may prefix a structural child heading with the field
+    # name.  Normalize that wrapper before applying the semantic noise list.
+    f = re.sub(r"^(?:ghi\s*chu|dien\s*giai|chi\s*tieu)\s+(?:-\s*)?", "", f)
     # Table headers & field prompts
     if f in {
         "chi tieu", "stt", "ma so", "thuyet minh", "thuyet minh ma so",
@@ -116,8 +131,58 @@ def is_non_item_header_or_noise(label: Any) -> bool:
     # Annual period headings e.g. "Nam 2025", "Nam ket thuc ngay 31 thang 12 nam 2025"
     if re.match(r"^nam\s+(?:ket\s+thuc|bao\s+cao|tai\s+chinh|20\d{2})\b", f):
         return True
-    if re.match(r"^(?:nam nay|nam truoc|ky nay|ky truoc)$", f):
+    if re.match(r"^(?:nam nay|nam truoc|ky nay|ky truoc)(?:\s*[:\-].*)?$", f):
         return True
+    # Administrative lines frequently acquire a numeric payload when a PDF
+    # table is flattened.  They are not observations even when they contain a
+    # date, page number, or a signatory's name.
+    if re.match(r"^(?:trang|page)\s*:?\s*\d+(?:\s*[-/]\s*\d+)?$", f):
+        return True
+    if re.match(r"^(?:ngay|date)\s*:?\s*\d{1,2}\b", f):
+        return True
+    if re.match(r"^m\s*s\s*d\s*n\b", f):
+        return True
+    if f.startswith((
+        "nguoi lap", "ke toan truong", "tong giam doc", "pho tong giam doc",
+        "chu tich", "ky ten", "ban hanh theo", "cac thuyet minh",
+        "thuyet minh bao cao", "bao cao tai chinh", "don vi tinh",
+        "chuc vu", "ngan hang nha nuoc", "stt chi tieu",
+        "dien giai bao cao", "thanh pho ", "bang ket qua ",
+        "bao cao ket qua", "cong ty co phan",
+    )):
+        # A plain-text fallback may prepend the statement heading to the
+        # first real row label.  Keep that row when accounting vocabulary is
+        # present; filter only a standalone administrative heading.
+        if not (
+            f.startswith("bao cao ket qua")
+            and any(token in f for token in ("doanh thu", "chi phi", "loi nhuan", "thu nhap"))
+        ):
+            return True
+
+    # Role suffixes and page-transfer annotations are frequently flattened
+    # after a numeric column.  They are structural text, even when a value
+    # token was attached to the same line.
+    if re.search(r"\b(?:tong giam doc|pho tong giam doc|ke toan truong|nguoi lap bieu|giam doc tai chinh|chuc vu)\s*$", f):
+        return True
+    if f in {"lai tren co phieu", "phan bo cho", "da dieu chinh lai", "dieu chinh lai"}:
+        return True
+    if f.startswith("mang ") and "trang" in f:
+        return True
+
+    # A short all-word footer is normally a signatory/person name.  Keep
+    # labels with accounting vocabulary such as "Doanh thu" or "Chi phí".
+    if re.fullmatch(r"[a-z]+(?: [a-z]+){1,7}", f):
+        accounting_markers = (
+            "doanh thu", "chi phi", "loi nhuan", "thue", "tai san",
+            "co phieu", "co dong", "tien", "luu chuyen", "hoat dong",
+            "du phong", "hang ton", "von", "no phai", "phai tra",
+            "lai", "gia tri", "dich vu", "bao hiem", "ngan hang",
+            "khoan", "thu nhap", "chi tieu", "so huu", "dau tu",
+            "tang", "giam", "thay doi", "nhan vien", "quan ly",
+            "cong ty", "cung cap", "ban hang", "giao dich", "khac",
+        )
+        if not any(marker in f for marker in accounting_markers):
+            return True
     return False
 
 
@@ -537,7 +602,8 @@ def extract_plain_text_code_rows(lines, start, end):
                 re.fullmatch(r"\d+[.)]?", t)
                 or re.match(
                     r"(?i)^(?:chỉ\s*tiêu|mã\s*số|thuyết\s*minh|tm|"
-                    r"năm\s*nay|năm\s*trước)$",
+                    r"năm\s*nay|năm\s*trước|ma|số|tự|thuyết|thuyet|minh|"
+                    r"chi|tiêu|tieu|dien\s*giai)$",
                     t,
                 )
             ):
@@ -567,6 +633,527 @@ def extract_plain_text_code_rows(lines, start, end):
                 )
             )
     return out
+
+
+def _plain_label_before_code(lines, start, code_index):
+    """Recover the wrapped row label immediately before a detached form code."""
+
+    parts = []
+    index = code_index - 1
+    while index >= start and len(parts) < 5:
+        text = strip_md(lines[index]).strip()
+        if not text:
+            if parts:
+                break
+            index -= 1
+            continue
+        if clean_value(text) is not None or text in ENTERPRISE_CODES:
+            break
+        if re.match(
+            r"(?i)^(?:chỉ\s*tiêu|mã\s*số|thuyết\s*minh|tm|năm\s*nay|"
+            r"năm\s*trước|ma|số|tự|thuyết|thuyet|minh|chi|tiêu|tieu|"
+            r"dien\s*giai)$",
+            text,
+        ):
+            index -= 1
+            continue
+        if FORM_CODE_RE.search(text):
+            break
+        parts.append(text)
+        index -= 1
+    label = " ".join(reversed(parts)).strip()
+    label, _ = _strip_leading_index(label)
+    return label
+
+
+def _plain_next_label_code(lines, start, index, end):
+    """Find the next wrapped semantic label followed by a form code."""
+
+    parts = []
+    while index < end and len(parts) < 5:
+        text = strip_md(lines[index]).strip()
+        if not text:
+            index += 1
+            continue
+        if text in ENTERPRISE_CODES:
+            if parts:
+                label = " ".join(parts).strip()
+                label, _ = _strip_leading_index(label)
+                return label, text, index
+            index += 1
+            continue
+        if clean_value(text) is not None:
+            # The caller normally starts after the value run.  A second numeric
+            # run means the block is ambiguous, so do not guess its label.
+            return None
+        if FORM_CODE_RE.search(text) or is_non_item_header_or_noise(text):
+            return None
+        parts.append(text)
+        index += 1
+    return None
+
+
+def _interleaved_pair_layout(values, anchor):
+    """Return a two-row layout when an arithmetic anchor confirms the order."""
+
+    if len(values) != 4 or not anchor:
+        return None
+    anchor_current = parse_number(anchor.get("current"))
+    anchor_previous = parse_number(anchor.get("previous"))
+    if anchor_current is None or anchor_previous is None:
+        return None
+
+    candidates = [
+        # Column-major: current values for both rows, then previous values.
+        ((0, 2), (1, 3)),
+        # Row-major: current/previous for the first row, then the second row.
+        ((0, 1), (2, 3)),
+    ]
+    best = None
+    for first_pair, second_pair in candidates:
+        first_current = parse_number(values[first_pair[0]])
+        first_previous = parse_number(values[first_pair[1]])
+        second_current = parse_number(values[second_pair[0]])
+        second_previous = parse_number(values[second_pair[1]])
+        if None in (first_current, first_previous, second_current, second_previous):
+            continue
+        current_error = _relative_error(anchor_current - first_current, second_current)
+        previous_error = _relative_error(anchor_previous - first_previous, second_previous)
+        score = int(current_error <= 1e-8) + int(previous_error <= 1e-8)
+        candidate = (
+            score,
+            current_error + previous_error,
+            first_pair,
+            second_pair,
+            first_current,
+            first_previous,
+            second_current,
+            second_previous,
+        )
+        if best is None or candidate[0] > best[0] or (
+            candidate[0] == best[0] and candidate[1] < best[1]
+        ):
+            best = candidate
+    if best is None or best[0] < 1:
+        return None
+    return {
+        "first_current_index": best[2][0],
+        "first_previous_index": best[2][1],
+        "second_current_index": best[3][0],
+        "second_previous_index": best[3][1],
+    }
+
+
+def extract_interleaved_formula_pairs(lines, start, end, base_rows):
+    """Recover adjacent rows whose values are interleaved across detached columns.
+
+    Some OCR serializers emit one row's code and then four values for two
+    adjacent rows before emitting the next row's label/code.  This collector
+    only accepts the block when the labels describe a known statement identity
+    (net revenue = cost of sales + gross profit) and the source values satisfy
+    that identity in at least one period.  It therefore remains structural and
+    semantic, rather than report- or ticker-specific.
+    """
+
+    anchors = [
+        row for row in base_rows
+        if row.get("code") == "10" or "doanh thu thuần" in fold(row.get("indicator", ""))
+    ]
+    if not anchors:
+        return [], set()
+    anchor = anchors[0]
+    rows = []
+    replaced_labels = set()
+    for index in range(start, end):
+        code = strip_md(lines[index]).strip()
+        if code not in ENTERPRISE_CODES:
+            continue
+        label = _plain_label_before_code(lines, start, index)
+        folded_label = fold(label)
+        if "gia von" not in folded_label:
+            continue
+
+        values = []
+        cursor = index + 1
+        note = None
+        while cursor < end:
+            text = strip_md(lines[cursor]).strip()
+            if not text:
+                cursor += 1
+                continue
+            detached_note = bool(
+                re.fullmatch(r"(?:\d{1,2}[a-z]?|[IVXLC]+(?:\.\d+)*)", text, re.I)
+                and cursor + 1 < end
+                and _is_vector_value_token(lines[cursor + 1])
+            )
+            if (
+                not values
+                and note is None
+                and (
+                    (clean_value(text) is None and _looks_like_plain_note_token(text))
+                    or detached_note
+                )
+            ):
+                note = text
+                cursor += 1
+                continue
+            value = clean_value(text)
+            if value is None:
+                break
+            values.append(text)
+            cursor += 1
+        if len(values) != 4:
+            continue
+
+        next_row = _plain_next_label_code(lines, start, cursor, end)
+        if not next_row:
+            continue
+        next_label, next_code, _ = next_row
+        if "loi nhuan gop" not in fold(next_label):
+            continue
+        layout = _interleaved_pair_layout(values, anchor)
+        if not layout:
+            continue
+
+        raw_lines = list(lines[index:cursor])
+        rows.extend([
+            _row(
+                label,
+                values[layout["first_current_index"]],
+                values[layout["first_previous_index"]],
+                code=code,
+                note=note,
+                pattern_id="SP_INCOME_INTERLEAVED_FORMULA_PAIR",
+                line_no=index + 1,
+                raw_lines=raw_lines,
+                confidence=0.94,
+            ),
+            _row(
+                next_label,
+                values[layout["second_current_index"]],
+                values[layout["second_previous_index"]],
+                code=next_code,
+                pattern_id="SP_INCOME_INTERLEAVED_FORMULA_PAIR",
+                line_no=next_row[2] + 1,
+                raw_lines=raw_lines,
+                confidence=0.94,
+            ),
+        ])
+        replaced_labels.update({fold(label), fold(next_label)})
+        break
+    return rows, replaced_labels
+
+
+def _is_short_vector_token(raw: str) -> bool:
+    """Identify a compact code/note token in a detached statement column."""
+
+    text = strip_md(raw).strip()
+    return bool(re.fullmatch(r"(?:\d{1,3}[a-z]?|[IVXLC]+)", text, re.I))
+
+
+def _is_vector_value_token(raw: str) -> bool:
+    """Identify a numeric value while excluding short form/note tokens."""
+
+    text = strip_md(raw).strip()
+    if text in {"-", "–", "—"}:
+        return True
+    if not re.fullmatch(r"\(?-?[\d][\d., ]*\)?", text):
+        return False
+    digits = re.sub(r"\D", "", text)
+    return bool(re.search(r"[.,]", text) or len(digits) > 3 or text.startswith("("))
+
+
+def _collect_vector_labels(lines, start: int, end: int):
+    """Collect ordinal and wrapped labels from a detached label block.
+
+    A few PDF/OCR serializers emit the label column first, then the statement
+    code/note columns, and finally the two value columns.  Labels may be
+    wrapped over several physical lines and child rows may not carry an
+    ordinal.  This collector uses those structural signals only.
+    """
+
+    labels = []
+    current = None
+    child_block = False
+
+    def flush():
+        nonlocal current
+        if current and len(current["label"]) >= 4 and not is_non_item_header_or_noise(current["label"]):
+            labels.append(current)
+        current = None
+
+    for idx in range(start, end):
+        text = strip_md(lines[idx]).strip()
+        if not text or _is_short_vector_token(text) or _is_vector_value_token(text):
+            continue
+        folded = fold(text)
+        if folded in {"trong do", "trong do :"}:
+            child_block = True
+            flush()
+            continue
+
+        # Wrapped OCR lines such as "hiện hành", "không kiểm soát", or
+        # "doanh nghiệp" belong to the preceding label.  Check this before
+        # the generic short-name/footer filter; otherwise the continuation is
+        # mistaken for a signatory name and the vector loses a semantic slot.
+        if current is not None:
+            current_folded = fold(current["label"])
+            starts_new_index = bool(re.match(r"^(?:\d+|[IVXLC]+)[.)]\s+", text, flags=re.I))
+            if not starts_new_index and (text[:1].islower() or current_folded.endswith((
+                " va", " kinh", " thu nhap", " cung cap", " doanh nghiep",
+                " ban hang", " hoat dong",
+            ))):
+                current["label"] = f"{current['label']} {text}".strip()
+                current["raw"].append(lines[idx])
+                continue
+
+        if is_non_item_header_or_noise(text):
+            continue
+
+        # Formula-only lines are wrapped qualifiers of the preceding row, not
+        # independent statement labels.
+        if current and re.fullmatch(r"\(\s*[\d\s+=*/×xX–—-]+\s*\)", text):
+            current["label"] = f"{current['label']} {text}".strip()
+            current["raw"].append(lines[idx])
+            continue
+
+        label, implicit_code = _strip_leading_index(text)
+        if not label or clean_value(label) is not None:
+            continue
+        if implicit_code is not None:
+            flush()
+            current = {"label": label, "line": idx + 1, "raw": [lines[idx]]}
+            continue
+
+        # Child labels in the detached block often omit their ordinal.  Two
+        # consecutive "Lợi nhuận..." lines are separate children; a lowercase
+        # continuation line belongs to the preceding label.
+        if child_block and current and folded.startswith(("loi nhuan sau thue", "lai co ban", "lai suy giam")):
+            flush()
+            current = {"label": text, "line": idx + 1, "raw": [lines[idx]]}
+            continue
+        if current is None:
+            current = {"label": text, "line": idx + 1, "raw": [lines[idx]]}
+            continue
+        flush()
+        current = {"label": text, "line": idx + 1, "raw": [lines[idx]]}
+    flush()
+    return labels
+
+
+def _vector_label_index(labels, *terms):
+    for index, slot in enumerate(labels):
+        label = fold(slot.get("label", ""))
+        if all(term in label for term in terms):
+            return index
+    return None
+
+
+def _relative_error(left, right):
+    if left is None or right is None:
+        return float("inf")
+    scale = max(abs(left), abs(right), 1.0)
+    return abs(left - right) / scale
+
+
+def _infer_vector_gap(labels, current_values, previous_values):
+    """Find one unlabeled row in a balanced value vector using formulas.
+
+    OCR/PDF serializers can emit an extra numeric row while its label is lost.
+    Dropping the value by position would be unsafe, so a candidate is accepted
+    only when the statement's own semantic relationships identify it for both
+    periods.  No form code, ticker, or report name participates in this step.
+    """
+
+    if len(current_values) != len(previous_values) or len(current_values) <= len(labels):
+        return None
+    extra = len(current_values) - len(labels)
+    if extra != 1:
+        return None
+
+    op = _vector_label_index(labels, "loi nhuan thuan", "hoat dong kinh doanh")
+    other_income = _vector_label_index(labels, "thu nhap khac")
+    other_expense = _vector_label_index(labels, "chi phi khac")
+    other_profit = _vector_label_index(labels, "loi nhuan khac")
+    if other_profit is None:
+        other_profit = _vector_label_index(labels, "lo khac")
+    profit_before_tax = _vector_label_index(labels, "loi nhuan", "truoc thue")
+    current_tax = _vector_label_index(labels, "thue", "hien hanh")
+    deferred_tax = _vector_label_index(labels, "thue", "hoan lai")
+    profit_after_tax = None
+    for index, slot in enumerate(labels):
+        folded = fold(slot.get("label", ""))
+        if "loi nhuan sau thue" in folded and not any(
+            token in folded for token in ("co dong", "cong ty me", "co phieu")
+        ):
+            profit_after_tax = index
+            break
+
+    current_numbers = [parse_number(value) for value in current_values]
+    previous_numbers = [parse_number(value) for value in previous_values]
+    if any(value is None for value in current_numbers + previous_numbers):
+        return None
+
+    def aligned(values, drop):
+        return [value for index, value in enumerate(values) if index != drop]
+
+    candidates = []
+    for drop in range(len(current_values)):
+        cur = aligned(current_numbers, drop)
+        prev = aligned(previous_numbers, drop)
+        score = 0
+        error = 0.0
+
+        for values in (cur, prev):
+            if op is not None and other_profit is not None and profit_before_tax is not None:
+                error += _relative_error(values[op] + values[other_profit], values[profit_before_tax])
+                score += 1
+            if other_income is not None and other_expense is not None and other_profit is not None:
+                # Statements present expense rows with either a positive
+                # magnitude or a negative signed value.
+                direct = _relative_error(values[other_income] - values[other_expense], values[other_profit])
+                signed = _relative_error(values[other_income] + values[other_expense], values[other_profit])
+                error += min(direct, signed)
+                score += 1
+            if (
+                profit_before_tax is not None
+                and current_tax is not None
+                and deferred_tax is not None
+                and profit_after_tax is not None
+            ):
+                variants = (
+                    values[profit_before_tax] - values[current_tax] - values[deferred_tax],
+                    values[profit_before_tax] + values[current_tax] + values[deferred_tax],
+                    values[profit_before_tax] - values[current_tax] + values[deferred_tax],
+                    values[profit_before_tax] + values[current_tax] - values[deferred_tax],
+                )
+                tax_error = min(_relative_error(candidate, values[profit_after_tax]) for candidate in variants)
+                error += tax_error
+                score += 1
+
+        candidates.append((score, error, drop))
+
+    anchor = next(
+        (index for index in (op, other_income, profit_before_tax) if index is not None),
+        len(labels) - 1,
+    )
+    # If every candidate before the first arithmetic anchor preserves the
+    # same relationships, prefer the gap immediately before that anchor.  It
+    # is the conservative boundary between the preceding labelled block and
+    # the first subtotal; this remains semantic rather than code-based.
+    candidates.sort(key=lambda item: (-item[0], item[1], abs(item[2] - anchor), item[2]))
+    best = candidates[0]
+    # Require at least two independent relationships to agree.  A single
+    # coincidence must not mutate an otherwise ambiguous vector.
+    if best[0] >= 4 and best[1] <= 2e-3:
+        return best[2]
+    return None
+
+
+def extract_vector_column_major(lines, start, end):
+    """Recover a non-Markdown table with label/code/value vectors.
+
+    The detector requires a period header, a sizeable compact metadata run,
+    and exactly enough numeric payload for the discovered label slots.  It is
+    therefore not enabled by a ticker or a report-specific exception and will
+    leave ambiguous blocks to the normal collectors.
+    """
+
+    for header_idx in range(start, min(end, start + 40)):
+        if fold(lines[header_idx]) not in {"chi tieu", "chi tieu items"}:
+            continue
+        period_lines = []
+        for idx in range(header_idx + 1, min(end, header_idx + 20)):
+            folded = fold(lines[idx])
+            if folded in {"nam nay", "nam truoc", "ky nay", "ky truoc"}:
+                period_lines.append(idx)
+        if len(period_lines) < 2:
+            continue
+        data_start = period_lines[-1] + 1
+
+        runs = []
+        idx = data_start
+        while idx < end:
+            if not _is_short_vector_token(lines[idx]):
+                idx += 1
+                continue
+            run_start = idx
+            while idx < end and (_is_short_vector_token(lines[idx]) or not strip_md(lines[idx])):
+                idx += 1
+            run_end = idx
+            run_length = sum(1 for line in lines[run_start:run_end] if strip_md(line))
+            if run_length >= 5:
+                runs.append((run_start, run_end, run_length))
+
+        for run_start, run_end, run_length in runs:
+            previous_values = [
+                idx for idx in range(data_start, run_start)
+                if _is_vector_value_token(lines[idx])
+            ]
+            short_before = [
+                idx for idx in range(data_start, run_start)
+                if _is_short_vector_token(lines[idx])
+            ]
+            label_start = data_start
+            if previous_values:
+                label_start = previous_values[-1] + 1
+            if short_before:
+                label_start = max(label_start, short_before[-1] + 1)
+            labels = _collect_vector_labels(lines, label_start, run_start)
+            if len(labels) < 5 or run_length < len(labels):
+                continue
+
+            values = []
+            value_start = run_end
+            for idx in range(run_end, end):
+                text = strip_md(lines[idx]).strip()
+                if not text:
+                    continue
+                if _is_vector_value_token(text):
+                    values.append((idx, clean_value(text)))
+                    continue
+                # Once the numeric vectors have started, a semantic line is a
+                # hard boundary.  This avoids consuming the signature/footer.
+                if values:
+                    break
+            n = len(labels)
+            if len(values) < 2 * n:
+                continue
+
+            raw_current = [value for _, value in values[: len(values) // 2]]
+            raw_previous = [value for _, value in values[len(values) // 2 :]]
+            drop = _infer_vector_gap(labels, raw_current, raw_previous)
+            if drop is not None:
+                current_values = [(idx, value) for idx, value in values[: len(values) // 2] if idx != values[drop][0]]
+                previous_start = len(values) // 2
+                previous_values = [
+                    (idx, value)
+                    for idx, value in values[previous_start:]
+                    if idx != values[previous_start + drop][0]
+                ]
+            else:
+                current_values = values[:n]
+                previous_values = values[n:2 * n]
+            rows = []
+            for slot, current, previous in zip(labels, current_values, previous_values):
+                if current[1] is None and previous[1] is None:
+                    continue
+                rows.append(_row(
+                    slot["label"], current[1], previous[1],
+                    pattern_id="SP_INCOME_VECTOR_COLUMN_MAJOR",
+                    line_no=slot["line"], raw_lines=slot["raw"], confidence=0.94,
+                ))
+            if rows:
+                return {
+                    "rows": rows,
+                    "detected": True,
+                    "label_start": label_start,
+                    "metadata_start": run_start,
+                    "value_start": value_start,
+                    "label_count": n,
+                    "value_count": len(values),
+                }
+    return {"rows": [], "detected": False}
 
 def extract_column_major(lines, start, end, current_year=None, previous_year=None):
     labels, codes, current, previous = [], [], [], []
@@ -842,11 +1429,45 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
     rows += extract_year_section_rows(lines, start, end, current_year, previous_year)
     rows += extract_label_list_column_major(lines, start, end, current_year, previous_year)
     rows += extract_column_major(lines, start, end, current_year, previous_year)
-    rows += extract_plain_text_code_rows(lines, start, end)
-    return dedupe(rows)
+    vector_layout = extract_vector_column_major(lines, start, end)
+    rows += vector_layout.get("rows") or []
+    if vector_layout.get("detected"):
+        # The ordinary plain-code collector is still useful for the row-wise
+        # prefix before a detached vector block.  Suppressing it after the
+        # vector boundary prevents code/note columns from becoming labels.
+        plain_end = int(vector_layout.get("label_start") or end)
+        rows += extract_plain_text_code_rows(lines, start, min(end, plain_end))
+    else:
+        rows += extract_plain_text_code_rows(lines, start, end)
+    interleaved_rows, replaced_labels = extract_interleaved_formula_pairs(
+        lines,
+        start,
+        end,
+        rows,
+    )
+    if replaced_labels:
+        # The generic plain-code collector sees the first two numeric tokens
+        # as a normal pair and may therefore retain the wrong comparative
+        # value.  Replace only the same semantic labels confirmed by the
+        # formula-constrained collector; unrelated rows remain untouched.
+        rows = [
+            row for row in rows
+            if fold(row.get("indicator", "")) not in replaced_labels
+        ]
+        rows += interleaved_rows
+    return dedupe([
+        row for row in rows
+        if not is_non_item_header_or_noise(row.get("indicator"))
+    ])
 
 
-def extract_income_fallback(markdown_text: str, current_year: int | None = None, previous_year: int | None = None, fallback_unit: Optional[str] = None):
+def extract_income_fallback(
+    markdown_text: str,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+    fallback_unit: Optional[str] = None,
+    locator_result: Optional[dict] = None,
+):
     period = resolve_report_years(
         markdown_text,
         source_name="input",
@@ -856,6 +1477,39 @@ def extract_income_fallback(markdown_text: str, current_year: int | None = None,
     current_year = period["current_year"]
     previous_year = period["previous_year"]
     lines, start, end, score = choose_income_scope(markdown_text, current_year, previous_year)
+    locator = dict(locator_result or {}) if locator_result else None
+    if locator is not None:
+        accepted, reason = StatementLocator.evaluate_scope(
+            locator,
+            start + 1,
+            end,
+        )
+        baseline_unhealthy = (end - start) < 8 or score < -500
+        if not accepted and baseline_unhealthy:
+            selected = locator.get("selected_scope") or {}
+            chosen = next(
+                (
+                    candidate
+                    for candidate in (locator.get("candidates") or [])
+                    if candidate.get("start_line") == selected.get("start_line")
+                    and candidate.get("end_line") == selected.get("end_line")
+                ),
+                {},
+            )
+            if selected and chosen.get("title_detected") and float(selected.get("confidence") or 0.0) >= 0.72:
+                accepted = True
+                reason = "baseline_scope_unhealthy_recovered"
+        locator["activation"] = {
+            "activated": accepted,
+            "reason": reason,
+            "baseline_start": start + 1,
+            "baseline_end": end,
+        }
+        if accepted:
+            selected = locator["selected_scope"]
+            start = max(0, int(selected["start_line"]) - 1)
+            end = min(len(lines), int(selected["end_line"]))
+            score = selected.get("score", score)
     rows = _extract_rows_for_scope(lines, start, end, current_year, previous_year)
 
     # Defensive candidate failover. If the selected heading produces no observations,
@@ -885,6 +1539,7 @@ def extract_income_fallback(markdown_text: str, current_year: int | None = None,
         "scope_score": score,
         "unit": unit_ctx.unit,
         "unit_source": unit_ctx.source,
+        "locator": locator,
     }
 
 

@@ -101,6 +101,7 @@ class CFRow:
     source_line: Optional[int] = None
     pattern: Optional[str] = None
     unit: Optional[str] = None
+    raw_text: Optional[str] = None
     mapping_status: str = "unmapped"
     mapped_node_id: Optional[str] = None
     mapping_method: Optional[str] = None
@@ -134,6 +135,7 @@ def adapt_cashflow_row(obj: dict) -> CFRow:
         note_ref=strip_md(note_ref) if note_ref not in (None, "") else None,
         source_line=obj.get("source_line"), pattern=obj.get("pattern"),
         unit=obj.get("unit"),
+        raw_text=obj.get("raw_text") or obj.get("source_text"),
     )
 
 
@@ -209,22 +211,34 @@ class CashFlowMapper:
             row_unit = next((r.unit for r in occ if getattr(r, "unit", None)), statement_unit)
             if len({r.current for r in occ if r.current is not None}) > 1 or len({r.previous for r in occ if r.previous is not None}) > 1:
                 conflicts.append({"node_id": n["node_id"], "type": "multiple_values"})
-            nodes_out.append({
+            node_out = {
                 **n,
                 "value": {
                     "current": cur, "previous": prev,
                     "note": next((r.note for r in occ if r.note), None),
                     "unit": row_unit,
-                    "raw_text": next((r.label for r in occ), None),
+                    "raw_text": next((r.raw_text for r in occ if getattr(r, "raw_text", None)),
+                                     next((r.label for r in occ), None)),
                 },
                 "extraction_meta": {"occurrences": [
                     {"source_line": r.source_line, "source_label": r.label, "pattern": r.pattern,
                      "mapping_method": r.mapping_method, "mapping_confidence": r.mapping_confidence,
                      "current": r.current, "previous": r.previous, "code": r.code, "note": r.note,
-                     "section": r.section, "method": r.method, "unit": getattr(r, "unit", None)}
+                     "section": r.section, "method": r.method, "unit": getattr(r, "unit", None),
+                     "raw_text": getattr(r, "raw_text", None)}
                     for r in occ
                 ]}
-            })
+            }
+            if occ:
+                methods = sorted({str(r.mapping_method) for r in occ if r.mapping_method})
+                confidences = [r.mapping_confidence for r in occ if isinstance(r.mapping_confidence, (int, float))]
+                node_out["mapping"] = {
+                    "status": "mapped",
+                    "mapped_node_id": n["node_id"],
+                    "method": methods[0] if len(methods) == 1 else "multiple_evidence_methods",
+                    "confidence": min(confidences) if confidences else None,
+                }
+            nodes_out.append(node_out)
         checks = self._formula_checks(nodes_out)
         evaluated = [x for x in checks if x["status"] in {"pass", "fail"}]
         passed = [x for x in evaluated if x["status"] == "pass"]

@@ -163,6 +163,9 @@ class ResolvedField:
     code: Optional[str] = None
     unit: Optional[str] = None
     warnings: list[str] = field(default_factory=list)
+    # Source hierarchy is evidence/provenance only.  It must never replace
+    # the schema node identity or become a code-based lookup key.
+    source_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

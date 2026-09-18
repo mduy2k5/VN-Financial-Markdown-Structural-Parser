@@ -18,7 +18,7 @@ def _find_root(start: Path) -> Path:
 
 ROOT = _find_root(Path(__file__))
 DEFAULT_SCHEMA = ROOT / "resources" / "schemas" / "income_statement_schema.json"
-DEFAULT_ALIASES = ROOT / "resources" / "income_statement_aliases.json"
+DEFAULT_ALIASES = ROOT / "resources" / "schemas" / "income_statement_aliases.json"
 
 
 LABEL_KEYS = (
@@ -37,7 +37,15 @@ PREVIOUS_KEYS = (
 CODE_KEYS = ("code", "form_code", "ma_so", "mã số", "index_code", "display_code", "code_candidate")
 NOTE_KEYS = ("note", "thuyet_minh", "thuyết minh", "ocr_note", "note_ref", "note_candidate")
 PARENT_KEYS = ("parent_context", "parent_label", "parent", "context", "semantic_parent")
-LINE_KEYS = ("source_line", "line_no", "line", "source_lineno", "line_number")
+LINE_KEYS = (
+    "source_line",
+    "source_start_line",
+    "line_no",
+    "line",
+    "source_lineno",
+    "line_number",
+)
+RAW_TEXT_KEYS = ("raw_text", "source_text", "source_line_text", "raw_line")
 PATTERN_KEYS = ("pattern", "pattern_id", "pattern_name", "extractor", "method", "structural_pattern")
 UNIT_KEYS = ("unit", "don_vi", "đơn vị")
 
@@ -52,11 +60,20 @@ def strip_md(s: Any) -> str:
 def strip_mapping_qualifiers(s: str) -> str:
     s = strip_md(s)
     pats = [
-        r"\s*\((?:Thuyết\s*minh|Mục|TM)\b[^)]*\)\s*$",
+        # Note references may contain a nested parenthesis, e.g.
+        # "(Thuyết minh 20(a))".  Matching up to the final parenthesis keeps
+        # the source label intact while making the mapping key semantic.
+        r"\s*\((?:Thuyết\s*minh|Mục|TM)\b.*\)\s*$",
         r"\s*\([IVXLCDM]+\)\s*$",
+        r"\s*\([IVXLCDM]+(?:\.\d+)+\)\s*$",
         r"\s*\((?:VND|VNĐ|đồng|dong|triệu\s*(?:đồng|VND)?|trieu\s*(?:dong|VND)?)(?:/[^)]*)?\)\s*$",
         r"\s*\((?:Trình\s*bày\s*lại|Trinh\s*bay\s*lai|Điều\s*chỉnh|Dieu\s*chinh)\)\s*$",
+        # Carry-forward labels are layout metadata, not part of the
+        # accounting concept.  The rule is bounded to page references so it
+        # does not discard ordinary semantic parentheticals.
+        r"\s*\(\s*mang\s+[^)]*trang\s+(?:trước|truoc|sau)[^)]*\)\s*$",
         r"\s*\(\d+(?:[a-z])?\)\s*$",
+        r"\s*\(\s*[\d\s+*/×xX–—-]+\s*\)",
         r"\s*\([^)]*=.+?\)\s*$",
     ]
     changed = True
@@ -74,7 +91,18 @@ def fold(s: Any) -> str:
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = s.replace("đ", "d").replace("Đ", "D").lower()
+    # Statement row numbers can be hierarchical (16.1., 17.2.) and may be
+    # followed by a prose qualifier such as "Trong đó".  They are display
+    # indexes, not semantic identity.
     s = re.sub(r"^\s*(?:\d+|[ivxlcdm]+|[a-z])\s*[.)-]\s*", "", s, flags=re.I)
+    s = re.sub(r"^\s*trong\s+do\s*:?\s*", "", s)
+    s = re.sub(r"^\s*\d+(?:\.\d+)+[.)]?\s*", "", s)
+    # Some converters flatten the unit/code header into the first label.  It
+    # is metadata only when the whole label starts with an explicit unit and
+    # code marker.
+    s = re.sub(r"^\s*don\s+vi\s*:\s*.*?\bma\s+so\b(?:\s+\w+)?\s+", "", s)
+    # Normalize common ownership wording without using a form code as a key.
+    s = re.sub(r"\bco\s+dong\s+cua\s+cong\s+ty\s+me\b", "co dong cong ty me", s)
     s = re.sub(r"\([^)]*(?:=|vnd|dong|triệu|trieu)[^)]*\)", " ", s, flags=re.I)
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())
@@ -124,8 +152,11 @@ def clean_source_label_and_code(label: Any, code: Any = None):
     s = re.sub(r"(?i)\s*\(\s*Mã\s*tham\s*chiếu\s*[^)]*\)\s*$", "", s).strip()
     # Combined metadata parenthesis.
     s = re.sub(r"(?i)\s*\(\s*Mã\s*số\s*[^)]*Mã\s*tham\s*chiếu[^)]*\)\s*$", "", s).strip()
-    # Generic prefixes produced by keyed converters.
-    s = re.sub(r"(?i)^(?:Chỉ\s*tiêu|Ghi\s*chú)\s*:\s*", "", s).strip()
+    # Generic prefixes produced by keyed/column converters.  These are
+    # serialization fields, not part of the accounting concept.
+    s = re.sub(r"(?i)^(?:Mã\s*số|Ma\s*so)\s*[: ]*\d{1,3}[a-z]?\s*[-–:]\s*", "", s).strip()
+    s = re.sub(r"(?i)^(?:Chỉ\s*tiêu|Ghi\s*chú|Diễn\s*giải|Dien\s*giai)\s*:\s*", "", s).strip()
+    s = re.sub(r"^\s*\d{1,3}[.)]\s+", "", s).strip()
     return s, code
 
 
@@ -169,6 +200,22 @@ def _first(obj: dict, keys, default=None):
         if key in obj and obj[key] not in (None, ""):
             return obj[key]
     return default
+
+
+def _source_raw_text(obj: dict) -> Optional[str]:
+    """Preserve the source serialization emitted by structural extractors."""
+
+    direct = _first(obj, RAW_TEXT_KEYS)
+    if isinstance(direct, str) and direct.strip():
+        return direct
+    raw_lines = obj.get("raw_lines")
+    if isinstance(raw_lines, str) and raw_lines.strip():
+        return raw_lines
+    if isinstance(raw_lines, list):
+        lines = [str(line) for line in raw_lines if line not in (None, "")]
+        if lines:
+            return "\n".join(lines)
+    return None
 
 
 def _year_from_period(x: Any) -> Optional[int]:
@@ -270,6 +317,7 @@ class IncomeRow:
     parent_context: Optional[str] = None
     source_line: Optional[int] = None
     pattern: Optional[str] = None
+    raw_text: Optional[str] = None
     raw: Any = None
     node_id: Optional[str] = None
     canonical_name: Optional[str] = None
@@ -300,6 +348,7 @@ def adapt_row(obj: dict, idx=0, current_year=None, previous_year=None, inherited
         parent_context=_first(obj, PARENT_KEYS, inherited.get("parent_context")),
         source_line=_first(obj, LINE_KEYS, inherited.get("source_line", idx + 1)),
         pattern=_first(obj, PATTERN_KEYS, inherited.get("pattern")),
+        raw_text=_source_raw_text(obj) or inherited.get("raw_text"),
         raw=obj,
     )
 
@@ -481,7 +530,7 @@ class IncomeMapper:
                 method = "parent_total"
 
         if not cands and self.regex_fallback and len(fl) >= 8:
-            scored = []
+            scored_by_node = {}
             for lab, nids in self.exact.items():
                 if len(lab) < 8:
                     continue
@@ -490,7 +539,10 @@ class IncomeMapper:
                 if boundary1 or boundary2:
                     score = min(len(lab), len(fl)) / max(len(lab), len(fl))
                     for nid in nids:
-                        scored.append((score, nid, lab))
+                        previous = scored_by_node.get(nid)
+                        if previous is None or score > previous[0]:
+                            scored_by_node[nid] = (score, nid, lab)
+            scored = list(scored_by_node.values())
             scored.sort(reverse=True)
             if scored and scored[0][0] >= self.regex_min_score:
                 top = scored[0]
@@ -501,12 +553,15 @@ class IncomeMapper:
                     method = "regex_fallback"
 
         if not cands and len(fl) >= 8:
-            scored = []
+            scored_by_node = {}
             for lab, nids in self.exact.items():
                 score = semantic_label_similarity(fl, lab)
                 if score:
                     for nid in nids:
-                        scored.append((score, nid, lab))
+                        previous = scored_by_node.get(nid)
+                        if previous is None or score > previous[0]:
+                            scored_by_node[nid] = (score, nid, lab)
+            scored = list(scored_by_node.values())
             scored.sort(reverse=True)
             if scored and scored[0][0] >= 0.90:
                 top = scored[0]
@@ -558,6 +613,7 @@ class IncomeMapper:
                 "code": r.code,
                 "note": r.note,
                 "parent_context": r.parent_context,
+                "raw_text": r.raw_text,
             }
             node["extraction_meta"]["occurrences"].append(occ)
             for key in ("current", "previous"):
@@ -577,7 +633,7 @@ class IncomeMapper:
             if v["unit"] is None and getattr(r, "unit", None):
                 v["unit"] = r.unit
             if v["raw_text"] is None:
-                v["raw_text"] = r.label
+                v["raw_text"] = r.raw_text or r.label
 
         for nid, node in by.items():
             v = node["value"]

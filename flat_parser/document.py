@@ -4,7 +4,7 @@ import re
 
 from .guide import UniversalGuide
 from .models import SourceLine, StructuralNode, TableContext
-from .preprocess import is_table_separator, split_pipe_cells
+from .preprocess import split_pipe_cells
 from .primitives import (
     explicit_note,
     extract_periods,
@@ -259,7 +259,12 @@ def build_nodes(
     guide: UniversalGuide,
 ) -> list[StructuralNode]:
     nodes: list[StructuralNode] = []
-    bullet_stack: list[int] = []
+    # The source is not consistently serialized as Markdown bullets.  A
+    # common layout uses a plain/numbered label as the parent and indented
+    # bullets for its period values.  Keep one mixed structural stack so the
+    # parent is inferred from indentation + document order, independent of
+    # whether the label itself has a bullet marker.
+    hierarchy_stack: list[int] = []
 
     # Header/separator table lines are not data nodes.
     skip_table_lines = set()
@@ -365,21 +370,26 @@ def build_nodes(
                 node.note = node.note or compact_note
                 node.values = compact_values
 
-        # Bullet hierarchy only. Plain/table nodes never become bullet parents.
-        if line.is_bullet and representation == "bullet":
-            while bullet_stack:
-                parent = nodes[bullet_stack[-1]]
-                if parent.indent < node.indent:
-                    break
-                bullet_stack.pop()
+        # Mixed bullet/plain hierarchy.  A plain label at the same indentation
+        # may still be the container for a following bullet block (for
+        # example ``Phải trả người bán ngắn hạn`` followed by indented period
+        # rows), so retain that label as a same-level parent for bullets.
+        while hierarchy_stack:
+            parent = nodes[hierarchy_stack[-1]]
+            # Plain labels become mixed-hierarchy parents only when the child
+            # is actually indented below them.  Same-level bullet blocks keep
+            # the legacy sequential fallback semantics used by wrapper/table
+            # layouts.
+            if parent.indent < node.indent:
+                break
+            hierarchy_stack.pop()
 
-            if bullet_stack:
-                node.parent_index = bullet_stack[-1]
-                nodes[bullet_stack[-1]].children.append(node.node_index)
-
-            bullet_stack.append(node.node_index)
+        if hierarchy_stack:
+            node.parent_index = hierarchy_stack[-1]
+            nodes[hierarchy_stack[-1]].children.append(node.node_index)
 
         nodes.append(node)
+        hierarchy_stack.append(node.node_index)
 
     return nodes
 
@@ -453,13 +463,22 @@ def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
                 if raw_note not in {"-", "–", "—"}:
                     note = note or raw_note
 
+        # A compact section wrapper may expose only ``Chỉ tiêu: <code>``
+        # without a separate ``Tên chỉ tiêu`` child.  Preserve that metadata
+        # on the wrapper as well; it is evidence for local payload recovery,
+        # never a semantic identity key.
+        if code is not None:
+            node.code = code
+        if note is not None:
+            node.note = note
+
         if name:
             node.label_text = strip_inline_financial_metadata(
                 strip_financial_prefix(strip_numbering(name))
             )
-            node.code = code
-            node.note = note
             node.pattern_evidence.append("hydrated_keyed_record_wrapper")
+        elif code is not None or note is not None:
+            node.pattern_evidence.append("hydrated_keyed_metadata_wrapper")
 
 
 def hydrate_column_major_statement_blocks(nodes: list[StructuralNode], guide: UniversalGuide):

@@ -13,15 +13,17 @@ from .value_semantics import (
     row_unit_override,
 )
 from .source_recovery import (
-    augment_canonical_with_recovered_rows,
     clean,
-    extract_code_period_table,
     extract_financial_position_source_rows,
     extract_generic_statement_rows,
     extract_securities_supplemental_cashflow_rows,
     fold,
-    hydrate_canonical_by_form_code,
     parse_number,
+)
+from .source_canonical_hydrator import (
+    augment_canonical_with_recovered_rows,
+    extract_code_period_table,
+    hydrate_canonical_by_form_code,
 )
 from .source_reconciler import reconcile_source_observations
 from .source_observation import augment_from_rows

@@ -4,16 +4,14 @@ import argparse
 import csv
 import json
 import sys
-from collections import Counter
 from pathlib import Path
-from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.notes.pipeline import NotesPipeline
-from src.notes.scanner import detect_notes_scope, explain_notes_scope_candidates
+from src.notes.scanner import explain_notes_scope_candidates
 
 try:
     from flat_parser.preprocess import filter_noise

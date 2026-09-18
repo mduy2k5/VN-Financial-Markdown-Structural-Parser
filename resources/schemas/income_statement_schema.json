@@ -1,6 +1,6 @@
 {
   "schema_id": "UNIVERSAL_INCOME_STATEMENT_V1",
-  "schema_version": "1.5.1",
+  "schema_version": "1.5.2",
   "statement_type": "INCOME_STATEMENT",
   "profiles": {
     "enterprise": {
@@ -256,6 +256,20 @@
       "canonical_name": "Chi phí hoạt động",
       "sector": "bank",
       "form_code": "VIII"
+    },
+    {
+      "node_id": "INCOME.BANK.PERSONNEL_EXPENSE",
+      "canonical_name": "Chi phí nhân viên",
+      "sector": "bank",
+      "form_code": null,
+      "extension": true
+    },
+    {
+      "node_id": "INCOME.BANK.ASSET_EXPENSE",
+      "canonical_name": "Chi phí về tài sản",
+      "sector": "bank",
+      "form_code": null,
+      "extension": true
     },
     {
       "node_id": "INCOME.BANK.PRE_PROVISION_OPERATING_PROFIT",

@@ -1324,7 +1324,9 @@
           "HAO MÒN LŨY KẾ TSCĐ THUÊ TÀI CHÍNH",
           "GIÁ TRỊ HAO MÒN LŨY KẾ",
           "Hao mòn tài sản cố định",
-          "KHẤU HAO LŨY KẾ"
+          "KHẤU HAO LŨY KẾ",
+          "GIÁ TRỊ KHẤU HAO LŨY KẾ",
+          "Giá trị khấu hao lũy kế"
         ],
         "parent_context": [
           "TÀI SẢN CỐ ĐỊNH THUÊ TÀI CHÍNH",
@@ -1446,7 +1448,9 @@
           "GIÁ TRỊ HAO MÒN LŨY KẾ BẤT ĐỘNG SẢN ĐẦU TƯ",
           "GIÁ TRỊ HAO MÒN LŨY KẾ",
           "Hao mòn bất động sản đầu tư",
-          "KHẤU HAO LŨY KẾ"
+          "KHẤU HAO LŨY KẾ",
+          "GIÁ TRỊ KHẤU HAO LŨY KẾ",
+          "Giá trị khấu hao lũy kế"
         ],
         "parent_context": [
           "BẤT ĐỘNG SẢN ĐẦU TƯ",

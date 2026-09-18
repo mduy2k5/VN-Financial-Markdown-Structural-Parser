@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any

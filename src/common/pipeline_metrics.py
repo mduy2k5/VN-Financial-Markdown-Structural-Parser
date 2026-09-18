@@ -8,9 +8,17 @@ SCHEMA = ROOT / "resources" / "schemas" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "income_statement_aliases.json"
 
 try:
-    from .b02_income import auto_sector
+    from src.b02_income import auto_sector
 except ImportError:
     from b02_income import auto_sector
+
+try:
+    from src.common.error_taxonomy import build_error_taxonomy
+except ImportError:
+    try:
+        from .error_taxonomy import build_error_taxonomy
+    except ImportError:
+        from error_taxonomy import build_error_taxonomy
 
 
 def _scope_text(text: str, scope: dict) -> str:
@@ -121,6 +129,7 @@ def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method
     diagnostics = canonical.get("diagnostics") or {}
     formula_summary = diagnostics.get("formula_summary") or {}
     sign_normalizations = diagnostics.get("sign_normalizations") or []
+    error_taxonomy = build_error_taxonomy("income_statement", unmapped)
 
     return {
         "status": status,
@@ -161,10 +170,8 @@ def build_metrics(canonical: dict, rows, scope: dict, sector: str, sector_method
             "formula_pass_rate": formula_summary.get("pass_rate"),
             "sign_normalizations": len(sign_normalizations),
         },
-        "unmapped_examples": [
-            {"label": r.label, "current": r.current, "previous": r.previous, "code": r.code, "note": r.note, "pattern": r.pattern}
-            for r in unmapped[:40]
-        ],
+        "error_taxonomy": error_taxonomy,
+        "unmapped_examples": error_taxonomy["examples"],
     }
 
 
@@ -181,6 +188,7 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
     diagnostics = (canonical or {}).get("diagnostics") or {}
     fs = diagnostics.get("formula_summary") or {}
     canonical_status = (canonical or {}).get("status") or "ok"
+    error_taxonomy = build_error_taxonomy("cash_flow_statement", unmapped)
     if not rows:
         status = "no_structural_rows"
     elif not canonical:
@@ -263,9 +271,6 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
             "core_anchor_hits": core_hits, "core_anchor_total": core_total,
             "core_anchor_ratio": round(core_hits/core_total, 6) if core_total else None,
         },
-        "unmapped_examples": [
-            {"label": r.label, "section": r.section, "current": r.current, "previous": r.previous,
-             "code": r.code, "note": r.note, "pattern": r.pattern}
-            for r in unmapped[:40]
-        ],
+        "error_taxonomy": error_taxonomy,
+        "unmapped_examples": error_taxonomy["examples"],
     }

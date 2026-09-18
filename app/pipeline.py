@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import sys
+from functools import lru_cache
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -19,8 +20,13 @@ for _p in (str(ROOT), str(SRC)):
 from src.b01_financial_position import (
     FinancialPositionSourceParser,
 )
-from src.b02_income import extract_income_fallback, strip_md, IncomeMapper, adapt_row, auto_sector
-from src.b03_cashflow import extract_cashflow_fallback, detect_method as detect_cf_method, CashFlowMapper, adapt_cashflow_row
+from src.b02_income import IncomeMapper, adapt_row, extract_income_fallback
+from src.b03_cashflow import (
+    CashFlowMapper,
+    adapt_cashflow_row,
+    detect_method as detect_cf_method,
+    extract_cashflow_fallback,
+)
 from src.common import (
     augment_from_rows,
     extract_generic_statement_rows,
@@ -41,6 +47,10 @@ from src.common.pipeline_metrics import (
     build_cashflow_metrics,
 )
 from src.common.output_contract import (
+    BATCH_SCHEMA_NAME,
+    BATCH_SCHEMA_VERSION,
+    OUTPUT_SCHEMA_NAME,
+    OUTPUT_SCHEMA_VERSION,
     build_production_report,
     clean_notes,
     clean_statement,
@@ -60,9 +70,10 @@ except ImportError:
 try:
     from flat_parser.preprocess import filter_noise
     from flat_parser.statement_scanner import scan_statements
+    from flat_parser.statement_locator import StatementLocator
     from flat_parser.textnorm import normalize_lines
 except Exception:
-    filter_noise = normalize_lines = scan_statements = None
+    filter_noise = normalize_lines = scan_statements = StatementLocator = None
 
 
 
@@ -78,6 +89,33 @@ REPORT_ARTIFACT_SUFFIXES = (
     ".notes.ir.json",
 )
 NOTES_ROW_SUFFIXES = (".notes_rows.csv", ".notes_rows.json")
+
+
+@lru_cache(maxsize=3)
+def statement_locator(schema_path: str, aliases_path: str) -> Optional[StatementLocator]:
+    """Cache one alias-assisted locator per statement catalog."""
+
+    if StatementLocator is None:
+        return None
+    return StatementLocator(schema_path=schema_path, aliases_path=aliases_path)
+
+
+def attach_locator_metrics(metrics: dict, scope: dict) -> dict:
+    """Expose routing evidence in audit metrics without changing the output contract."""
+
+    parser = metrics.setdefault("parser", {})
+    locator = scope.get("locator") or {}
+    activation = locator.get("activation") or {}
+    selected = locator.get("selected_scope") or {}
+    parser.update({
+        "locator_enabled": bool(locator),
+        "locator_activated": bool(activation.get("activated")),
+        "locator_reason": activation.get("reason"),
+        "locator_confidence": selected.get("confidence"),
+        "locator_alias_hits": locator.get("alias_hit_count", 0),
+        "locator_candidate_rows": len(locator.get("candidate_rows") or []),
+    })
+    return metrics
 
 
 def write_json(path: Path, obj: Any):
@@ -278,7 +316,19 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
     )
     current_year = period["current_year"]
     previous_year = period["previous_year"]
-    ext = extract_income_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
+    locator = statement_locator(str(SCHEMA), str(ALIASES))
+    locator_result = (
+        locator.locate(text, profile="income_statement")
+        if locator is not None
+        else None
+    )
+    ext = extract_income_fallback(
+        text,
+        current_year,
+        previous_year,
+        fallback_unit=fallback_unit,
+        locator_result=locator_result,
+    )
     raw_rows = ext["rows"]
     rows = []
     for i, r in enumerate(raw_rows):
@@ -318,6 +368,7 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
             },
             "unmapped_examples": [],
         }
+        attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector}
 
     if sector not in {"bank", "enterprise", "securities", "insurance"}:
@@ -332,6 +383,7 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
             },
             "unmapped_examples": [{"label": r.label, "current": r.current, "previous": r.previous, "code": r.code} for r in rows[:40]],
         }
+        attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": "unknown"}
 
     mapper = IncomeMapper(schema_path=SCHEMA, aliases_path=ALIASES, sector=sector, regex_fallback=True,
@@ -372,6 +424,7 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
         canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "INCOME")
         canonical = reconcile_source_observations(canonical, "INCOME")
     metrics = build_metrics(canonical, mapped, ext, sector, sector_method)
+    attach_locator_metrics(metrics, ext)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
         "source_recovery": "v16", "source_recovered_rows": sr.get("rows_recovered", 0),
@@ -394,7 +447,19 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
     )
     current_year = period["current_year"]
     previous_year = period["previous_year"]
-    ext = extract_cashflow_fallback(text, current_year, previous_year, fallback_unit=fallback_unit)
+    locator = statement_locator(str(CF_SCHEMA), str(CF_ALIASES))
+    locator_result = (
+        locator.locate(text, profile="cash_flow")
+        if locator is not None
+        else None
+    )
+    ext = extract_cashflow_fallback(
+        text,
+        current_year,
+        previous_year,
+        fallback_unit=fallback_unit,
+        locator_result=locator_result,
+    )
     rows = []
     for raw in ext.get("rows", []):
         try:
@@ -414,11 +479,13 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
                 r.method = method
     if not rows:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
+        attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     # v1 intentionally supports only statutory profiles researched from TT200 and B04/TCTD.
     # Securities/insurance are detected, not force-routed into a wrong schema.
     if sector not in {"enterprise", "bank", "securities"} or method not in {"direct", "indirect"}:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
+        attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
     mapped = mapper.map_rows(rows)
@@ -458,6 +525,7 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
     else:
         supplemental_scope = {"rows": []}
     metrics = build_cashflow_metrics(canonical, mapped, ext, sector, sector_method, method, method_method)
+    attach_locator_metrics(metrics, ext)
     sr = (canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}
     (metrics.get("parser") or {}).update({
         "source_recovery": "v16", "source_recovered_rows": sr.get("rows_recovered", 0),
@@ -849,10 +917,11 @@ def main():
                 year_resolution=year_resolution,
             )
             production = r.pop("production")
+            source = production["report"]["source"]
             write_json(
                 reports_dir / report_filename(
-                    production["report"]["source_name"],
-                    production["report"]["source_sha256"],
+                    source["name"],
+                    source["sha256"],
                 ),
                 production,
             )
@@ -875,16 +944,23 @@ def main():
     prune_stale_production_reports(
         reports_dir,
         {
-            report_filename(report["report"]["source_name"], report["report"]["source_sha256"])
+            report_filename(
+                report["report"]["source"]["name"],
+                report["report"]["source"]["sha256"],
+            )
             for report in production_reports
         },
     )
 
     errors = [r for r in rows if r.get("status") == "error"]
     manifest = {
-        "output_schema": {
-            "name": "vn_financial_report_batch",
-            "version": "1.0.0",
+        "contract": {
+            "name": BATCH_SCHEMA_NAME,
+            "version": BATCH_SCHEMA_VERSION,
+        },
+        "report_contract": {
+            "name": OUTPUT_SCHEMA_NAME,
+            "version": OUTPUT_SCHEMA_VERSION,
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "input": {

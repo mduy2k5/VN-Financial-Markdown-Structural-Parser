@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from copy import deepcopy
 
-from .models import ResolvedField, ResolvedValue
+from .models import ResolvedField
 
 
 def _compatible_occurrences(a: ResolvedField, b: ResolvedField) -> bool:

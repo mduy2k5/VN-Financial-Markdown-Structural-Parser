@@ -49,11 +49,11 @@ def _run_pipeline(
     )
     statements = report["statements"]
     row = {
-        "source_sha256": report["report"]["source_sha256"],
+        "source_sha256": report["report"]["source"]["sha256"],
         "financial_position_status": statements["financial_position"]["status"],
-        "financial_position_value_nodes": statements["financial_position"]["summary"]["node_count"],
-        "income_value_nodes": statements["income_statement"]["summary"]["node_count"],
-        "cashflow_value_nodes": statements["cash_flow"]["summary"]["node_count"],
+        "financial_position_value_nodes": statements["financial_position"]["summary"]["counts"]["valued_items"],
+        "income_value_nodes": statements["income_statement"]["summary"]["counts"]["valued_items"],
+        "cashflow_value_nodes": statements["cash_flow"]["summary"]["counts"]["valued_items"],
     }
     return result, row, report
 
@@ -89,8 +89,8 @@ def test_source_only_ignores_previous_output_and_writes_provenance(tmp_path):
     assert row["financial_position_value_nodes"] > 0
 
     expected_hash = hashlib.sha256(source.read_bytes()).hexdigest()
-    assert report["report"]["source_name"] == source.name
-    assert report["report"]["source_sha256"] == expected_hash
+    assert report["report"]["source"]["name"] == source.name
+    assert report["report"]["source"]["sha256"] == expected_hash
     assert report["quality"]["status"] in {"ok", "review_required"}
     assert not stale.exists()
     assert not stale_comparison.exists()
@@ -137,7 +137,7 @@ def test_audit_artifacts_are_opt_in(tmp_path):
     assert (audit / "run_metadata.json").exists()
     assert (audit / f"{SOURCE.stem}.comparison.json").exists()
     assert (audit / f"{SOURCE.stem}.financial_position.canonical.json").exists()
-    assert report["report"]["source_name"] == SOURCE.name
+    assert report["report"]["source"]["name"] == SOURCE.name
 
 
 def test_production_report_has_stable_native_contract(tmp_path):
@@ -146,30 +146,166 @@ def test_production_report_has_stable_native_contract(tmp_path):
     _, _, report = _run_pipeline(SOURCE, output, notes=True)
 
     assert set(report) == {
-        "output_schema",
+        "contract",
         "report",
         "periods",
-        "sector",
         "statements",
         "notes",
         "quality",
     }
-    assert report["output_schema"] == {
+    assert report["contract"] == {
         "name": "vn_financial_report_output",
-        "version": "1.0.0",
+        "version": "2.0.0",
     }
+    assert set(report["report"]) == {"id", "source"}
+    assert set(report["report"]["source"]) == {"name", "sha256"}
     assert report["notes"]["status"] == "parsed"
     assert report["notes"]["rows"]
     first_row = report["notes"]["rows"][0]
     assert isinstance(first_row["values"], list)
-    assert isinstance(first_row["raw_cells"], list)
-    assert isinstance(first_row["linked_targets"], list)
+    assert isinstance(first_row["source"]["raw_cells"], list)
+    assert isinstance(first_row["links"], list)
+    required_statement_keys = {
+        "status", "statement_type", "schema", "context", "items",
+        "observations", "summary", "validation",
+    }
+    required_record_keys = {
+        "record_type", "id", "source_id", "label", "attributes", "value", "provenance",
+    }
+    required_value_keys = {
+        "current", "previous", "additional", "note", "unit", "raw_text", "raw_values",
+    }
+    required_provenance_keys = {"evidence", "mapping"}
     for statement in report["statements"].values():
+        assert set(statement) == required_statement_keys
         assert "diagnostics" not in statement
         assert "reconciled_source_view" not in statement
-        for node in statement["nodes"] + statement["observations"]:
+        for node in statement["items"] + statement["observations"]:
+            assert set(node) == required_record_keys
+            assert set(node["value"]) == required_value_keys
+            assert set(node["provenance"]) == required_provenance_keys
             assert isinstance(node["value"]["current"], (int, float, type(None)))
             assert isinstance(node["value"]["previous"], (int, float, type(None)))
+            assert isinstance(node["value"]["raw_values"], dict)
+
+
+def test_inline_cashflow_source_observations_expose_semantic_links(tmp_path):
+    output = tmp_path / "output"
+
+    _, _, report = _run_pipeline(SOURCE, output, audit=True, notes=False)
+    observations = {
+        observation["label"]: observation
+        for observation in report["statements"]["cash_flow"]["observations"]
+    }
+    expected = {
+        "Chênh lệch số tiền thực thu từ hoạt động kinh doanh chứng khoán, vàng bạc, ngoại tệ",
+        "Thu nhập (chi phí) khác",
+        "Tiền thu các khoản nợ đã được xử lý xoá, bù đắp bằng nguồn dự phòng rủi ro",
+        "Tiền thuế thu nhập thực nộp trong năm",
+        "Lưu chuyển tiền thuần từ hoạt động kinh doanh trước những thay đổi về tài sản và nợ phải trả hoạt động",
+    }
+    assert expected <= observations.keys()
+    for label in expected:
+        mapping = observations[label]["provenance"]["mapping"]
+        assert mapping["status"] == "mapped"
+        assert mapping["target_id"].startswith("CASHFLOW.BANK.DIRECT.")
+        assert mapping["method"] == "source_evidence_link"
+
+    semantic = {
+        node["label"]: node
+        for node in report["statements"]["cash_flow"]["items"]
+    }
+    for label in (
+        "Thu nhập lãi và các khoản thu nhập tương tự nhận được",
+        "Chi phí lãi và các chi phí tương tự đã trả",
+        "Thu nhập từ hoạt động dịch vụ nhận được",
+        "Thu nhập khác",
+        "Tiền chi trả cho nhân viên và hoạt động quản lý, công vụ",
+        "Tiền thuế thu nhập thực nộp trong kỳ",
+    ):
+        mapping = semantic[label]["provenance"]["mapping"]
+        assert mapping["status"] == "mapped"
+        assert mapping["target_id"].startswith("CASHFLOW.BANK.DIRECT.")
+
+    interest = semantic["Thu nhập lãi và các khoản thu nhập tương tự nhận được"]
+    assert "12.919.243" in interest["value"]["raw_text"]
+    assert "Năm trước" in interest["value"]["raw_text"]
+    assert interest["provenance"]["evidence"][0]["raw_text"] == interest["value"]["raw_text"]
+
+    audit = json.loads(
+        (output / "audit" / f"{SOURCE.stem}.cashflow.canonical.json").read_text(encoding="utf-8-sig")
+    )
+    audit_node = next(
+        node for node in audit["nodes"]
+        if node.get("node_id") == "CASHFLOW.BANK.DIRECT.INTEREST_RECEIVED"
+    )
+    assert audit_node["mapping"]["status"] == "mapped"
+    assert audit_node["mapping"]["mapped_node_id"] == audit_node["node_id"]
+    assert "12.919.243" in audit_node["value"]["raw_text"]
+
+
+def test_abb_income_pipe_table_is_fully_mapped_with_source_provenance(tmp_path):
+    output = tmp_path / "output"
+
+    _, _, report = _run_pipeline(SOURCE, output, audit=True, notes=False)
+    statement = report["statements"]["income_statement"]
+    expected = {
+        "Thu nhập lãi và các khoản thu nhập tương tự": (790, 13604093, 9027696),
+        "Chi phí lãi và các chi phí tương tự": (791, -8515301, -5992439),
+        "Thu nhập lãi thuần": (792, 5088792, 3035257),
+        "Thu nhập từ hoạt động dịch vụ": (793, 698131, 879352),
+        "Chi phí hoạt động dịch vụ": (794, -437584, -379603),
+        "Lãi thuần từ hoạt động dịch vụ": (795, 260547, 499749),
+        "Lãi thuần từ hoạt động kinh doanh ngoại hối": (796, -1546, 245756),
+        "Lãi thuần từ mua bán chứng khoán kinh doanh": (797, 2007, 3385),
+        "(Lỗ)/lãi thuần từ mua bán chứng khoán đầu tư": (798, -104237, 109475),
+        "Thu nhập từ hoạt động khác": (799, 3460511, 646787),
+        "Chi phí hoạt động khác": (800, -156111, -31152),
+        "Lãi thuần từ hoạt động khác": (801, 3304400, 615635),
+        "Thu nhập từ góp vốn, mua cổ phần": (802, 15314, 11296),
+        "TỔNG THU NHẬP HOẠT ĐỘNG": (803, 8565277, 4520553),
+        "TỔNG CHI PHÍ HOẠT ĐỘNG": (804, -2999921, -2364544),
+        "Lợi nhuận thuần từ hoạt động kinh doanh trước chi phí dự phòng rủi ro tín dụng": (
+            805,
+            5565356,
+            2156009,
+        ),
+        "Chi phí dự phòng rủi ro tín dụng": (806, -2024645, -1411791),
+        "TỔNG LỢI NHUẬN TRƯỚC THUẾ": (807, 3540711, 744218),
+        "Chi phí thuế thu nhập doanh nghiệp hiện hành": (808, -765983, -169720),
+        "Thu nhập thuế thu nhập doanh nghiệp hoãn lại": (809, 33898, 11058),
+        "Tổng chi phí thuế thu nhập doanh nghiệp": (810, -732085, -158662),
+        "LỢI NHUẬN SAU THUẾ": (811, 2808626, 585556),
+        "Lãi cơ bản trên cổ phiếu (đồng/cổ phiếu)": (812, 2714, 535),
+    }
+
+    mapping_summary = statement["summary"]["mapping"]
+    assert mapping_summary["input_rows"] == len(expected)
+    assert mapping_summary["mapped_rows"] == len(expected)
+    assert mapping_summary["unmapped_rows"] == 0
+
+    valued = [
+        item
+        for item in statement["items"]
+        if item["value"]["current"] is not None
+        or item["value"]["previous"] is not None
+    ]
+    assert len(valued) == len(expected)
+    by_source_label = {
+        item["provenance"]["evidence"][0]["source_label"]: item
+        for item in valued
+    }
+    assert set(by_source_label) == set(expected)
+
+    for source_label, (line, current, previous) in expected.items():
+        item = by_source_label[source_label]
+        evidence = item["provenance"]["evidence"][0]
+        assert evidence["source_line"] == line
+        assert item["value"]["current"] == current
+        assert item["value"]["previous"] == previous
+        assert item["value"]["raw_text"] == evidence["raw_text"]
+        assert source_label in item["value"]["raw_text"]
+        assert "|" in item["value"]["raw_text"]
 
 
 def test_output_inside_markdown_input_is_rejected(tmp_path):

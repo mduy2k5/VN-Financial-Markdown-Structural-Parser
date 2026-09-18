@@ -16,6 +16,8 @@ from .models import jsonable
 from .preprocess import filter_noise
 from .resolver import resolve_observation
 from .semantic_catalog import SemanticCatalog
+from .source_context import source_context_for_node
+from .statement_locator import StatementLocator
 from .structural_classifier import StructuralClassifier
 from .tables import detect_tables
 from .textnorm import normalize_lines, fold
@@ -34,6 +36,8 @@ class FlatParserPipeline:
         scope_mode="financial_position",
         allow_unknown_structure=False,
         mapping_strategy="legacy",
+        enable_locator=True,
+        locator_min_confidence=0.72,
     ):
         self.catalog = SemanticCatalog(schema_path, aliases_path)
         self.guide = UniversalGuide(universal_guide_path)
@@ -42,6 +46,37 @@ class FlatParserPipeline:
         self.scope_mode = scope_mode
         self.allow_unknown_structure = allow_unknown_structure
         self.mapping_strategy = mapping_strategy
+        self.enable_locator = bool(enable_locator)
+        self.locator = (
+            StatementLocator(
+                schema_path=schema_path,
+                aliases_path=aliases_path,
+                min_confidence=locator_min_confidence,
+            )
+            if self.enable_locator
+            else None
+        )
+
+    @staticmethod
+    def _accept_locator_scope(
+        baseline_start: int,
+        baseline_end: int,
+        locator_debug: dict,
+    ) -> tuple[bool, str]:
+        """Accept only a nearby, title-backed locator result.
+
+        The locator is a routing optimization, not a reason to widen a
+        statement into notes.  A title-backed candidate must substantially
+        overlap the existing structural scope and may move the boundaries only
+        within bounded structural context.  Otherwise the established scope
+        detector remains authoritative.
+        """
+
+        return StatementLocator.evaluate_scope(
+            locator_debug,
+            baseline_start,
+            baseline_end,
+        )
 
     def parse_text(
         self,
@@ -54,6 +89,17 @@ class FlatParserPipeline:
     ):
         raw_lines = normalize_lines(raw_text)
         lines = filter_noise(raw_lines)
+
+        locator_debug = None
+        if self.locator is not None and statement_profile in {
+            "financial_position",
+            "income_statement",
+            "cash_flow",
+        }:
+            locator_debug = self.locator.locate(
+                raw_text,
+                profile=statement_profile,
+            )
 
         if scope_override is not None:
             scope_start, scope_end = scope_override
@@ -77,6 +123,39 @@ class FlatParserPipeline:
                     "selected_end": scope_end,
                     "candidates": [],
                 }
+
+            if locator_debug is not None:
+                accepted, locator_reason = self._accept_locator_scope(
+                    scope_start,
+                    scope_end,
+                    locator_debug,
+                )
+                locator_debug["activation"] = {
+                    "activated": accepted,
+                    "reason": locator_reason,
+                    "baseline_start": scope_start,
+                    "baseline_end": scope_end,
+                }
+                if accepted:
+                    selected = locator_debug["selected_scope"]
+                    baseline = {
+                        "start_line": scope_start,
+                        "end_line": scope_end,
+                        "mode": scope_debug.get("mode"),
+                    }
+                    scope_start = int(selected["start_line"])
+                    scope_end = int(selected["end_line"])
+                    scope_debug = {
+                        "mode": "alias_assisted_locator",
+                        "selected_start": scope_start,
+                        "selected_end": scope_end,
+                        "baseline": baseline,
+                        "locator": locator_debug,
+                        "health": "locator_routed",
+                    }
+                else:
+                    scope_debug = dict(scope_debug)
+                    scope_debug["locator"] = locator_debug
 
         scoped = [x for x in lines if scope_start <= x.line_no <= scope_end]
 
@@ -196,6 +275,12 @@ class FlatParserPipeline:
                 obs,
                 context,
                 allow_structure_unknown=self.allow_unknown_structure,
+                source_context=source_context_for_node(
+                    node,
+                    nodes,
+                    prior_selected=prior_selected,
+                    catalog=self.catalog,
+                ),
             )
             if field is None:
                 unresolved.append({
@@ -379,6 +464,11 @@ class FlatParserPipeline:
             # the denominator still varies across serialization families.
             statement_health = "healthy"
 
+        semantic_dedup = (canonical.get("diagnostics") or {}).get("semantic_dedup") or {}
+        semantic_dedup_conflicts = int(semantic_dedup.get("conflict_count") or 0)
+        if semantic_dedup_conflicts:
+            statement_health = "review_required"
+
         stats = {
             "source_name": source_name,
             "parser_version": PARSER_VERSION,
@@ -388,6 +478,11 @@ class FlatParserPipeline:
             "scope_start": scope_start,
             "scope_end": scope_end,
             "scope_health": scope_health,
+            "locator_enabled": self.enable_locator,
+            "locator_activated": bool((locator_debug or {}).get("activation", {}).get("activated")),
+            "locator_confidence": ((locator_debug or {}).get("selected_scope") or {}).get("confidence"),
+            "locator_alias_hits": (locator_debug or {}).get("alias_hit_count", 0),
+            "locator_candidate_rows": len((locator_debug or {}).get("candidate_rows") or []),
             "statement_health": statement_health,
             "value_nodes": len(value_nodes),
             "current_value_nodes": current_value_nodes,
@@ -434,7 +529,8 @@ class FlatParserPipeline:
                 round(len(resolved) / len(semantic_anchor_indices), 6)
                 if semantic_anchor_indices else None
             ),
-            "dedup_policy": "first_value_per_period_wins",
+            "dedup_policy": "first_value_per_period_wins_with_conflict_audit",
+            "semantic_dedup_conflicts": semantic_dedup_conflicts,
             "collector_policy": "semantic_child_boundaries",
             "fuzzy_enabled": self.allow_fuzzy,
             "unknown_structure_allowed": self.allow_unknown_structure,
@@ -445,6 +541,7 @@ class FlatParserPipeline:
             "debug": {
                 "stats": stats,
                 "scope_debug": scope_debug,
+                "locator": locator_debug,
                 "context": jsonable(context),
                 "tables": jsonable(tables),
                 "nodes": jsonable(nodes),

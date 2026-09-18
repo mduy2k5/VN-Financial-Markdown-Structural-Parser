@@ -16,6 +16,11 @@ except ImportError:
         from value_semantics import detect_statement_unit, row_unit_override
         from report_period import resolve_report_years
 
+try:
+    from flat_parser.statement_locator import StatementLocator
+except ImportError:
+    from statement_locator import StatementLocator
+
 
 
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")
@@ -57,6 +62,11 @@ class CashFlowObservation:
     source_line: Optional[int] = None
     pattern: Optional[str] = None
     unit: Optional[str] = None
+    # Original source serialization when it is available.  ``source_label``
+    # remains the normalized semantic label used by the mapper; this field is
+    # deliberately kept separate so downstream consumers can audit the exact
+    # Markdown evidence.
+    raw_text: Optional[str] = None
 
     def __post_init__(self):
         if self.statement_code is None:
@@ -142,6 +152,25 @@ def _clean_bullet(raw: str) -> str:
     return strip_md(s)
 
 
+def _split_statement_code_prefix(text: str):
+    """Split a serialized statement code prefix from its semantic label."""
+
+    clean = strip_md(text)
+    match = re.match(
+        r"(?i)^(?:mã\s*số|ma\s*so)\s*([0-9]{1,3}[a-z]?|[IVXLC]+)\s*[-–:]\s*(.+)$",
+        clean,
+    )
+    if not match:
+        match = re.match(
+            r"^([0-9]{1,3}[a-z]?|[IVXLC]+)\s*[-–:]\s*(.+)$",
+            clean,
+            re.I,
+        )
+    if match:
+        return strip_md(match.group(2)), match.group(1)
+    return clean, None
+
+
 def _looks_metadata_line(text: str) -> bool:
     s = strip_md(text)
     if not s:
@@ -188,6 +217,23 @@ def _looks_metadata_line(text: str) -> bool:
         f.startswith("ky nay") or f.startswith("ky truoc") or
         f.startswith("mau so") or f.startswith("ban hanh theo")
     )
+
+
+def _has_inline_metadata_reference(text: str) -> bool:
+    """Detect a note/unit/code colon inside a semantic row heading.
+
+    A code-led row such as ``06. Chi phí ... (Thuyết minh: 30):`` has a
+    metadata colon before the row's own trailing colon.  Treating the first
+    numeric token as the row value loses the following ``Năm nay`` and
+    ``Năm trước`` children, so the heading must go through the pending-row
+    collector instead.
+    """
+
+    return bool(re.search(
+        r"\(\s*(?:Thuyết\s*minh|TM|Mã\s*số|Ma\s*so|Đơn\s*vị|Don\s*vi)\s*:",
+        strip_md(text),
+        re.I,
+    ))
 
 
 def _section_from_label(label: str, current_section: Optional[str]) -> Optional[str]:
@@ -389,7 +435,20 @@ def _extract_inline_periods(text: str, current_year: int, previous_year: int):
     mp = re.search(r"(?i)Năm\s*trước\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
     return (parse_number(mn.group(1)) if mn else None, parse_number(mp.group(1)) if mp else None)
 
-def _emit(rows, label, current, previous, section, method, code, note, line_no, pattern):
+def _join_raw_text(*values):
+    """Join source fragments without normalizing away Markdown evidence."""
+
+    parts = []
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text and text not in parts:
+            parts.append(text)
+    return "\n".join(parts) or None
+
+
+def _emit(rows, label, current, previous, section, method, code, note, line_no, pattern, raw_text=None):
     label = strip_md(label)
     if not label or _looks_metadata_line(label):
         return
@@ -405,6 +464,7 @@ def _emit(rows, label, current, previous, section, method, code, note, line_no, 
         note=strip_md(note) if note not in (None, "") else None,
         source_line=line_no,
         pattern=pattern,
+        raw_text=_join_raw_text(raw_text) or label,
     ))
 
 
@@ -590,6 +650,7 @@ def _collect_column_label_slots(
 
         if last_slot is not None and _looks_wrapped_column_label(last_label, label):
             last_slot["label"] = f"{last_slot['label']} {label}".strip()
+            last_slot["raw_text"] = _join_raw_text(last_slot.get("raw_text"), raw)
             last_label = last_slot["label"]
             continue
 
@@ -598,6 +659,7 @@ def _collect_column_label_slots(
             "label": label,
             "section": slot_section,
             "source_line": idx + 1,
+            "raw_text": raw.strip(),
         }
         slots.append(last_slot)
         last_label = label
@@ -678,6 +740,7 @@ def _extract_detached_period_table_rows(
                 "current": parse_number(current_raw),
                 "previous": parse_number(previous_raw),
                 "source_line": idx + 1,
+                "raw_text": raw.strip(),
             })
             saw_data = True
 
@@ -700,6 +763,7 @@ def _extract_detached_period_table_rows(
                 note_ref=None,
                 source_line=absolute_start_zero + slot["source_line"],
                 pattern="CF_DETACHED_PERIOD_TABLE",
+                raw_text=_join_raw_text(slot.get("raw_text"), values.get("raw_text")),
             ))
 
         return {
@@ -790,6 +854,7 @@ def _extract_column_major_cashflow_rows(
             continue
 
         values = []
+        value_raw_texts = []
         for raw in scoped_lines[numeric_start:]:
             if "|" in raw:
                 continue
@@ -799,6 +864,7 @@ def _extract_column_major_cashflow_rows(
             is_value, value = _major_column_token(token)
             if is_value:
                 values.append(value)
+                value_raw_texts.append(raw.strip())
 
         # A two-period detached table has two monotonic value vectors.  Equal
         # vector lengths are accepted only when they cover the same row-slot
@@ -819,7 +885,9 @@ def _extract_column_major_cashflow_rows(
         current_values = values[:vector_length]
         previous_values = values[vector_length:vector_length * 2]
         rows = []
-        for slot, current, previous in zip(slots, current_values, previous_values):
+        current_raw_texts = value_raw_texts[:vector_length]
+        previous_raw_texts = value_raw_texts[vector_length:vector_length * 2]
+        for index, (slot, current, previous) in enumerate(zip(slots, current_values, previous_values)):
             if current is None and previous is None:
                 continue
             rows.append(CashFlowObservation(
@@ -834,6 +902,11 @@ def _extract_column_major_cashflow_rows(
                 note_ref=None,
                 source_line=absolute_start_zero + slot["source_line"],
                 pattern="CF_COLUMN_MAJOR_STRUCTURAL",
+                raw_text=_join_raw_text(
+                    slot.get("raw_text"),
+                    current_raw_texts[index] if index < len(current_raw_texts) else None,
+                    previous_raw_texts[index] if index < len(previous_raw_texts) else None,
+                ),
             ))
         if rows:
             return {
@@ -887,14 +960,26 @@ def _next_value_before_label(scoped_lines: list[str], value_idx: int, current_ye
         clean = _clean_bullet(raw)
         if not clean:
             continue
+        # A separator, page heading, or administrative/sign-off heading ends
+        # the table row.  Skipping it and continuing into its indented child
+        # names would incorrectly attach the preceding financial value to a
+        # person's name.
+        if clean == "---" or raw.lstrip().startswith("#"):
+            return None
         if "|" in raw:
             return None
         if _period_value_line(clean, current_year, previous_year):
             return None
         if any(pattern.search(clean) for pattern in SECTION_PATTERNS.values()):
             return None
-        if _looks_metadata_line(clean) or _is_report_noise_label(clean):
-            continue
+        if _is_report_noise_label(clean):
+            return None
+        if _looks_metadata_line(clean):
+            # Row-level metadata may sit between a standalone value and its
+            # semantic label; administrative metadata is a hard boundary.
+            if re.match(r"(?i)^(?:Thuyết\s*minh|Mã(?:\s*số)?|Số|MS)\s*:", clean):
+                continue
+            return None
         if _extract_inline_periods(clean, current_year, previous_year) != (None, None):
             return None
         if not re.search(r"[A-Za-zÀ-ỹ]", clean):
@@ -977,8 +1062,11 @@ def _extract_value_before_label_rows(
                 "previous": None,
                 "note": last_note,
                 "line": absolute_start_zero + label_idx + 1,
+                "raw_lines": [raw.strip(), scoped_lines[label_idx].strip()],
             }
             records.append(target)
+        else:
+            target.setdefault("raw_lines", []).append(raw.strip())
         target[role] = value
         if not target.get("note") and last_note:
             target["note"] = last_note
@@ -999,6 +1087,7 @@ def _extract_value_before_label_rows(
             note_ref=record.get("note"),
             source_line=record["line"],
             pattern="CF_VALUE_BEFORE_LABEL",
+            raw_text=_join_raw_text(*record.get("raw_lines", []), record["label"]),
         ))
     return {
         "rows": rows,
@@ -1007,7 +1096,13 @@ def _extract_value_before_label_rows(
     }
 
 
-def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, fallback_unit: Optional[str] = None):
+def extract_cashflow_fallback(
+    text: str,
+    current_year=None,
+    previous_year=None,
+    fallback_unit: Optional[str] = None,
+    locator_result: Optional[dict] = None,
+):
     period = resolve_report_years(
         text,
         source_name="input",
@@ -1017,6 +1112,72 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
     current_year = period["current_year"]
     previous_year = period["previous_year"]
     scope = choose_cashflow_scope(text)
+    locator = dict(locator_result or {}) if locator_result else None
+    if locator is not None and scope.get("scope_start_line") and scope.get("scope_end_line"):
+        baseline_start = int(scope["scope_start_line"])
+        baseline_end = int(scope["scope_end_line"])
+        accepted, reason = StatementLocator.evaluate_scope(
+            locator,
+            baseline_start,
+            baseline_end,
+        )
+        baseline_unhealthy = (baseline_end - baseline_start) < 8 or float(scope.get("scope_score") or 0) < -500
+        if not accepted and baseline_unhealthy:
+            selected = locator.get("selected_scope") or {}
+            chosen = next(
+                (
+                    candidate
+                    for candidate in (locator.get("candidates") or [])
+                    if candidate.get("start_line") == selected.get("start_line")
+                    and candidate.get("end_line") == selected.get("end_line")
+                ),
+                {},
+            )
+            if selected and chosen.get("title_detected") and float(selected.get("confidence") or 0.0) >= 0.72:
+                accepted = True
+                reason = "baseline_scope_unhealthy_recovered"
+        locator["activation"] = {
+            "activated": accepted,
+            "reason": reason,
+            "baseline_start": scope.get("scope_start_line"),
+            "baseline_end": scope.get("scope_end_line"),
+        }
+        if accepted:
+            selected = locator["selected_scope"]
+            scope = dict(scope)
+            scope["scope_start_line"] = int(selected["start_line"])
+            scope["scope_end_line"] = int(selected["end_line"])
+            scope["scope_score"] = selected.get("score", scope.get("scope_score"))
+            scope["scope_method"] = "alias_assisted_locator"
+    elif locator is not None:
+        selected = locator.get("selected_scope") or {}
+        chosen = next(
+            (
+                candidate
+                for candidate in (locator.get("candidates") or [])
+                if candidate.get("start_line") == selected.get("start_line")
+                and candidate.get("end_line") == selected.get("end_line")
+            ),
+            {},
+        )
+        recovered = bool(
+            selected
+            and chosen.get("title_detected")
+            and float(selected.get("confidence") or 0.0) >= 0.72
+        )
+        locator["activation"] = {
+            "activated": recovered,
+            "reason": "baseline_scope_missing_recovered" if recovered else "baseline_scope_missing",
+            "baseline_start": scope.get("scope_start_line"),
+            "baseline_end": scope.get("scope_end_line"),
+        }
+        if recovered:
+            scope = dict(scope)
+            scope["scope_start_line"] = int(selected["start_line"])
+            scope["scope_end_line"] = int(selected["end_line"])
+            scope["scope_score"] = selected.get("score", scope.get("scope_score"))
+            scope["scope_method"] = "alias_assisted_locator"
+    scope["locator"] = locator
     if not scope.get("scope_start_line"):
         unit_val = fallback_unit if fallback_unit and fallback_unit != "unknown" else "unknown"
         return {**scope, "rows": [], "method": "unknown", "method_method": "unknown", "sector": "unknown", "sector_method": "unknown", "unit": unit_val}
@@ -1073,7 +1234,7 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
     section = None
     pending = None
 
-    def emit(label, current=None, previous=None, sec=None, code=None, note=None, line_no=None, pattern=None):
+    def emit(label, current=None, previous=None, sec=None, code=None, note=None, line_no=None, pattern=None, raw_text=None):
         label = strip_md(label)
         label = re.sub(r"(?i)^(?:Chỉ\s*tiêu|Chi\s*tiết)\s*:\s*", "", label).strip()
         if not label or _looks_metadata_line(label):
@@ -1083,14 +1244,16 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             return
         if fl.startswith("nam tai chinh ket thuc ngay") or fl.startswith("ngay 31 thang 12 nam"):
             return
-        _emit(rows, label, current, previous, _section_from_label(label, sec), method, code, note, line_no, pattern)
+        _emit(rows, label, current, previous, _section_from_label(label, sec), method, code, note, line_no, pattern,
+              raw_text=raw_text)
 
     def flush_pending():
         nonlocal pending
         if pending and (pending.get("current") is not None or pending.get("previous") is not None):
             emit(pending.get("label"), pending.get("current"), pending.get("previous"),
                  pending.get("section"), pending.get("code"), pending.get("note"),
-                 pending.get("line"), pending.get("pattern", "CF_PERIOD_CHILDREN"))
+                 pending.get("line"), pending.get("pattern", "CF_PERIOD_CHILDREN"),
+                 pending.get("raw_text"))
         pending = None
 
     # PASS 1: normal parent/children, pipe, inline and code-led rows.
@@ -1124,33 +1287,55 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             if pending and (pending.get("current") is not None or pending.get("previous") is not None):
                 flush_pending()
                 pending = {"label": "", "code": code_val, "note": None, "current": None, "previous": None,
-                           "section": section, "line": abs_line, "pattern": "CF_PERIOD_CHILDREN", "indent": _line_indent(raw)}
+                           "section": section, "line": abs_line, "pattern": "CF_PERIOD_CHILDREN",
+                           "indent": _line_indent(raw), "raw_text": raw.strip()}
             elif pending:
                 pending["code"] = code_val
+                pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.match(r"(?i)^Chi\s*tiết\s*:\s*(.+)$", clean)
         if m and pending:
             pending["label"] = strip_md(m.group(1))
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
         if m and pending:
-            pending["note"] = strip_md(m.group(1)); continue
+            pending["note"] = strip_md(m.group(1))
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
+            continue
+
+        # Some flattened reports serialize the semantic row label as a child
+        # named ``Diễn giải`` after the code and period values.  Keep the
+        # values on the current keyed block and replace only its serializer
+        # heading; the form code remains provenance and is never used as the
+        # row identity.
+        m = re.match(r"(?i)^Diễn\s*giải\s*:\s*(.+)$", clean)
+        if m and pending:
+            pending["label"] = strip_md(m.group(1))
+            pending["section"] = _section_from_label(pending["label"], pending.get("section"))
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
+            continue
 
         m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
-            pending["current"] = parse_number(m.group(1)); continue
+            pending["current"] = parse_number(m.group(1))
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
+            continue
 
         m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
-            pending["previous"] = parse_number(m.group(1)); continue
+            pending["previous"] = parse_number(m.group(1))
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
+            continue
 
         m = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
         if m and pending:
             yr, val = int(m.group(1)), parse_number(m.group(2))
             if yr == current_year: pending["current"] = val
             elif yr == previous_year: pending["previous"] = val
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         # Pipe table row: label | code? | note? | current | previous.
@@ -1171,7 +1356,7 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
                     mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
                     if mc and not code:
                         code, label = mc.group(1), mc.group(2)
-                    flush_pending(); emit(label, cur_val, prev_val, section, code, None, abs_line, "CF_PIPE_TABLE"); continue
+                    flush_pending(); emit(label, cur_val, prev_val, section, code, None, abs_line, "CF_PIPE_TABLE", raw_text=raw); continue
 
         # Inline year values on one line.
         cur, prev = _extract_inline_periods(clean, current_year, previous_year)
@@ -1180,25 +1365,27 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             if pending and not clean_without_numbers:
                 pending["current"] = cur
                 pending["previous"] = prev
+                pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
                 continue
             flush_pending()
             label = re.split(r"(?i):\s*(?:\*\*)?(?:[–—-]|(?:\(?-?\d))|\s+(?:\(?-?\d{1,3}[.,]\d{3})", clean, maxsplit=1)[0]
-            code = None
+            label, code = _split_statement_code_prefix(label)
             mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
             if mc: code, label = mc.group(1), mc.group(2)
-            emit(label, cur, prev, section, code, None, abs_line, "CF_INLINE_PERIODS"); continue
+            emit(label, cur, prev, section, code, None, abs_line, "CF_INLINE_PERIODS", raw_text=raw); continue
 
         # Code-led/plain-text row with one numeric value: `01 label: 123`.
         mc = re.match(r"^(?:\*\s*)?([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+?)\s*:\s*(\(?-?[\d.,]+\)?|-)(?:\s|$)", clean, re.I)
-        if mc:
+        if mc and not _has_inline_metadata_reference(clean):
             flush_pending()
             code, label, val = mc.group(1), mc.group(2), parse_number(mc.group(3))
-            emit(label, val, None, section, code, None, abs_line, "CF_PLAIN_TEXT_CODE"); continue
+            emit(label, val, None, section, code, None, abs_line, "CF_PLAIN_TEXT_CODE", raw_text=raw); continue
 
         # Heading/label with inline single value, e.g. `LƯU CHUYỂN ...: 57.639.048`.
         mh = re.match(r"^(.+?)\s*:\s*(\(?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?\)?|-)(?:\s*(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng))?(?:\s|$)", clean)
-        if mh and re.search(r"[A-Za-zÀ-ỹ]", mh.group(1)):
-            flush_pending(); emit(mh.group(1), parse_number(mh.group(2)), None, section, None, None, abs_line, "CF_HEADING_VALUE"); continue
+        if mh and not _has_inline_metadata_reference(clean) and re.search(r"[A-Za-zÀ-ỹ]", mh.group(1)):
+            label, code = _split_statement_code_prefix(mh.group(1))
+            flush_pending(); emit(label, parse_number(mh.group(2)), None, section, code, None, abs_line, "CF_HEADING_VALUE", raw_text=raw); continue
 
         if _looks_metadata_line(clean):
             continue
@@ -1213,11 +1400,13 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
         flush_pending()
         code = None; label = clean
         label = re.sub(r"(?i)^Chỉ\s*tiêu\s*:\s*", "", label).strip()
+        label, prefix_code = _split_statement_code_prefix(label)
+        code = prefix_code
         mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
         if mc: code, label = mc.group(1), mc.group(2)
         pending = {"label": label, "code": code, "note": None, "current": None, "previous": None,
                    "section": _section_from_label(label, section), "line": abs_line,
-                   "pattern": "CF_PERIOD_CHILDREN", "indent": _line_indent(raw)}
+                   "pattern": "CF_PERIOD_CHILDREN", "indent": _line_indent(raw), "raw_text": raw.strip()}
     flush_pending()
 
     # PASS 2: period-major blocks (Năm 2025 -> many label:value rows; then Năm 2024 -> same labels).
@@ -1235,24 +1424,31 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             my = re.match(r"^(20\d{2})(?:\s*\([^)]*\))?\s*:?$", clean)
         if my:
             y = int(my.group(1)); active_year = y if y in {current_year, previous_year} else None; continue
+        role_header = re.match(r"(?i)^Năm\s*(nay|trước)\s*:?$", clean)
+        if role_header:
+            active_year = current_year if fold(role_header.group(1)) == "nay" else previous_year
+            continue
         if active_year is None: continue
         m = re.match(r"^(.+?)\s*:\s*(\(?-?[\d.,]+\)?|-)(?:\s|$)", clean)
         if not m: continue
         label, val = strip_md(m.group(1)), parse_number(m.group(2))
         if not label or _looks_metadata_line(label): continue
-        code = None
+        label, code = _split_statement_code_prefix(label)
         mc = re.match(r"^([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)[.)]?\s+(.+)$", label, re.I)
         if mc: code, label = mc.group(1), mc.group(2)
         sec = _section_from_label(label, section)
         # Join split-period observations by semantic label and statement
         # section.  The form code is retained as metadata, never as a row key.
         key=(fold(label), sec)
-        rec=period_rows.setdefault(key, {"label":label,"section":sec,"code":code,"current":None,"previous":None,"line":abs_line})
+        rec=period_rows.setdefault(key, {"label":label,"section":sec,"code":code,"current":None,"previous":None,
+                                          "line":abs_line,"raw_text":raw.strip()})
+        rec["raw_text"] = _join_raw_text(rec.get("raw_text"), raw)
         if active_year == current_year: rec["current"] = val
         else: rec["previous"] = val
     for rec in period_rows.values():
         if rec["current"] is not None or rec["previous"] is not None:
-            emit(rec["label"], rec["current"], rec["previous"], rec["section"], rec["code"], None, rec["line"], "CF_YEAR_SECTIONS")
+            emit(rec["label"], rec["current"], rec["previous"], rec["section"], rec["code"], None, rec["line"],
+                 "CF_YEAR_SECTIONS", raw_text=rec.get("raw_text"))
 
     # PASS 3: positional numeric children under a semantic label.
     # Common LLM layout for bank direct statements:
@@ -1303,6 +1499,7 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
 
         nums = []
         year_vals = {}
+        child_raw_lines = []
         # Look only through the immediate child block. Stop when a new unrelated textual item begins.
         for j in range(idx + 1, min(len(scoped_lines), idx + 8)):
             child_raw = scoped_lines[j]
@@ -1322,6 +1519,7 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             ym = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", child)
             if ym:
                 year_vals[int(ym.group(1))] = parse_number(ym.group(2))
+                child_raw_lines.append(child_raw.strip())
                 if current_year in year_vals and previous_year in year_vals:
                     break
                 continue
@@ -1331,6 +1529,7 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
             v = parse_number(child.rstrip(":"))
             if v is not None and re.fullmatch(r"\(?-?[\d.,]+\)?|-", child.rstrip(":")):
                 nums.append(v)
+                child_raw_lines.append(child_raw.strip())
                 if len(nums) >= 2:
                     break
                 continue
@@ -1340,11 +1539,11 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
         if year_vals:
             emit(label, year_vals.get(current_year), year_vals.get(previous_year),
                  _section_from_label(label, section), code, None, abs_line,
-                 "CF_YEAR_VALUE_CHILDREN")
+                 "CF_YEAR_VALUE_CHILDREN", raw_text=_join_raw_text(raw, *child_raw_lines))
         elif nums:
             emit(label, nums[0], nums[1] if len(nums) > 1 else None,
                  _section_from_label(label, section), code, None, abs_line,
-                 "CF_POSITIONAL_VALUE_CHILDREN")
+                 "CF_POSITIONAL_VALUE_CHILDREN", raw_text=_join_raw_text(raw, *child_raw_lines))
 
     # In a detached-column table, the positional child pass can mistake the
     # first numeric token of the value block for a child pair under the last
@@ -1388,6 +1587,8 @@ def extract_cashflow_fallback(text: str, current_year=None, previous_year=None, 
         if old.note is None and r.note is not None:
             old.note = r.note
             old.note_ref = r.note_ref or r.note
+        if not old.raw_text and r.raw_text:
+            old.raw_text = r.raw_text
         # Repeated-period block recovery. Some LLM conversions emit two complete blocks of
         # `label: value` rows but lose/mislabel the second period header. If the same semantic
         # row reappears materially later with another current-only value, treat the second
