@@ -28,72 +28,156 @@ Runtime chỉ đọc Markdown nguồn. Runtime không đọc output, ground trut
 
 Các số liệu trên mô tả một lần chạy. Chúng không phải cam kết accuracy cho mọi nguồn mới.
 
-## Nguyên tắc
+## Flow xử lý một file Markdown
 
-### Đọc từ nguồn
-
-Mỗi file có context riêng. Context gồm:
-
-- kỳ hiện tại và kỳ trước;
-- sector;
-- phạm vi bảng;
-- dòng nguồn và provenance.
-
-Parser giữ `raw_text`, `source_line`, confidence và conflict khi có thể.
-
-### Suy luận kỳ và năm
-
-Resolver dùng ngày kết thúc kỳ, tiêu đề, cột kỳ và câu dẫn trong báo cáo. Năm trong tên file chỉ là bằng chứng phụ. Ngày kiểm toán và ngày phát hành có trọng số thấp hơn.
-
-Khi evidence xung đột, parser giữ cả evidence và đặt trạng thái `review_required`. Parser không tự ghi đè dữ liệu.
-
-### Không dùng mã làm khóa
-
-Mã biểu mẫu và số thuyết minh chỉ là metadata. Parser không dùng chúng làm khóa join, identity, dedupe hoặc reconciliation.
-
-Parser dùng cấu trúc, nhãn, section, period và semantic context để xác định một dòng.
-
-### Primary statement là nguồn chính
-
-B01, B02 và B03 đọc trực tiếp từ Markdown. Notes có thể link với primary statement khi có đủ evidence. Notes không thay thế giá trị primary.
-
-## Flow
+`app/pipeline.py::main()` điều phối toàn bộ pipeline. Với mỗi file, code gọi các bước theo thứ tự này:
 
 ```text
 Markdown
-  -> discovery, hash, normalize
-  -> resolve period/year
-  -> locate candidate statement scope
-  -> parse structure and rows
-  -> map semantic nodes
-  -> validate, reconcile, keep provenance
-  -> production JSON and batch manifest
+  -> chọn file và đọc source
+  -> suy luận kỳ và năm
+  -> B02: extract, map, validate
+  -> B03: extract, map, validate
+  -> B01: parse cấu trúc, map, validate
+  -> Notes: scan, parse, link
+  -> chuẩn hóa contract
+  -> ghi report JSON và manifest
 ```
 
-### Alias-assisted locator
+### Bước 1 — Chọn file
 
-`StatementLocator` chạy trước parser. Nó dùng alias của B01, B02 và B03 để tìm:
+File chạy:
 
-- title hoặc signature của bảng;
-- cột kỳ;
-- mật độ số;
-- các dòng có thể thuộc bảng.
+- `app/pipeline.py::main()`
+- `app/pipeline.py::select_md_files()`
+- `app/pipeline.py::ensure_output_is_outside_input()`
 
-Locator bỏ qua mục lục và vùng thuyết minh không liên quan. Nó trả về `selected_scope` và `candidate_rows`.
+`main()` nhận một file Markdown hoặc một thư mục. `select_md_files()` lập danh sách file cần chạy. Pipeline kiểm tra output không nằm trong input. Pipeline không đọc output cũ.
 
-Parser chỉ dùng locator khi có đủ ba điều kiện:
+### Bước 2 — Đọc source và suy luận kỳ
 
-1. scope có title evidence;
-2. scope mới trùng một phần với scope hiện có;
-3. confidence đạt ngưỡng.
+File chạy:
 
-Nếu thiếu evidence, pipeline dùng scope cũ và chạy fallback. `candidate_rows` chỉ giúp định tuyến. Parser không dùng chúng để map trực tiếp canonical node.
+- `app/pipeline.py::process_one()`
+- `src/common/report_period.py::infer_report_year_pair()`
+- `src/common/value_semantics.py::detect_document_unit()`
 
-Audit có thể ghi các trường:
+`process_one()` đọc text, tính SHA-256 và lấy unit chung của báo cáo. `infer_report_year_pair()` tìm năm hiện tại và năm trước từ nội dung Markdown. Kết quả này được truyền cho cả B01, B02, B03 và Notes.
 
-`locator_enabled`, `locator_activated`, `locator_reason`, `locator_confidence`, `locator_alias_hits`, `locator_candidate_rows`.
+### Bước 3 — Chạy B02
 
-Các trường này chỉ phục vụ audit. Chúng không nằm trong production contract.
+Trong `process_one()`, B02 chạy trước B03 và B01.
+
+File chạy:
+
+- `app/pipeline.py::run_income()`
+- `flat_parser/statement_locator.py::StatementLocator.locate()` với profile `income_statement`
+- `src/b02_income/extractor.py::extract_income_fallback()`
+- `src/b02_income/mapper.py::IncomeMapper.map_rows()`
+- `src/b02_income/mapper.py::IncomeMapper.canonical()`
+- `src/common/source_observation.py::augment_from_rows()`
+- `src/common/source_recovery.py::extract_generic_statement_rows()`
+- `src/common/source_canonical_hydrator.py::augment_canonical_with_recovered_rows()`
+- `src/common/source_reconciler.py::reconcile_source_observations()`
+- `src/common/pipeline_metrics.py::build_metrics()`
+
+Thứ tự xử lý:
+
+1. Locator tìm scope có thể là B02.
+2. Extractor đọc row từ bảng, bullet hoặc plain OCR.
+3. Mapper map row vào schema theo sector.
+4. Source recovery tìm row chưa được lấy vào canonical node.
+5. Reconciler giữ lại observation và conflict.
+6. Metrics ghi số row, coverage, mapping và validation.
+
+### Bước 4 — Chạy B03
+
+File chạy:
+
+- `app/pipeline.py::run_cashflow()`
+- `flat_parser/statement_locator.py::StatementLocator.locate()` với profile `cash_flow`
+- `src/b03_cashflow/extractor.py::extract_cashflow_fallback()`
+- `src/b03_cashflow/mapper.py::CashFlowMapper.map_rows()`
+- `src/b03_cashflow/mapper.py::CashFlowMapper.canonical()`
+- `src/common/source_observation.py::augment_from_rows()`
+- `src/common/source_recovery.py::extract_generic_statement_rows()`
+- `src/common/source_recovery.py::extract_code_period_table()`
+- `src/common/source_canonical_hydrator.py::augment_canonical_with_recovered_rows()`
+- `src/common/source_reconciler.py::reconcile_source_observations()`
+- `src/common/pipeline_metrics.py::build_cashflow_metrics()`
+
+Thứ tự xử lý:
+
+1. Locator tìm scope B03.
+2. Extractor tìm sector, phương pháp direct hoặc indirect và các row.
+3. Mapper map row vào schema.
+4. Source recovery ghép lại row bị tách hoặc thiếu một kỳ.
+5. Reconciler giữ riêng các section bổ sung và các conflict.
+6. Metrics ghi kết quả map và validation.
+
+### Bước 5 — Chạy B01
+
+File chạy:
+
+- `src/b01_financial_position/extractor.py::FinancialPositionSourceParser.parse_text()`
+- `flat_parser/pipeline.py::FlatParserPipeline.parse_text()`
+
+`FlatParserPipeline.parse_text()` chạy các file theo thứ tự:
+
+1. `flat_parser/textnorm.py::normalize_lines()` chuẩn hóa dòng.
+2. `flat_parser/preprocess.py::filter_noise()` bỏ nhiễu.
+3. `flat_parser/statement_locator.py::StatementLocator.locate()` tìm scope B01.
+4. `flat_parser/context.py::financial_position_scope()` tạo scope cấu trúc dự phòng.
+5. `flat_parser/tables.py::detect_tables()` tìm bảng.
+6. `flat_parser/document.py::build_nodes()` dựng cây node.
+7. `flat_parser/document.py::hydrate_keyed_record_wrappers()` và `hydrate_column_major_statement_blocks()` bổ sung cấu trúc bị tách.
+8. `flat_parser/structural_classifier.py::StructuralClassifier.classify_all()` phân loại node.
+9. `flat_parser/collector.py::collect_observation()` lấy observation từ node.
+10. `flat_parser/resolver.py::resolve_observation()` gán period, unit và giá trị.
+11. `flat_parser/consolidator.py::consolidate_resolved_fields()` gộp continuation.
+12. `flat_parser/canonical_mapper.py::map_first_value_per_period()` tạo canonical nodes.
+13. `flat_parser/validator.py::validate_financial_position()` kiểm tra tổng tài sản và tổng nguồn vốn.
+
+Sau parser cấu trúc, B01 chạy source recovery:
+
+- `src/common/source_recovery.py::extract_financial_position_source_rows()`
+- `src/common/source_canonical_hydrator.py::augment_canonical_with_recovered_rows()`
+- `src/common/source_reconciler.py::reconcile_source_observations()`
+
+Locator chỉ chọn scope khi có title evidence, overlap đủ lớn và confidence đạt ngưỡng. Nếu không, B01 dùng scope cấu trúc ban đầu.
+
+### Bước 6 — Chạy Notes
+
+File chạy:
+
+- `app/pipeline.py::scan_statement_context()`
+- `src/notes/pipeline.py::NotesPipeline.parse_text()`
+- `src/notes/scanner.py::detect_notes_scope()`
+- `src/notes/sectionizer.py::sectionize_notes()`
+- `src/notes/block_classifier.py::extract_blocks()`
+- `src/notes/table_parser.py::parse_markdown_tables()`
+- `src/notes/structural_parser.py::parse_bullet_structures()`
+- `src/notes/linker.py::link_notes_to_primary()`
+- `src/notes/reconciliation.py::reconcile_notes()`
+- `src/notes/diagnostics.py::build_diagnostics()`
+
+`scan_statement_context()` dùng scanner chung để cung cấp evidence cho Notes. `NotesPipeline` tìm vùng thuyết minh, chia section, đọc bảng và bullet, rồi link với kết quả primary. Notes là lớp bổ sung. Notes không ghi đè B01, B02 hoặc B03.
+
+### Bước 7 — Chuẩn hóa và ghi output
+
+File chạy:
+
+- `app/pipeline.py::process_one()`
+- `src/common/output_contract.py::clean_statement()`
+- `src/common/output_contract.py::clean_notes()`
+- `src/common/output_contract.py::build_production_report()`
+- `app/pipeline.py::main()`
+- `src/common/output_contract.py::report_filename()`
+- `src/common/output_contract.py::manifest_entry()`
+
+`process_one()` đồng bộ unit giữa các statement. `clean_statement()` và `clean_notes()` đưa kết quả về production contract. `build_production_report()` tạo một report JSON. `main()` ghi report vào `reports/` và ghi danh sách batch vào `manifest.json`.
+
+Khi bật `--audit`, `process_one()` ghi thêm canonical artifacts, comparison, Notes rows và metrics vào `output/current/audit/`. Các file này chỉ phục vụ review.
 
 ## Các engine
 
@@ -147,29 +231,111 @@ Code chính nằm trong `src/notes/`.
 
 ## Cấu trúc repository
 
+Repository có ba lớp code chính:
+
+1. `app/` nhận input và điều phối batch.
+2. `src/` chứa engine cho B01, B02, B03, Notes và các module dùng chung.
+3. `flat_parser/` chứa structural parser dùng chung, đặc biệt cho B01.
+
 ```text
 Flatten/
-├── app/                         # CLI pipeline
+├── app/                         # Entry point của pipeline
+│   ├── pipeline.py              # Chạy B02 -> B03 -> B01 -> Notes -> output
+│   └── run_notes.py             # Chạy riêng Notes
 ├── src/
-│   ├── b01_financial_position/  # B01
-│   ├── b02_income/              # B02
-│   ├── b03_cashflow/            # B03
-│   ├── common/                  # Context, recovery, output, reconciliation
-│   └── notes/                   # Notes IR, link và export
-├── flat_parser/                 # Structural parser và locator dùng chung
+│   ├── b01_financial_position/  # Extractor B01
+│   ├── b02_income/              # Extractor, mapper và validator B02
+│   ├── b03_cashflow/            # Extractor và mapper B03
+│   ├── common/                  # Period, recovery, output, metrics
+│   └── notes/                   # Scanner, parser, link và export Notes
+├── flat_parser/                 # Parser cấu trúc và locator dùng chung
 ├── resources/
-│   ├── schemas/                 # Schema và alias
-│   └── guides/                  # Guide
-├── scripts/
-│   ├── ground_truth/            # Build và audit baseline
-│   ├── evaluation/              # Compare và quality report
-│   └── maintenance/             # Script bảo trì
-├── tests/                       # Regression và integration tests
-├── VERSION.txt
-└── requirements.txt
+│   ├── schemas/                 # Schema, alias và output contract
+│   └── guides/                  # Guide structural
+├── scripts/                     # Evaluation, ground truth và maintenance
+├── tests/                       # Unit, integration và quality tests
+├── md_reports/                  # Input Markdown cục bộ
+├── ground_truth/                # Baseline và review queue cục bộ
+├── output/                      # Output chạy cục bộ
+├── VERSION.txt                  # Phiên bản parser
+└── requirements.txt             # Gói dùng cho test
 ```
 
-`md_reports/`, `ground_truth/` và `output/` là thư mục cục bộ. Git bỏ qua các thư mục này.
+### Entry point
+
+| File | Vai trò |
+|---|---|
+| `app/pipeline.py` | Chọn file, gọi B02/B03/B01/Notes, tạo report và manifest. |
+| `app/run_notes.py` | Chạy Notes riêng và xuất Notes IR. |
+| `flat_parser/pipeline.py` | Chạy structural parser và tạo canonical nodes. |
+
+### B01
+
+| File hoặc thư mục | Vai trò |
+|---|---|
+| `src/b01_financial_position/extractor.py` | Adapter của B01 và source recovery sau parse. |
+| `flat_parser/pipeline.py` | Điều phối normalize, scope, node, map và validation. |
+| `flat_parser/statement_locator.py` | Tìm scope ứng viên bằng alias và evidence. |
+| `flat_parser/document.py` | Dựng cây node và xử lý wrapper/column-major. |
+| `flat_parser/collector.py` | Thu observation từ node. |
+| `flat_parser/resolver.py` | Gán period, unit và giá trị. |
+| `flat_parser/canonical_mapper.py` | Tạo canonical node. |
+| `flat_parser/validator.py` | Kiểm tra cấu trúc và tổng statement. |
+
+### B02 và B03
+
+| File hoặc thư mục | Vai trò |
+|---|---|
+| `src/b02_income/extractor.py` | Tìm scope và đọc row của B02. |
+| `src/b02_income/mapper.py` | Map row B02 vào schema theo sector. |
+| `src/b02_income/validator.py` | Kiểm tra coverage và công thức B02. |
+| `src/b03_cashflow/extractor.py` | Tìm scope, sector, method và row B03. |
+| `src/b03_cashflow/mapper.py` | Map row B03 vào schema. |
+| `flat_parser/statement_locator.py` | Locator dùng chung cho profile B02 và B03. |
+
+### Module dùng chung
+
+| File hoặc thư mục | Vai trò |
+|---|---|
+| `src/common/report_period.py` | Suy luận cặp năm và kỳ báo cáo. |
+| `src/common/value_semantics.py` | Nhận diện unit và kiểu giá trị. |
+| `src/common/source_recovery.py` | Đọc lại row nguồn còn thiếu trong canonical parse. |
+| `src/common/source_canonical_hydrator.py` | Bổ sung row có evidence vào canonical output. |
+| `src/common/source_observation.py` | Tạo observation từ row nguồn. |
+| `src/common/source_reconciler.py` | Giữ provenance và xử lý conflict. |
+| `src/common/output_contract.py` | Chuẩn hóa report JSON và manifest. |
+| `src/common/pipeline_metrics.py` | Tạo metrics cho B02 và B03. |
+| `src/common/error_taxonomy.py` | Phân loại lỗi trong audit. |
+
+### Notes
+
+| File | Vai trò |
+|---|---|
+| `src/notes/pipeline.py` | Điều phối toàn bộ Notes parser. |
+| `src/notes/scanner.py` | Tìm vùng thuyết minh. |
+| `src/notes/sectionizer.py` | Chia vùng thành section. |
+| `src/notes/block_classifier.py` | Phân loại bảng, bullet và block. |
+| `src/notes/table_parser.py` | Đọc Markdown table. |
+| `src/notes/structural_parser.py` | Đọc cây bullet và period. |
+| `src/notes/linker.py` | Link Notes với primary statement. |
+| `src/notes/reconciliation.py` | So sánh Notes với primary statement. |
+| `src/notes/row_exporter.py` | Xuất Notes rows để review. |
+
+### Resources, scripts và tests
+
+- `resources/schemas/`: schema và alias cho B01, B02, B03, off-balance, production report và batch manifest.
+- `resources/guides/`: pattern guide và `compiled/structural_guide.json`.
+- `scripts/ground_truth/`: build, repair, audit và review baseline.
+- `scripts/evaluation/`: compare output, Notes và coverage.
+- `scripts/maintenance/`: rebuild guide và tạo coverage report.
+- `scripts/visualize_output.py`: tạo viewer HTML cho output.
+- `tests/b01/`, `tests/b02/`, `tests/b03/`: test theo statement.
+- `tests/notes/`: test Notes.
+- `tests/integration/`: test toàn pipeline.
+- `tests/quality/`: test output, baseline và quality rule.
+- `tests/legacy/`: test cũ để giữ tương thích.
+
+`md_reports/`, `ground_truth/` và `output/` chỉ dùng ở local. Git bỏ qua các thư mục này. Runtime chỉ đọc `md_reports/` và ghi `output/`.
 
 ## Cài đặt
 
