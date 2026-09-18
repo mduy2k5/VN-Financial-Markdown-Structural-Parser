@@ -45,13 +45,12 @@ def _contains_any(text: str, aliases) -> bool:
 
 
 def _statement_heading_text(text: str) -> str:
-    """Return the embedded statement title from an explicit metadata line.
+    """Trả về tiêu đề báo cáo nằm trong dòng metadata rõ ràng.
 
-    OCR/LLM output sometimes serializes the first statement page as:
+    Output OCR/LLM đôi khi serialize trang đầu như:
       - Tiêu đề: BÁO CÁO TÌNH HÌNH TÀI CHÍNH HỢP NHẤT
-    while continuation pages use a normal standalone heading.  Treat only
-    explicit title keys as headings; ordinary prose mentioning the statement
-    name is still rejected.
+    trong khi trang tiếp theo dùng tiêu đề độc lập bình thường. Chỉ xem các
+    key tiêu đề rõ ràng là heading; văn xuôi chỉ nhắc tên báo cáo vẫn bị loại.
     """
     raw = (text or "").strip().strip('*_ ')
     m = re.match(
@@ -62,8 +61,8 @@ def _statement_heading_text(text: str) -> str:
 
 def _is_heading_like(text: str, aliases) -> bool:
     f = fold(_statement_heading_text(text)).strip()
-    # Statement title must begin the line. This rejects prose such as
-    # audit-opinion sentences that merely mention the statement name.
+    # Tiêu đề báo cáo phải bắt đầu dòng. Điều này loại văn xuôi như câu ý kiến
+    # kiểm toán chỉ nhắc đến tên báo cáo.
     return len(f) <= 180 and any(f.startswith(a) for a in aliases)
 
 
@@ -105,9 +104,8 @@ def _score_fp_candidate(lines: list[SourceLine], line: SourceLine) -> HeadingCan
         for x in window
     )
 
-    # TOC entries can contain form codes too. Treat close TOC as negative only
-    # when the candidate does not have a nearby reporting date, which is strong
-    # evidence of an actual statement title.
+    # Mục lục cũng có thể chứa mã biểu mẫu. Chỉ phạt mục lục gần khi candidate
+    # không có ngày báo cáo gần đó, vì ngày là bằng chứng mạnh của tiêu đề thật.
     if same_page_toc or (close_toc and not has_reporting_date):
         score -= 10
         evidence.append("near_toc:-10")
@@ -150,10 +148,10 @@ def _next_fp_heading_line(lines: list[SourceLine], start_line: int):
 
 def _financial_payload_evidence(lines: list[SourceLine], start_line: int, max_lookahead: int = 180):
     """
-    Score whether a heading is followed by an actual financial-position payload.
+    Chấm điểm xem sau tiêu đề có payload thực của báo cáo tình hình tài chính không.
 
-    This deliberately uses statement-shape evidence instead of aliases so scope
-    recovery remains independent from canonical vocabulary.
+    Cố ý dùng bằng chứng hình dạng báo cáo thay vì alias để việc khôi phục scope
+    độc lập với từ vựng canonical.
     """
     hard_end = start_line + max_lookahead
 
@@ -172,8 +170,8 @@ def _financial_payload_evidence(lines: list[SourceLine], start_line: int, max_lo
     for x in window:
         f = fold(x.clean or "").strip()
 
-        # A validated next-statement heading very close to this candidate is a
-        # strong sign that the candidate came from TOC/cover text.
+        # Tiêu đề báo cáo kế tiếp đã được xác thực và nằm rất gần candidate là
+        # dấu hiệu mạnh cho thấy candidate đến từ mục lục/trang bìa.
         if stop_distance is None:
             for kind in ("income", "cashflow", "notes"):
                 if _validated_stop(lines, x, kind):
@@ -199,7 +197,7 @@ def _financial_payload_evidence(lines: list[SourceLine], start_line: int, max_lo
             or "so dau nam" in f
             or re.search(r"\b31[./]12[./]20\d{2}\b", x.clean or "")
         ):
-            # Require a numeric/dash payload on the same line when possible.
+            # Khi có thể, yêu cầu payload số/dấu gạch ngay trên cùng dòng.
             if re.search(r"(?<!\d)(?:\(?\d[\d.,]*\)?|[-–—−])(?:\s|$)", x.clean or ""):
                 period_value_hits += 1
 
@@ -315,11 +313,11 @@ def _signature_score_window(lines: list[SourceLine], start_idx: int, window_size
 
 def find_financial_position_signature_start(lines: list[SourceLine], min_signature_score: int = 12):
     """
-    Fallback when statement-title detection is absent or unhealthy.
+    Fallback khi nhận diện tiêu đề báo cáo không có hoặc không đạt.
 
-    Find the earliest dense financial-position region based on root labels,
-    code/value attributes and table rows. This handles OCR/LLM files whose
-    title is missing, malformed, or only appears in a table of contents.
+    Tìm vùng dày đặc đầu tiên của báo cáo tình hình tài chính dựa trên nhãn
+    gốc, thuộc tính mã/giá trị và dòng bảng. Cách này xử lý file OCR/LLM bị
+    mất tiêu đề, tiêu đề hỏng hoặc chỉ có tiêu đề trong mục lục.
     """
     best = None
 
@@ -355,15 +353,15 @@ def find_financial_position_signature_start(lines: list[SourceLine], min_signatu
 
 def _is_statement_title_shape(text: str) -> bool:
     """
-    Accept standalone statement titles, including an inline reporting date.
+    Chấp nhận tiêu đề báo cáo độc lập, gồm cả ngày báo cáo inline.
 
-    Valid examples:
+    Ví dụ hợp lệ:
       Bảng cân đối kế toán hợp nhất tại ngày 31 tháng 12 năm 2025
       Báo cáo tình hình tài chính hợp nhất tại ngày 31 tháng 12 năm 2025
       ... (tiếp theo)
 
-    Audit prose is still rejected because the whole line must start with a known
-    title and the suffix must be only consolidation/separate/date/continuation.
+    Văn xuôi kiểm toán vẫn bị loại vì toàn dòng phải bắt đầu bằng tiêu đề đã biết
+    và hậu tố chỉ được là hợp nhất/riêng/ngày/tiếp theo.
     """
     f = fold(_statement_heading_text(text)).strip()
     f = re.sub(r"\s*\((?:tiep theo)\)\s*$", "", f).strip()
@@ -396,14 +394,13 @@ def find_validated_financial_position_start(lines: list[SourceLine], min_score=4
 
     candidates = [_candidate_with_payload(lines, c) for c in base_candidates]
 
-    # A multi-page statement commonly repeats the same heading with
-    # "(tiếp theo)" on every page. Those continuation headings belong to one
-    # statement cluster and must not compete with the first page.
+    # Báo cáo nhiều trang thường lặp cùng tiêu đề với "(tiếp theo)" trên mỗi
+    # trang. Các tiêu đề tiếp nối thuộc cùng một cluster và không được cạnh tranh
+    # với trang đầu.
     #
-    # TOC/audit false positives are already penalized by base heading evidence;
-    # among genuinely valid statement candidates, prefer the earliest one that
-    # has downstream financial payload. This restores page-1 + continuation
-    # coverage for multi-page reports.
+    # False positive từ mục lục/kiểm toán đã bị phạt ở evidence heading nền;
+    # trong các candidate hợp lệ, ưu tiên candidate sớm nhất có payload tài chính
+    # phía sau. Điều này khôi phục coverage trang đầu + trang tiếp nối.
     valid = [
         c for c in candidates
         if _is_statement_title_shape(c.text)
@@ -418,9 +415,9 @@ def find_validated_financial_position_start(lines: list[SourceLine], min_score=4
         and (c.final_score if c.final_score is not None else c.score) >= min_score
     ]
 
-    # Prefer candidates that project to a real multi-line statement whenever
-    # such a candidate exists. If this is only a tiny synthetic/unit document,
-    # retain the short candidate rather than falling back to the entire file.
+    # Ưu tiên candidate dự phóng thành báo cáo nhiều dòng thật nếu có. Nếu đây
+    # chỉ là tài liệu unit tổng hợp rất ngắn, giữ candidate ngắn thay vì fallback
+    # sang toàn bộ file.
     healthy = [c for c in valid if (c.span or 0) >= 5]
     if healthy:
         valid = healthy
@@ -494,9 +491,9 @@ def financial_position_scope(lines: list[SourceLine], mode: str = "financial_pos
     selected_mode = "validated_financial_position"
     recovery = None
 
-    # A valid repeated title can still occur in the middle of a continued
-    # statement page. If a strong financial-root cluster begins earlier than
-    # the selected title, prefer the earlier dense region.
+    # Một tiêu đề lặp hợp lệ vẫn có thể nằm giữa trang tiếp nối. Nếu cluster
+    # nhãn gốc tài chính mạnh bắt đầu sớm hơn tiêu đề đã chọn, ưu tiên vùng dày
+    # đặc sớm hơn.
     signature_start, signature_debug = find_financial_position_signature_start(lines)
     if (
         start is not None
@@ -529,9 +526,9 @@ def financial_position_scope(lines: list[SourceLine], mode: str = "financial_pos
     end = find_validated_financial_position_end(lines, start)
     span = max(0, end - start)
 
-    # Final sanity guard. A financial statement cannot realistically be a
-    # one-line scope. If title-based scope is tiny, try anchor-density recovery
-    # before falling back to whole document.
+    # Chốt kiểm tra hợp lý. Báo cáo tài chính không thể thực tế chỉ có một dòng.
+    # Nếu scope theo tiêu đề quá ngắn, thử khôi phục theo mật độ anchor trước khi
+    # fallback sang toàn bộ tài liệu.
     if span < 5:
         signature_start, signature_debug = find_financial_position_signature_start(lines)
         if signature_start is not None and signature_start != start:
@@ -560,11 +557,11 @@ def _reporting_year_from_heading_neighborhood(
     scope_start: int,
 ):
     """
-    Resolve the reporting year from statement evidence near the validated start.
+    Suy ra năm báo cáo từ bằng chứng gần điểm bắt đầu đã xác thực.
 
-    Priority matters. A form-regulation line may contain 31/12/2014 immediately
-    before a 2025 statement title, so scan ALL nearby lines for strong
-    'Tại ngày ... năm YYYY' evidence before considering generic numeric dates.
+    Thứ tự ưu tiên rất quan trọng. Dòng quy định biểu mẫu có thể chứa 31/12/2014
+    ngay trước tiêu đề báo cáo 2025, nên phải quét TẤT CẢ dòng gần đó để tìm
+    bằng chứng mạnh dạng 'Tại ngày ... năm YYYY' trước ngày số chung.
     """
     window = [
         x for x in lines
@@ -594,16 +591,16 @@ def _column_period_labels(
     scope_start: int,
     scope_end: int,
 ):
-    """
-    Find two distinct reporting period labels from the statement/table header
-    area. Headers are stronger than arbitrary dates later in the statement.
+    """Tìm hai nhãn kỳ khác nhau trong vùng header báo cáo/bảng.
+
+    Header có trọng số cao hơn ngày xuất hiện ngẫu nhiên ở phần sau báo cáo.
     """
     scoped = [x for x in lines if scope_start <= x.line_no <= scope_end]
     result = []
 
     for line in scoped[:80]:
-        # Strong header-ish lines: pipe/table header, period-only line, or lines
-        # containing 2+ reporting-period tokens.
+        # Dòng giống header mạnh: header pipe/bảng, dòng chỉ có kỳ hoặc dòng
+        # chứa từ hai token kỳ báo cáo trở lên.
         periods = extract_periods(line.clean, line.line_no, guide)
         if not periods:
             continue
@@ -641,15 +638,15 @@ def detect_context(
             if "don vi" in f or "don vi tinh" in f or "trieu dong" in f or "trieu vnd" in f:
                 unit = extract_unit(line.clean, guide)
 
-    # 1) reporting year from validated statement heading neighborhood.
+    # 1) năm báo cáo từ vùng gần tiêu đề đã xác thực.
     report_year = _reporting_year_from_heading_neighborhood(lines, scope_start)
 
-    # 2) two-period column/header context.
+    # 2) context cột/header của hai kỳ.
     period_candidates = _column_period_labels(
         lines, guide, scope_start, scope_end
     )
 
-    # 3) If heading did not expose a year, infer from header pair.
+    # 3) nếu tiêu đề không có năm, suy ra từ cặp header.
     if report_year is None:
         years = []
         for raw in period_candidates:
@@ -660,7 +657,7 @@ def detect_context(
     current = None
     previous = None
 
-    # Explicit semantic relative labels win.
+    # Nhãn kỳ tương đối semantic rõ ràng được ưu tiên.
     for raw in period_candidates:
         f = fold(raw)
         if current is None and any(x in f for x in ("so cuoi nam", "cuoi nam", "nam nay", "du no cuoi nam")):
@@ -668,7 +665,7 @@ def detect_context(
         if previous is None and any(x in f for x in ("so dau nam", "dau nam", "nam truoc", "du no dau nam")):
             previous = raw
 
-    # Otherwise classify by reporting year.
+    # Nếu không có, phân loại theo năm báo cáo.
     if report_year:
         for raw in period_candidates:
             ys = [int(x) for x in YEAR_RE.findall(raw)]

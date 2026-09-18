@@ -8,8 +8,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-# Keep direct script execution independent of the Python interpreter's script-dir
-# import rules.
+# Giữ việc chạy trực tiếp script độc lập với quy tắc import theo thư mục script
+# của Python interpreter.
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

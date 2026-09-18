@@ -1,8 +1,8 @@
-"""Prepare a source-grounded gold-candidate set and review queue.
+"""Chuẩn bị tập candidate gold theo nguồn và hàng đợi rà soát.
 
-This command never overwrites the persisted ground truth.  It applies generic
-quality gates to each observation, writes eligible candidates separately, and
-queues ambiguous rows with evidence-backed reasons for adjudication.
+Lệnh này không ghi đè ground truth đã lưu. Lệnh áp dụng quality gate chung cho
+từng observation, ghi riêng candidate đủ điều kiện và xếp các dòng mơ hồ vào
+hàng đợi kèm lý do có evidence để phân xử.
 """
 
 from __future__ import annotations

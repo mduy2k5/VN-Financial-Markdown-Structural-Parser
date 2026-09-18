@@ -8,7 +8,7 @@ from .sector_profile import possible_targets
 
 
 def _iter_primary_nodes(primary: Any):
-    """Yield (statement_key, node) from several canonical container shapes."""
+    """Lặp qua ``(statement_key, node)`` từ các dạng container canonical."""
     if not primary:
         return
     if isinstance(primary, dict) and isinstance(primary.get("nodes"), list):
@@ -19,9 +19,9 @@ def _iter_primary_nodes(primary: Any):
     if not isinstance(primary, dict):
         return
 
-    # The persisted financial baseline uses `statements.<name>.rows`, while the
-    # integrated pipeline uses `statements.<name>.canonical.nodes`. Support both
-    # shapes so Notes can be linked during batch evaluation as well as live runs.
+    # Baseline tài chính lưu dùng `statements.<name>.rows`, còn pipeline tích hợp
+    # dùng `statements.<name>.canonical.nodes`. Hỗ trợ cả hai dạng để Notes có
+    # thể được liên kết khi đánh giá batch và khi chạy trực tiếp.
     statements = primary.get("statements")
     if isinstance(statements, dict):
         for key, obj in statements.items():
@@ -67,14 +67,14 @@ def link_notes_to_primary(doc: NoteDocument, primary: Optional[dict] = None) -> 
             sections_by_id.setdefault(section.note_id_normalized, []).append(section)
     links: list[NoteLink] = []
 
-    # Explicit primary note references are the strongest evidence.
+    # Tham chiếu thuyết minh rõ ràng trong báo cáo chính là bằng chứng mạnh nhất.
     for statement_key, node in _iter_primary_nodes(primary):
         ref = _node_note_ref(node)
         if not ref:
             continue
         matching_sections = sections_by_id.get(ref) or []
         if not matching_sections:
-            # Allow a parent note reference V.4 to link to V.4(a), V.4(b), ...
+            # Cho phép tham chiếu parent V.4 liên kết tới V.4(a), V.4(b), ...
             matching_sections = [
                 section
                 for nid, candidates in sections_by_id.items()
@@ -90,9 +90,9 @@ def link_notes_to_primary(doc: NoteDocument, primary: Optional[dict] = None) -> 
             or node.get("canonical_name")
             or "UNKNOWN"
         )
-        # A logical note can span many page/continuation sections. Keep the
-        # source reference logical when ambiguous and record all instances in
-        # metadata rather than silently selecting the last section.
+        # Một thuyết minh logic có thể trải qua nhiều trang/section tiếp nối. Giữ
+        # tham chiếu nguồn ở mức logic khi mơ hồ và ghi mọi instance vào metadata,
+        # không âm thầm chọn section cuối cùng.
         source_ref = (
             matching_sections[0].ref
             if len(matching_sections) == 1
@@ -115,8 +115,8 @@ def link_notes_to_primary(doc: NoteDocument, primary: Optional[dict] = None) -> 
         for section in matching_sections:
             section.links.append(link)
 
-    # Sector ontology is only a low-confidence candidate generator; it never replaces
-    # an explicit link and it never writes primary values.
+    # Ontology ngành chỉ tạo candidate có độ tin cậy thấp; không thay thế liên
+    # kết rõ ràng và không ghi giá trị vào báo cáo chính.
     already = {(x.source_ref, x.target_ref) for x in links}
     for section in doc.sections:
         for target in possible_targets(section.title_raw, doc.sector):

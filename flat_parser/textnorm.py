@@ -106,13 +106,13 @@ TRAILING_FINANCIAL_META_RE = re.compile(
 
 def strip_inline_financial_metadata(text: str) -> str:
     """
-    Remove display-only metadata appended to a financial label, e.g.
+    Bỏ metadata chỉ dùng để hiển thị được gắn sau nhãn tài chính, ví dụ:
       NỢ PHẢI TRẢ (Mã số: 300)
       TỔNG CỘNG TÀI SẢN (270=100+200)
       TỔNG CỘNG NGUỒN VỐN (440 = 300 + 400)
 
-    This is semantic-label cleanup only; raw text and numeric provenance remain
-    untouched in the source node.
+    Đây chỉ là làm sạch nhãn semantic; raw text và provenance số trong node
+    nguồn vẫn giữ nguyên.
     """
     out = (text or "").strip()
     for _ in range(2):
@@ -135,11 +135,11 @@ FINANCIAL_PREFIX_RE = re.compile(
 
 def strip_financial_prefix(text: str) -> str:
     """
-    Remove display-only section prefixes such as:
+    Bỏ tiền tố section chỉ dùng để hiển thị, ví dụ:
       A - TÀI SẢN NGẮN HẠN
       C - NỢ PHẢI TRẢ
       I. Tiền mặt...
-    Raw source text remains unchanged elsewhere.
+    Raw text nguồn ở các vị trí khác không thay đổi.
     """
     out = text.strip()
     for _ in range(2):

@@ -24,7 +24,7 @@ Runtime chỉ đọc Markdown nguồn. Runtime không đọc output, ground trut
 | Notes | 57/57 `parsed` | Notes không ghi đè B01, B02 hoặc B03. |
 | Locator | B01: 41/57; B02: 46/57; B03: 44/57 | Chỉ bật khi đủ bằng chứng. File còn lại dùng fallback. |
 | Chất lượng batch | 14 `ok`; 43 `review_required` | `review_required` yêu cầu kiểm tra thêm. Đây không phải lỗi runtime. |
-| Regression suite | **102 passed** | Kết quả của `python -m pytest -q`. |
+| Regression suite | **111 passed** | Kết quả của `python -m pytest -q`. |
 
 Các số liệu trên mô tả một lần chạy. Chúng không phải cam kết accuracy cho mọi nguồn mới.
 
@@ -43,6 +43,29 @@ Markdown
   -> chuẩn hóa contract
   -> ghi report JSON và manifest
 ```
+
+## Thứ tự đọc code để hiểu hệ thống
+
+Đọc theo luồng một file, từ điều phối đến dữ liệu cuối:
+
+1. `app/pipeline.py::main()` — nhận tham số, chọn Markdown và điều phối batch.
+2. `app/pipeline.py::process_one()` — xử lý một báo cáo và ghép B01, B02, B03, Notes.
+3. `src/common/report_period.py::resolve_report_years()` — xác định kỳ hiện tại và kỳ so sánh.
+4. `app/pipeline.py::run_income()` — gọi locator, extractor và mapper B02.
+5. `app/pipeline.py::run_cashflow()` — gọi locator, extractor và mapper B03.
+6. `src/b01_financial_position/extractor.py::FinancialPositionSourceParser.parse_text()` — đưa B01 vào structural parser.
+7. `flat_parser/pipeline.py::FlatParserPipeline.parse_text()` — chuẩn hóa, dựng cây, gán giá trị và tạo canonical B01.
+8. `src/notes/pipeline.py::NotesPipeline.parse_text()` — đọc vùng thuyết minh và tạo Notes IR bổ sung.
+9. `src/common/output_contract.py::build_production_report()` — tạo JSON production thống nhất.
+10. `src/common/output_contract.py::manifest_entry()` — tạo dòng manifest cho từng báo cáo.
+
+Trong các file trên, docstring của hàm lõi dùng cùng một mẫu:
+
+- `Đầu vào`: dữ liệu và tùy chọn mà hàm nhận.
+- `Xử lý`: các quyết định chính và thứ tự các bước.
+- `Đầu ra`: kiểu dữ liệu và ý nghĩa của kết quả.
+
+Đọc `extractor.py` trước `mapper.py` để phân biệt hai việc: extractor tìm đúng dòng và giá trị trong source; mapper mới gán dòng đó vào node của schema. `output_contract.py` không parse lại source. File này chỉ làm sạch và đóng gói kết quả đã được các engine tạo ra.
 
 ### Bước 1 — Chọn file
 

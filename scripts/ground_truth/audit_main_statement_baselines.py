@@ -1,4 +1,4 @@
-"""Audit persisted three-statement baselines against their Markdown evidence."""
+"""Audit baseline ba báo cáo đã lưu với evidence Markdown tương ứng."""
 
 from __future__ import annotations
 

@@ -1,10 +1,9 @@
-"""Audit-only taxonomy for rows that did not reach a semantic node.
+"""Taxonomy chỉ dành cho audit của các dòng chưa đến được node semantic.
 
-The taxonomy is deliberately based on observable row structure and text.  It
-does not use report names, tickers, statement codes, or note references as
-identity keys.  Its purpose is to make the next parser change measurable: a
-review queue can distinguish a real semantic gap from a page footer or a
-column-collapse artifact.
+Taxonomy cố ý dựa trên cấu trúc và text có thể quan sát. Nó không dùng tên
+report, mã cổ phiếu, mã báo cáo hay tham chiếu thuyết minh làm khóa identity.
+Mục đích là đo được thay đổi parser tiếp theo: hàng đợi review có thể phân biệt
+khoảng thiếu semantic thật với footer trang hoặc artifact co sập cột.
 """
 
 from __future__ import annotations
@@ -64,13 +63,11 @@ def _is_structural_noise(label: str) -> bool:
     if label.startswith(("theo ", "phuong phap", "tiep theo")):
         return True
 
-    # A flattened statement can append a signatory's name or an address to a
-    # row that still carries a numeric token.  Use a conservative linguistic
-    # heuristic rather than a list of people or companies: accounting labels
-    # normally contain one of these semantic markers, while a short all-word
-    # name does not.  The exclusions keep generic headings such as
-    # "Theo phương pháp ..." and "Một chỉ tiêu mới" in their specific
-    # taxonomy categories instead of treating them as names.
+    # Báo cáo bị làm phẳng có thể nối tên người ký hoặc địa chỉ vào dòng vẫn có
+    # token số. Dùng heuristic ngôn ngữ thận trọng thay vì danh sách người/công
+    # ty: nhãn kế toán thường có một marker semantic, còn tên ngắn toàn chữ thì
+    # không. Các loại trừ giữ heading chung như "Theo phương pháp ..." và
+    # "Một chỉ tiêu mới" ở đúng nhóm taxonomy thay vì xem chúng là tên.
     if re.fullmatch(r"[a-z]+(?: [a-z]+){1,7}", label):
         accounting_markers = (
             "doanh thu", "chi phi", "loi nhuan", "thue", "tai san",
@@ -96,9 +93,8 @@ def _looks_column_collapsed(label: str, pattern: str) -> bool:
     if "column_major" in pattern or "plain_text_code" in pattern:
         if len(label) >= 80 or re.search(r"\bma\s+so\b", label):
             return True
-    # A long label containing several independent statement concepts is a
-    # stronger signal than length alone.  The vocabulary is generic and is
-    # not tied to a particular report.
+    # Nhãn dài chứa nhiều khái niệm báo cáo độc lập là tín hiệu mạnh hơn độ dài
+    # đơn thuần. Từ vựng này mang tính chung và không gắn với báo cáo cụ thể.
     concepts = (
         "doanh thu", "chi phi", "loi nhuan", "thue", "co dong",
         "co phieu", "tai chinh", "du phong",
@@ -114,7 +110,7 @@ def classify_unmapped_row(
     *,
     duplicate: bool = False,
 ) -> dict[str, Any]:
-    """Return a conservative reason classification for one non-mapped row."""
+    """Phân loại lý do thận trọng cho một dòng chưa map."""
 
     label = _fold(_field(row, "label", _field(row, "source_label", "")))
     current = _field(row, "current")
@@ -158,7 +154,7 @@ def build_error_taxonomy(
     *,
     limit: int = 40,
 ) -> dict[str, Any]:
-    """Summarize non-mapped rows for audit output and review prioritization."""
+    """Tóm tắt các dòng chưa map cho output audit và ưu tiên review."""
 
     materialized = list(rows or [])
     candidates = [

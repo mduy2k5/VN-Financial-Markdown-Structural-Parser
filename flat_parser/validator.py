@@ -25,6 +25,11 @@ def _value(node_map, node_id, period):
 
 
 def validate_financial_position(canonical):
+    """Kiểm tra tổng bảng cân đối cho từng kỳ báo cáo hiện có.
+
+    Không tạo tổng bị thiếu. Caller dùng các kiểm tra trả về để đánh dấu báo cáo
+    đạt hay cần xem xét.
+    """
     node_map = {n["node_id"]: n for n in canonical.get("nodes", [])}
     checks = []
 

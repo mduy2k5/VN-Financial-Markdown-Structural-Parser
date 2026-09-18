@@ -5,7 +5,7 @@ from .semantic_catalog import SemanticCatalog
 
 
 def _value_signature(value) -> tuple[str, str]:
-    """Compare duplicate payloads by normalized value where available."""
+    """So sánh payload trùng bằng giá trị đã chuẩn hóa nếu có."""
 
     if value.normalized_candidate is not None:
         return "normalized", str(value.normalized_candidate)
@@ -16,15 +16,16 @@ def map_first_value_per_period(
     fields: list[ResolvedField],
     catalog: SemanticCatalog,
 ):
-    """
-    Default dedup policy:
-      - first non-null/raw value found for each node_id + period_key wins;
-      - later duplicates never overwrite an existing period;
-      - conflicting later duplicates are recorded as review evidence;
-      - later occurrence may fill a period that was missing in the first occurrence;
-      - first note/code also wins.
+    """Tạo node canonical và vẫn giữ bằng chứng trùng lặp.
 
-    This is safer than whole-node overwrite while still honoring "first value found".
+    Chính sách loại trùng mặc định:
+      - giá trị non-null/raw đầu tiên của mỗi node_id + period_key được giữ;
+      - occurrence sau không ghi đè một kỳ đã có;
+      - occurrence xung đột được ghi làm bằng chứng cần xem xét;
+      - occurrence sau có thể điền kỳ còn thiếu ở occurrence đầu;
+      - thuyết minh/mã đầu tiên cũng được giữ.
+
+    Cách này an toàn hơn ghi đè cả node mà vẫn giữ nguyên quy tắc "giá trị đầu tiên".
     """
     canonical = catalog.clone_schema()
     node_map = {x["node_id"]: x for x in canonical["nodes"]}
@@ -123,7 +124,7 @@ def map_first_value_per_period(
             else:
                 actions.append({"action": "skip_existing_note", "value": field.note})
 
-        # form code is metadata, not semantic mapping key.
+        # Mã biểu mẫu là metadata, không phải khóa mapping semantic.
         code_accepted = False
         if field.code is not None and not st["code_set"]:
             st["code_set"] = True
@@ -133,7 +134,7 @@ def map_first_value_per_period(
         elif field.code is not None:
             actions.append({"action": "skip_existing_code", "value": field.code})
 
-        # Keep raw_text from first accepted payload occurrence only.
+        # Chỉ giữ raw_text từ occurrence payload đầu tiên được nhận.
         if accepted_any and not value_obj.get("raw_text"):
             value_obj["raw_text"] = field.source_label
 
@@ -147,9 +148,9 @@ def map_first_value_per_period(
             "actions": actions,
         })
 
-        # Extraction meta is append-only provenance; canonical value itself is
-        # first-wins, while conflicting alternatives remain in the occurrence
-        # audit and make the canonical statement review-required.
+        # Extraction meta là provenance chỉ ghi thêm; giá trị canonical dùng
+        # occurrence đầu tiên, còn phương án xung đột vẫn nằm trong audit
+        # occurrence và khiến báo cáo canonical cần xem xét.
         meta = target.setdefault("extraction_meta", {
             "policy": "first_value_per_period_wins",
             "occurrences": [],
@@ -194,9 +195,19 @@ def map_first_value_per_period(
         ),
     }
     if conflict_nodes:
-        # Keep the first source value for backward compatibility, but make the
-        # ambiguity explicit.  The complete conflicting evidence remains in
-        # extraction_meta and the source-observation layer.
+        # Giữ giá trị nguồn đầu tiên để tương thích, nhưng nêu rõ trạng thái
+        # mơ hồ. Toàn bộ bằng chứng xung đột vẫn nằm trong extraction_meta và
+        # lớp source-observation.
         canonical["status"] = "review_required"
+        for node_id in conflict_nodes:
+            node = node_map.get(node_id)
+            if node is None:
+                continue
+            node["mapping"] = {
+                "status": "review_required",
+                "target_id": node_id,
+                "method": "semantic_dedup_conflict",
+                "confidence": None,
+            }
 
     return canonical, accepted, duplicate_log

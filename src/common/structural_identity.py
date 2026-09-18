@@ -1,10 +1,9 @@
-"""Structural identities for source observations.
+"""Identity cấu trúc cho observation nguồn.
 
-Statement codes and note references are source metadata.  They are useful for
-audit output, but they are not stable semantic identities: OCR can detach them,
-the same code can occur in different schedules, and note references describe a
-different document layer.  This module provides the identity used when source
-rows are preserved or reconciled.
+Mã báo cáo và tham chiếu thuyết minh là metadata nguồn. Chúng hữu ích trong
+output audit nhưng không phải identity semantic ổn định: OCR có thể tách chúng,
+cùng mã có thể xuất hiện ở schedule khác và tham chiếu thuyết minh thuộc tầng
+tài liệu khác. Module này cung cấp identity dùng khi giữ hoặc reconcile dòng nguồn.
 """
 
 from __future__ import annotations
@@ -39,11 +38,10 @@ def structural_identity(
     hierarchy_path: Any = "",
     occurrence_rank: int | None = None,
 ) -> tuple[str, ...]:
-    """Return a code-independent source identity tuple.
+    """Trả về tuple identity nguồn không phụ thuộc mã.
 
-    ``occurrence_rank`` is only used when the same normalized label appears
-    more than once in the same structural context.  Codes and note references
-    are intentionally absent.
+    Chỉ dùng ``occurrence_rank`` khi cùng nhãn chuẩn hóa xuất hiện nhiều lần
+    trong cùng context cấu trúc. Cố ý không đưa mã và tham chiếu thuyết minh vào.
     """
 
     context = hierarchy_path or parent_label or ""
@@ -66,7 +64,7 @@ def occurrence_rank(
     parent_label: Any = "",
     hierarchy_path: Any = "",
 ) -> int:
-    """Assign a deterministic one-based rank without using source codes."""
+    """Gán rank bắt đầu từ một cách xác định mà không dùng mã nguồn."""
 
     base = structural_identity(
         statement=statement,

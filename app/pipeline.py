@@ -1,3 +1,10 @@
+"""Điểm vào batch cho pipeline đọc báo cáo từ source.
+
+Lớp ứng dụng tìm file, suy luận kỳ và ghi output. Các engine trả về kết quả
+trong bộ nhớ; module này ghép chúng thành một report production mà không đọc
+output của lần chạy trước.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -93,7 +100,12 @@ NOTES_ROW_SUFFIXES = (".notes_rows.csv", ".notes_rows.json")
 
 @lru_cache(maxsize=3)
 def statement_locator(schema_path: str, aliases_path: str) -> Optional[StatementLocator]:
-    """Cache one alias-assisted locator per statement catalog."""
+    """Tạo hoặc lấy lại locator cho một cặp schema/alias.
+
+    Đầu vào là hai đường dẫn catalog. Xử lý cache instance để B01, B02 và B03
+    không nạp lại alias trong cùng process. Đầu ra là ``StatementLocator``;
+    nếu dependency không có thì trả ``None`` để caller dùng fallback.
+    """
 
     if StatementLocator is None:
         return None
@@ -101,7 +113,12 @@ def statement_locator(schema_path: str, aliases_path: str) -> Optional[Statement
 
 
 def attach_locator_metrics(metrics: dict, scope: dict) -> dict:
-    """Expose routing evidence in audit metrics without changing the output contract."""
+    """Đưa evidence locator vào metrics của statement.
+
+    Đầu vào là metrics hiện có và scope dict có locator result. Hàm đọc trạng
+    thái activation, confidence, alias hit và candidate row rồi cập nhật phần
+    ``parser``. Đầu ra là chính metrics đã bổ sung; canonical không bị đổi.
+    """
 
     parser = metrics.setdefault("parser", {})
     locator = scope.get("locator") or {}
@@ -119,6 +136,12 @@ def attach_locator_metrics(metrics: dict, scope: dict) -> dict:
 
 
 def write_json(path: Path, obj: Any):
+    """Ghi một object JSON với UTF-8 và indent ổn định.
+
+    Đầu vào là đường dẫn đích và object JSON-serializable. Hàm tạo parent
+    directory rồi ghi file; đầu ra không có giá trị trả về, hiệu ứng là một
+    file JSON trên đĩa.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -132,7 +155,12 @@ def attach_source_provenance(
     previous_year: int,
     year_resolution: Optional[dict[str, Any]] = None,
 ) -> Optional[dict]:
-    """Attach source identity to every current-run canonical artifact."""
+    """Gắn provenance source và kỳ vào canonical hiện tại.
+
+    Đầu vào là canonical tùy chọn, tên/hash source, cặp năm và year resolution.
+    Xử lý thêm provenance nếu canonical là dict; output là chính dict đã cập
+    nhật hoặc ``None`` nếu statement chưa tạo canonical.
+    """
     if not isinstance(canonical, dict):
         return canonical
     canonical["source_name"] = source_name
@@ -149,12 +177,15 @@ def attach_source_provenance(
 
 
 def scan_statement_context(text: str) -> Optional[dict]:
-    """Run the shared structural scanner once for downstream Notes scope.
+    """Chạy structural scanner dùng chung một lần để tìm scope của Notes.
 
-    Notes scope detection treats the project scanner as corroborating evidence,
-    not as an authority.  Passing the same scanner context to the runtime Notes
-    parser and the Notes ground-truth builder keeps provenance comparable without
-    making any report-specific assumption.
+    Đầu vào là toàn bộ Markdown source. Hàm normalize và filter noise trước khi
+    gọi scanner; nếu dependency hoặc scanner lỗi, trả ``None`` để Notes tự xử
+    lý fallback. Đầu ra là dict evidence scope, không phải Notes IR.
+
+    Bộ phát hiện scope xem scanner là evidence bổ trợ, không phải nguồn quyết
+    định duy nhất. Dùng cùng context cho Notes parser và bộ tạo ground truth
+    giúp provenance có thể đối chiếu mà không cần giả định riêng cho report.
     """
 
     if filter_noise is None or normalize_lines is None or scan_statements is None:
@@ -166,10 +197,14 @@ def scan_statement_context(text: str) -> Optional[dict]:
 
 
 def remove_report_artifacts(output_dir: Path, base: str) -> None:
-    """Remove only the exact artifacts for the report being reprocessed.
+    """Xóa đúng artifact của report đang được chạy lại.
 
-    This prevents an old report result from surviving a partial rerun while
-    avoiding any broad or recursive deletion of user data.
+    Đầu vào là audit/output directory và base name của report hiện tại. Hàm
+    chỉ xóa các suffix đã khai báo cho đúng report; đầu ra không có giá trị trả
+    về.
+
+    Cách này ngăn kết quả cũ tồn tại sau lần chạy một phần, đồng thời không
+    xóa rộng hoặc xóa đệ quy dữ liệu của người dùng.
     """
     for suffix in REPORT_ARTIFACT_SUFFIXES:
         (output_dir / f"{base}{suffix}").unlink(missing_ok=True)
@@ -179,7 +214,12 @@ def remove_report_artifacts(output_dir: Path, base: str) -> None:
 
 
 def prune_stale_report_artifacts(output_dir: Path, active_bases: set[str]) -> None:
-    """Remove only generated report artifacts absent from the current input set."""
+    """Xóa artifact audit của report không còn trong batch hiện tại.
+
+    Đầu vào là thư mục artifact và tập base name đang active. Hàm chỉ duyệt
+    suffix đã biết, không xóa report production ngoài phạm vi. Đầu ra không có
+    giá trị trả về.
+    """
     if not output_dir.exists():
         return
     for suffix in REPORT_ARTIFACT_SUFFIXES:
@@ -195,12 +235,15 @@ def prune_stale_report_artifacts(output_dir: Path, active_bases: set[str]) -> No
 
 
 def clear_legacy_output(output_dir: Path) -> None:
-    """Remove the former flat output layout without touching user directories.
+    """Xóa layout output phẳng cũ mà không chạm vào thư mục người dùng.
 
-    The production contract is now ``manifest.json`` plus ``reports/*.json``.
-    Legacy parser/evaluation files are still available under ``audit/`` when
-    requested, but stale files from an earlier run must not remain beside the
-    production manifest and be mistaken for the current result.
+    Production contract hiện gồm ``manifest.json`` và ``reports/*.json``.
+    File parser/evaluation cũ vẫn được ghi dưới ``audit/`` khi được yêu cầu,
+    nhưng file cũ không được nằm cạnh manifest production và bị hiểu là kết
+    quả hiện tại.
+
+    Đầu vào là output directory. Xử lý xóa các artifact phẳng cũ đã biết và
+    metadata batch cũ; đầu ra không có giá trị trả về.
     """
     for suffix in REPORT_ARTIFACT_SUFFIXES:
         for path in output_dir.glob(f"*{suffix}"):
@@ -221,7 +264,11 @@ def clear_legacy_output(output_dir: Path) -> None:
 
 
 def prune_stale_production_reports(reports_dir: Path, active_report_filenames: set[str]) -> None:
-    """Keep only report JSON files generated for the current source set."""
+    """Chỉ giữ report JSON có trong tập source hiện tại.
+
+    Đầu vào là ``reports_dir`` và tên file production đang active. Hàm xóa
+    report JSON stale trong đúng thư mục này và không đụng source Markdown.
+    """
     if not reports_dir.exists():
         return
     for path in reports_dir.glob("*.json"):
@@ -230,12 +277,12 @@ def prune_stale_production_reports(reports_dir: Path, active_report_filenames: s
 
 
 def ensure_output_is_outside_input(input_path: Path, output_dir: Path) -> None:
-    """Reject an output folder that could become a future Markdown input.
+    """Từ chối output folder có thể trở thành input Markdown ở lần chạy sau.
 
-    Recursive discovery is intentionally limited to the caller's source tree.
-    Keeping generated files below that tree would allow a generated Markdown
-    summary or copied source to be discovered on a later run, so the boundary
-    is rejected before any output is created.
+    Discovery đệ quy chỉ giới hạn trong cây source do caller chỉ định. Nếu
+    ghi file sinh ra bên dưới cây đó, lần chạy sau có thể đọc nhầm summary
+    Markdown hoặc source được copy. Vì vậy pipeline kiểm tra boundary trước
+    khi tạo output.
     """
     if not input_path.is_dir():
         return
@@ -256,14 +303,25 @@ def stem_base(path: Path) -> str:
 
 
 def select_md_files(input_path: Path):
-    """Return one Markdown source per normalized base name.
+    """Trả về một source Markdown cho mỗi base name đã chuẩn hóa.
 
-    v8 behavior:
-    - fail loudly when input does not exist;
-    - accept a single .md file;
-    - scan the requested folder first;
-    - if no top-level .md exists, recursively scan subfolders;
-    - never silently return an empty batch.
+    Đầu vào:
+    - ``input_path``: một file Markdown hoặc thư mục chứa các file Markdown.
+
+    Xử lý:
+    - kiểm tra input;
+    - quét cấp đầu tiên, rồi mới quét đệ quy nếu cấp đầu không có file;
+    - gom các biến thể cùng base name và chọn một source đại diện.
+
+    Đầu ra:
+    - danh sách ``Path`` đã sắp xếp, mỗi báo cáo chỉ xuất hiện một lần.
+
+    Hành vi v8:
+    - báo lỗi rõ ràng khi input không tồn tại;
+    - nhận một file .md đơn lẻ;
+    - quét thư mục được yêu cầu trước;
+    - nếu không có .md ở cấp đầu, quét các thư mục con;
+    - không âm thầm trả về một batch rỗng.
     """
     if not input_path.exists():
         raise FileNotFoundError(f"Input path does not exist: {input_path.resolve()}")
@@ -307,6 +365,26 @@ def select_md_files(input_path: Path):
 
 
 def run_income(md_path: Path, current_year: int | None = None, previous_year: int | None = None, forced_sector="auto", fallback_unit: Optional[str] = None):
+    """Chạy extractor và mapper B02 cho một file Markdown.
+
+    Đầu vào:
+    - ``md_path``: đường dẫn source Markdown;
+    - ``current_year`` và ``previous_year``: năm đã suy luận hoặc được truyền rõ;
+    - ``forced_sector`` và ``fallback_unit``: tùy chọn ngữ cảnh từ caller.
+
+    Xử lý:
+    - định vị scope B02;
+    - trích xuất row theo nhiều layout;
+    - map row vào schema theo sector;
+    - bổ sung source recovery, reconcile và tính metrics.
+
+    Đầu ra:
+    - dict gồm ``canonical``, ``metrics``, ``rows``, ``scope`` và ``sector``;
+    - ``canonical`` là ``None`` khi chưa đủ row hoặc sector để map an toàn.
+
+    Locator chỉ thu hẹp scope ứng viên. Extractor vẫn quyết định ranh giới
+    row, còn source recovery chỉ thêm evidence và không thay giá trị đã map.
+    """
     text = md_path.read_text(encoding="utf-8", errors="ignore")
     period = resolve_report_years(
         text,
@@ -343,9 +421,9 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
     else:
         sector, sector_method = detect_sector_from_scope(scoped, rows)
 
-    # Do not manufacture an all-null canonical when structural extraction found no rows.
-    # Return a diagnostic-only comparison result instead. This prevents confusing
-    # `*.income.canonical.json` files that exist but contain no observations.
+    # Không tạo canonical toàn giá trị null khi structural extraction không có row.
+    # Trả về kết quả chỉ dùng cho chẩn đoán. Cách này tránh tạo file
+    # `*.income.canonical.json` không có observation nhưng trông như kết quả hợp lệ.
     if not rows:
         metrics = {
             "status": "no_structural_rows",
@@ -389,11 +467,11 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
     mapper = IncomeMapper(schema_path=SCHEMA, aliases_path=ALIASES, sector=sector, regex_fallback=True,
                           regex_min_score=0.93, regex_gap=0.08)
     mapped = mapper.map_rows(rows)
-    # `SP_INCOME_CODE_LED_MIXED` is a recovery-oriented pattern.  On a layout
-    # that was already captured by a stronger structural pattern it can cross a
-    # neighbouring bullet boundary and contribute a contradictory duplicate.
-    # Keep it when it is the only evidence for a semantic node; otherwise the
-    # complete non-recovery observation is the authoritative parser result.
+    # `SP_INCOME_CODE_LED_MIXED` là pattern phục hồi. Với layout đã được
+    # pattern cấu trúc mạnh hơn bắt được, nó có thể vượt qua ranh giới bullet
+    # kế bên và tạo duplicate mâu thuẫn.
+    # Chỉ giữ pattern này khi nó là evidence duy nhất; nếu không, observation
+    # đầy đủ từ parser chính là kết quả có thẩm quyền.
     complete_primary_nodes = {
         row.node_id
         for row in mapped
@@ -416,8 +494,8 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
         stmt_unit = None
     canonical = mapper.canonical(mapped, source_name=md_path.name, current_year=current_year, previous_year=previous_year, statement_unit=stmt_unit)
     canonical = augment_from_rows(canonical, mapped, "INCOME")
-    # v13: source-scope recovery is additive only. It preserves rows that the semantic extractor
-    # did not materialize, without changing mapping decisions for already-populated semantic nodes.
+    # v13: source-scope recovery chỉ bổ sung. Nó giữ các row semantic extractor
+    # chưa tạo ra, nhưng không đổi quyết định map của node đã có giá trị.
     if ext.get("scope_start_line") and ext.get("scope_end_line"):
         recovered_rows = extract_generic_statement_rows(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "INCOME")
@@ -438,6 +516,27 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
 
 
 def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: int | None = None, fallback_unit: Optional[str] = None):
+    """Chạy extractor và mapper B03 cho một file Markdown.
+
+    Đầu vào:
+    - ``md_path``: đường dẫn source Markdown;
+    - ``current_year`` và ``previous_year``: cặp năm của báo cáo;
+    - ``fallback_unit``: đơn vị tài liệu nếu B03 không tự tìm thấy.
+
+    Xử lý:
+    - định vị scope B03;
+    - xác định sector và phương pháp direct/indirect;
+    - trích xuất, map và hydrate các row có thể bị tách;
+    - giữ supplemental section và conflict dưới dạng source observation.
+
+    Đầu ra:
+    - dict gồm ``canonical``, ``metrics``, ``rows``, ``scope``, ``sector`` và ``method``;
+    - ``canonical`` là ``None`` khi profile hoặc phương pháp chưa đủ an toàn.
+
+    B03 phải xác định section và phương pháp direct/indirect trước khi map.
+    Schedule bổ sung được giữ làm source evidence khi schema không có semantic
+    target an toàn.
+    """
     text = md_path.read_text(encoding="utf-8", errors="ignore")
     period = resolve_report_years(
         text,
@@ -481,8 +580,8 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
-    # v1 intentionally supports only statutory profiles researched from TT200 and B04/TCTD.
-    # Securities/insurance are detected, not force-routed into a wrong schema.
+    # v1 chỉ hỗ trợ các profile statutory đã được nghiên cứu cho TT200 và B04/TCTD.
+    # Securities/insurance vẫn được phát hiện, không ép vào schema sai.
     if sector not in {"enterprise", "bank", "securities"} or method not in {"direct", "indirect"}:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         attach_locator_metrics(metrics, ext)
@@ -494,23 +593,24 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
         stmt_unit = None
     canonical = mapper.canonical(mapped, md_path.name, current_year, previous_year, statement_unit=stmt_unit)
     canonical = augment_from_rows(canonical, mapped, "CASHFLOW")
-    # v13: raw source recovery covers mixed inline-year/date layouts (e.g. current value followed
-    # by `(Năm 2024: ...)`, or `(31.12.2025); (31.12.2024)`) that can hydrate only one period in v12.
+    # v13: raw source recovery xử lý layout trộn năm/ngày trên cùng dòng, ví dụ
+    # giá trị hiện tại đi trước `(Năm 2024: ...)` hoặc `(31.12.2025); (31.12.2024)`,
+    # vốn có thể chỉ hydrate được một kỳ ở v12.
     if ext.get("scope_start_line") and ext.get("scope_end_line"):
         recovered_rows = extract_generic_statement_rows(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year, "CASHFLOW")
         canonical = augment_canonical_with_recovered_rows(canonical, recovered_rows, "CASHFLOW")
-        # v16: label-less statutory code tables can safely hydrate an existing unique profile node.
-        # This repairs period pairing without inventing labels or overwriting mapped values.
+        # v16: bảng statutory chỉ có mã có thể hydrate an toàn node profile duy nhất
+        # đã tồn tại. Cách này ghép lại kỳ mà không tự tạo label hoặc ghi đè giá trị.
         code_evidence = extract_code_period_table(
             text, ext["scope_start_line"], ext["scope_end_line"], current_year, previous_year)
         canonical = hydrate_canonical_by_form_code(canonical, code_evidence, sector, method)
 
-        # Securities reports can append a distinct customer/agency cash-flow
-        # schedule after the statutory B03 sections.  Keep it as bounded source
-        # observations: the universal schema has no semantic nodes for those
-        # customer balances, so mapping them into an enterprise/bank node would
-        # be materially worse than preserving the evidence explicitly.
+        # Report securities có thể thêm schedule dòng tiền khách hàng/đại lý
+        # sau các section statutory của B03. Giữ schedule này thành source
+# observation có ranh giới: universal schema không có node semantic cho
+        # số dư khách hàng, nên map vào node enterprise/bank sẽ kém an toàn hơn
+        # việc giữ nguyên evidence.
         supplemental_scope = {"rows": []}
         if sector == "securities":
             supplemental_scope = extract_securities_supplemental_cashflow_rows(
@@ -550,6 +650,27 @@ def process_one(
     enable_notes: bool = True,
     year_resolution: Optional[dict[str, Any]] = None,
 ):
+    """Parse một report và trả về kết quả statement cùng production JSON.
+
+    Đầu vào:
+    - ``md_path``: source Markdown cần xử lý;
+    - ``audit_dir``: thư mục artifact tùy chọn;
+    - năm, sector và các parser tùy chọn từ ``main``.
+
+    Xử lý:
+    - đọc source một lần và tạo provenance;
+    - chạy B02, B03, B01 theo thứ tự production;
+    - chạy Notes sau khi có primary statements;
+    - chuyển từng statement sang output contract rồi ghép report envelope.
+
+    Đầu ra:
+    - dict production của một báo cáo, kèm statement metrics và Notes;
+    - nếu bật audit, các artifact review được ghi riêng nhưng không làm input
+      cho lần parse tiếp theo.
+
+    Thứ tự gọi là có chủ ý: B02, B03, B01 rồi Notes bổ sung. Notes nhận kết
+    quả primary để link nhưng không trở thành nguồn dữ liệu chính.
+    """
     base = stem_base(md_path)
     source_text = md_path.read_text(encoding="utf-8", errors="ignore")
     source_sha256 = hashlib.sha256(md_path.read_bytes()).hexdigest()
@@ -590,7 +711,7 @@ def process_one(
         fallback_unit=doc_unit,
     )
 
-    # Cross-statement unit re-synchronization
+# Đồng bộ lại đơn vị giữa các báo cáo.
     resolved_unit = (
         doc_unit
         or (inc.get("canonical") or {}).get("unit")
@@ -633,8 +754,8 @@ def process_one(
         elif fp_path.exists():
             fp_path.unlink()
 
-    # v22.5 Notes Foundation: additive, non-destructive.
-    # Primary statements stay authoritative; Notes is emitted as a separate Generic Note IR.
+    # Nền tảng Notes v22.5: chỉ bổ sung, không phá dữ liệu.
+# Báo cáo chính vẫn có thẩm quyền; Notes được xuất thành Generic Note IR riêng.
     notes_ir = None
     notes_rows: list[dict[str, Any]] = []
     notes_path = audit_dir / f"{base}.notes.ir.json" if audit_dir else None
@@ -707,9 +828,9 @@ def process_one(
         notes=clean_notes(notes_ir, notes_rows),
     )
 
-    # Rich canonical/comparison files are intentionally audit-only.  They are
-    # useful for evaluation and troubleshooting, but are not part of the
-    # stable consumer-facing output contract.
+# File canonical/so sánh chi tiết chỉ dành cho audit.
+    # Chúng hữu ích cho evaluation và troubleshooting nhưng không thuộc
+    # output contract ổn định dành cho consumer.
     merged_path = None
     if audit_dir is not None:
         merged = {
@@ -829,6 +950,22 @@ def process_one(
 
 
 def main():
+    """Điều phối một lần chạy production từ input Markdown đến manifest.
+
+    Đầu vào:
+    - tham số dòng lệnh gồm input, output, năm tùy chọn, sector, Notes và audit.
+
+    Xử lý:
+    - chọn source Markdown;
+    - tạo output ngoài cây input;
+    - gọi ``process_one`` cho từng báo cáo;
+    - dọn artifact stale và ghi report JSON cùng ``manifest.json``.
+
+    Đầu ra:
+    - các file production trong ``<output>/reports``;
+    - ``manifest.json`` mô tả batch;
+    - mã thoát lỗi nếu input hoặc một bước bắt buộc không hợp lệ.
+    """
     ap = argparse.ArgumentParser(
         description="Source-only mapper: Financial Position + Income + Cash Flow + additive Notes IR."
     )

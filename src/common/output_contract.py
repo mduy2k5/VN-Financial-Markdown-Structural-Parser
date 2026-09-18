@@ -1,9 +1,8 @@
-"""Production output contract for parser results.
+"""Hợp đồng output production cho kết quả parser.
 
-The extraction engines keep rich internal diagnostics for tests and review.
-This module projects those internal objects into a small, stable JSON contract
-that downstream consumers can use without depending on parser implementation
-details.
+Các engine trích xuất giữ chẩn đoán nội bộ đầy đủ cho test và review. Module
+này chiếu các object nội bộ thành hợp đồng JSON nhỏ, ổn định để consumer phía
+sau dùng mà không phụ thuộc chi tiết triển khai parser.
 """
 
 from __future__ import annotations
@@ -23,6 +22,7 @@ OUTPUT_SCHEMA_NAME = "vn_financial_report_output"
 OUTPUT_SCHEMA_VERSION = "2.0.0"
 BATCH_SCHEMA_NAME = "vn_financial_report_batch"
 BATCH_SCHEMA_VERSION = "2.0.0"
+QUALITY_GATE_POLICY = "strict_source_backed_quality_gate_v1"
 
 _NESTED_ROW_FIELDS = {
     "pages",
@@ -35,13 +35,13 @@ _NESTED_ROW_FIELDS = {
 
 
 def stable_report_id(source_sha256: str) -> str:
-    """Return a content-derived id that does not depend on a filename."""
+    """Trả về id suy ra từ nội dung, không phụ thuộc tên file."""
 
     return f"r_{source_sha256[:16]}"
 
 
 def report_filename(source_name: str, source_sha256: str) -> str:
-    """Return a readable, collision-resistant production report filename."""
+    """Trả về tên file báo cáo production dễ đọc và chống va chạm."""
 
     stem = Path(source_name or "report").stem or "report"
     stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode()
@@ -71,7 +71,7 @@ def _number(value: Any) -> int | float | None:
 
 
 def _nullable(value: Any) -> Any:
-    """Turn serializer-level empty strings into explicit JSON nulls."""
+    """Chuyển chuỗi rỗng ở tầng serializer thành JSON null rõ ràng."""
 
     if isinstance(value, str) and not value.strip():
         return None
@@ -93,10 +93,9 @@ def _value(value: Any) -> dict[str, Any]:
         "unit": _nullable(value.get("unit")),
     }
     raw_text = value.get("raw_text", value.get("source_text"))
-    # Keep the original Markdown/source serialization separate from the
-    # normalized numeric values.  The key is always present so consumers have
-    # a stable contract; ``null`` means this value was derived without a
-    # recoverable source serialization.
+    # Giữ serialize Markdown/nguồn gốc tách khỏi giá trị số đã chuẩn hóa.
+    # Key luôn có để consumer có contract ổn định; ``null`` nghĩa là giá trị
+    # được suy ra nhưng không khôi phục được dạng serialize của nguồn.
     result["raw_text"] = _json_value(raw_text)
     result["raw_values"] = {
         "current": current_raw if isinstance(current_raw, str) else None,
@@ -136,7 +135,7 @@ def _evidence(extraction_meta: Any) -> list[dict[str, Any]]:
 
 
 def _mapping(node: dict[str, Any], *, observation: bool) -> dict[str, Any]:
-    """Normalize semantic/source mapping into one stable provenance object."""
+    """Chuẩn hóa mapping semantic/nguồn thành một object provenance ổn định."""
 
     meta = node.get("extraction_meta") or {}
     if not isinstance(meta, dict):
@@ -191,7 +190,7 @@ def _mapping(node: dict[str, Any], *, observation: bool) -> dict[str, Any]:
 
 
 def _attributes(node: dict[str, Any]) -> dict[str, Any]:
-    """Return the same metadata shape for every statement record."""
+    """Trả về cùng một dạng metadata cho mọi record báo cáo."""
 
     children = node.get("children")
     if not isinstance(children, list):
@@ -206,8 +205,8 @@ def _attributes(node: dict[str, Any]) -> dict[str, Any]:
         "form_code": _nullable(node.get("form_code")),
         "code": _nullable(node.get("code")),
         "note_ref": _nullable(node.get("note_ref")),
-        # Source hierarchy is an independent evidence dimension.  It does not
-        # change the semantic parent_id used by downstream consumers.
+        # Hierarchy nguồn là một chiều evidence độc lập. Nó không đổi parent_id
+        # semantic mà consumer phía sau sử dụng.
         "source_context": _json_value(node.get("source_context")),
     }
 
@@ -249,14 +248,105 @@ def _statement_summary(metrics: dict[str, Any], item_count: int, observation_cou
     }
 
 
+def _quality_gate(
+    canonical: dict[str, Any],
+    metrics: dict[str, Any],
+) -> dict[str, Any]:
+    """Quyết định báo cáo có an toàn để dùng semantic ở bước sau không.
+
+    Gate cố ý nghiêm ngặt hơn trạng thái parser thành công. Parser có thể giữ
+    evidence nguồn hữu ích nhưng vẫn có scope chưa giải quyết, giá trị semantic
+    trùng, kỳ chưa đủ hoặc công thức lỗi. Output đó vẫn có trong ``observations``
+    và artifact audit, nhưng được đánh dấu rõ là chỉ review trong contract production.
+    """
+
+    parser = metrics.get("parser") or {}
+    quality = metrics.get("quality") or {}
+    mapping = metrics.get("mapping") or {}
+    diagnostics = canonical.get("diagnostics") or {}
+    issues: list[str] = []
+
+    statement_status = metrics.get("status") or canonical.get("status") or "not_available"
+    if statement_status != "ok":
+        issues.append(f"statement_status:{statement_status}")
+
+    value_nodes = metrics.get("value_nodes")
+    if isinstance(value_nodes, (int, float)) and value_nodes <= 0:
+        issues.append("no_valued_items")
+
+    for key in ("scope_health", "statement_health"):
+        value = parser.get(key)
+        if value and value not in {"healthy", "locator_routed", "scanner_routed"}:
+            issues.append(f"{key}:{value}")
+
+    for key in ("semantic_dedup_conflicts", "source_recovery_conflicts", "unresolved"):
+        value = parser.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            issues.append(f"{key}:{int(value)}")
+
+    if parser.get("schema_sector_gap"):
+        issues.append(f"schema_sector_gap:{parser['schema_sector_gap']}")
+
+    unmapped = mapping.get("unmapped_rows")
+    if isinstance(unmapped, (int, float)) and unmapped > 0:
+        issues.append(f"unmapped_rows:{int(unmapped)}")
+
+    mapping_rate = mapping.get("mapping_rate")
+    if isinstance(mapping_rate, (int, float)) and mapping_rate < 0.95:
+        issues.append(f"mapping_rate:{mapping_rate}")
+
+    for period in ("current_coverage", "previous_coverage"):
+        coverage = mapping.get(period)
+        if isinstance(coverage, (int, float)) and coverage < 0.95:
+            issues.append(f"{period}:{coverage}")
+
+    formula_failed = quality.get("formula_failed")
+    if isinstance(formula_failed, (int, float)) and formula_failed > 0:
+        issues.append(f"formula_failed:{int(formula_failed)}")
+
+    source_mapping = diagnostics.get("source_observation_mapping") or {}
+    ambiguous_source = source_mapping.get("ambiguous_source_nodes")
+    if isinstance(ambiguous_source, (int, float)) and ambiguous_source > 0:
+        issues.append(f"ambiguous_source_observations:{int(ambiguous_source)}")
+
+    # Giữ thứ tự nhưng loại mã issue trùng do nhiều lớp chẩn đoán tạo ra.
+    issues = list(dict.fromkeys(issues))
+    return {
+        "status": "ok" if not issues else "review_required",
+        "eligible_for_use": not issues,
+        "policy": QUALITY_GATE_POLICY,
+        "issues": issues,
+    }
+
+
 def clean_statement(
     canonical: dict[str, Any] | None,
     metrics: dict[str, Any] | None,
     *,
     statement_type: str,
 ) -> dict[str, Any]:
+    """Chiếu một báo cáo nội bộ thành dạng production ổn định.
+
+    Đầu vào:
+    - ``canonical``: node và diagnostics do engine statement tạo;
+    - ``metrics``: coverage, validation và parser metrics;
+    - ``statement_type``: tên B01, B02 hoặc B03 dùng làm fallback.
+
+    Xử lý:
+    - tách semantic item khỏi source observation;
+    - giữ value, period, mapping, provenance cần cho consumer;
+    - áp dụng quality gate và đặt trạng thái ``ok`` hoặc ``review_required``.
+
+    Đầu ra là một statement contract ổn định. Hàm không parse Markdown, không
+    map alias và không lấy dữ liệu từ report trước.
+
+    Chẩn đoán parser vẫn nằm trong artifact audit. Hàm này chỉ giữ field mà
+    consumer phía sau có thể dựa vào và áp dụng quality gate trước khi đánh dấu
+    báo cáo đủ điều kiện sử dụng.
+    """
     canonical = canonical or {}
     metrics = metrics or {}
+    gate = _quality_gate(canonical, metrics)
     parser = metrics.get("parser") or {}
     items: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
@@ -285,7 +375,11 @@ def clean_statement(
     sector = canonical.get("sector") or parser_sector or valued_node.get("sector")
     method = canonical.get("method") or parser_method or valued_node.get("method")
     return {
-        "status": metrics.get("status") or canonical.get("status") or "not_available",
+        "status": (
+            "ok"
+            if gate["eligible_for_use"]
+            else "review_required"
+        ),
         "statement_type": canonical.get("statement_type") or statement_type,
         "schema": {
             "id": canonical.get("schema_id"),
@@ -307,6 +401,7 @@ def clean_statement(
                 "failed": quality.get("formula_failed"),
                 "pass_rate": quality.get("formula_pass_rate"),
             },
+            "gate": gate,
         },
     }
 
@@ -420,6 +515,13 @@ def _note_row(row: dict[str, Any], index: int) -> dict[str, Any]:
 
 
 def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Chiếu Notes IR bổ sung thành contract Notes production.
+
+    Đầu vào là Notes IR và các native row đã parse. Hàm chuyển section, row,
+    value, link và source location sang schema output thống nhất. Đầu ra có
+    trạng thái ``disabled``, ``not_detected`` hoặc ``parsed``; Notes không được
+    dùng để ghi đè statement chính.
+    """
     if not note_ir:
         return {
             "status": "disabled",
@@ -482,6 +584,12 @@ def build_periods(
     previous_year: int | None,
     year_resolution: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    """Chuẩn hóa cặp năm và metadata kỳ cho output contract.
+
+    Đầu vào là hai năm và dict resolution tùy chọn. Đầu ra là khối ``periods``
+    có current, previous, loại kỳ và trạng thái conflict; hàm không suy luận
+    lại source.
+    """
     resolution = year_resolution or {}
     return {
         "current": {
@@ -515,6 +623,21 @@ def build_production_report(
     cash_flow: dict[str, Any],
     notes: dict[str, Any],
 ) -> dict[str, Any]:
+    """Tạo envelope production cuối cho một báo cáo.
+
+    Đầu vào:
+    - provenance source và period resolution;
+    - ba statement đã qua ``clean_statement``;
+    - Notes đã qua ``clean_notes``.
+
+    Xử lý:
+    - gắn report id ổn định từ SHA-256;
+    - gom statement, Notes và periods vào một contract;
+    - tổng hợp status, quality gate và các issue cần review.
+
+    Đầu ra là một dict JSON-serializable có các khối ``contract``, ``report``,
+    ``periods``, ``statements``, ``notes`` và ``quality``.
+    """
     statements = {
         "financial_position": financial_position,
         "income_statement": income_statement,
@@ -522,6 +645,7 @@ def build_production_report(
     }
     statement_statuses = {name: value.get("status") for name, value in statements.items()}
     review_statuses = {"ok", "parsed", "not_detected", "disabled"}
+    period_conflict = bool((year_resolution or {}).get("conflict"))
     issues = [
         f"{name}:{status}"
         for name, status in statement_statuses.items()
@@ -529,7 +653,24 @@ def build_production_report(
     ]
     if notes.get("status") not in {"parsed", "not_detected", "disabled"}:
         issues.append(f"notes:{notes.get('status')}")
-    quality_status = "ok" if not issues and not (year_resolution or {}).get("conflict") else "review_required"
+    statement_gates = {
+        name: ((value.get("validation") or {}).get("gate") or {})
+        for name, value in statements.items()
+    }
+    gate_issues = {
+        name: list(gate.get("issues") or [])
+        for name, gate in statement_gates.items()
+        if gate.get("issues")
+    }
+    for name, statement_issues in gate_issues.items():
+        for issue in statement_issues:
+            marker = f"{name}:quality_gate:{issue}"
+            if marker not in issues:
+                issues.append(marker)
+    if period_conflict:
+        issues.append("periods:conflict")
+        gate_issues.setdefault("periods", []).append("period_conflict")
+    quality_status = "ok" if not issues else "review_required"
     return {
         "contract": {
             "name": OUTPUT_SCHEMA_NAME,
@@ -550,13 +691,25 @@ def build_production_report(
             "issues": issues,
             "statements": statement_statuses,
             "periods": {
-                "conflict": bool((year_resolution or {}).get("conflict")),
+                "conflict": period_conflict,
+            },
+            "gate": {
+                "status": quality_status,
+                "eligible_for_use": quality_status == "ok",
+                "policy": QUALITY_GATE_POLICY,
+                "issues": gate_issues,
             },
         },
     }
 
 
 def manifest_entry(report: dict[str, Any]) -> dict[str, Any]:
+    """Tạo một dòng manifest từ production report.
+
+    Đầu vào là report đã được ``build_production_report`` tạo. Xử lý lấy id,
+    source, kỳ và trạng thái quality; đầu ra là dict ngắn gọn trỏ tới file
+    trong ``reports/`` để batch consumer không phải mở toàn bộ report.
+    """
     report_meta = report.get("report") or {}
     source = report_meta.get("source") or {}
     periods = report.get("periods") or {}

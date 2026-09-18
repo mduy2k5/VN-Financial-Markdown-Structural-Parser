@@ -1,4 +1,4 @@
-"""B02 - Income Statement / Statement of Profit or Loss Package."""
+"""Gói B02 - Báo cáo kết quả hoạt động kinh doanh."""
 
 from .extractor import extract_income_fallback, is_non_item_header_or_noise, strip_md
 from .mapper import IncomeMapper, IncomeRow, adapt_row, auto_sector, detect_special_sector

@@ -3,7 +3,7 @@ import json
 import tempfile
 
 from src.b03_cashflow import CashFlowMapper, adapt_cashflow_row, extract_cashflow_fallback
-from src.common import extract_generic_statement_rows
+from src.common import extract_code_period_table, extract_generic_statement_rows
 from src.b02_income.mapper import parse_number as parse_income_number
 
 
@@ -26,6 +26,21 @@ def test_generic_pipe_preserves_dash_period_position():
     r24 = next(r for r in rows if r.code == '24')
     assert r23.current is None and r23.previous == -3620022795913
     assert r24.current == 2232419883915 and r24.previous is None
+
+
+def test_code_period_evidence_preserves_dash_period_position():
+    text = '''
+# BÁO CÁO LƯU CHUYỂN TIỀN TỆ
+| Mã số | 2025 VND | 2024 VND |
+|---:|---:|---:|
+| 17 | - | (10.000.000.000) |
+| 36 | (54.283.249.510) | - |
+'''
+    rows = extract_code_period_table(text, 1, len(text.splitlines()), 2025, 2024)
+    r17 = next(r for r in rows if r['code'] == '17')
+    r36 = next(r for r in rows if r['code'] == '36')
+    assert r17['current'] is None and r17['previous'] == -10000000000
+    assert r36['current'] == -54283249510 and r36['previous'] is None
 
 
 def test_translation_difference_is_reconciliation_and_maps(tmp_path: Path):
@@ -72,3 +87,48 @@ Mẫu B 03 - DN/HN
     row = next(r for r in ext['rows'] if r['code'] == '01')
     assert row['source_label'] == 'Lợi nhuận trước thuế'
     assert (row['current'], row['previous']) == (396844169100, 595916748469)
+
+
+def test_payment_label_does_not_fuzzy_map_to_receipts():
+    text = '''
+# BÁO CÁO LƯU CHUYỂN TIỀN TỆ HỢP NHẤT
+(Theo phương pháp gián tiếp)
+Mẫu B 03 - DN/HN
+* Tiền chi khác từ hoạt động kinh doanh: (10.000.000.000) đồng
+'''
+    ext = extract_cashflow_fallback(text, 2025, 2024, fallback_unit='vnd')
+    root = Path(__file__).resolve().parents[2]
+    mapper = CashFlowMapper(
+        root / 'resources/schemas/cash_flow_schema.json',
+        root / 'resources/schemas/cash_flow_aliases.json',
+        sector='enterprise',
+        method='indirect',
+    )
+    row = mapper.map_rows([adapt_cashflow_row(ext['rows'][0])])[0]
+
+    assert row.mapping_status == 'mapped'
+    assert row.mapped_node_id == 'CASHFLOW.ENTERPRISE.INDIRECT.OTHER_OPERATING_PAYMENTS'
+
+
+def test_unique_form_code_disambiguates_detached_reconciliation_row():
+    text = '''
+# BÁO CÁO LƯU CHUYỂN TIỀN TỆ HỢP NHẤT
+(Theo phương pháp gián tiếp)
+Mẫu B 03 - DN/HN
+| Chỉ tiêu | Mã số | 2025 VND | 2024 VND |
+|---|---:|---:|---:|
+| Tiền và tương đương tiền đầu năm | 60 | 100 | 90 |
+'''
+    ext = extract_cashflow_fallback(text, 2025, 2024, fallback_unit='vnd')
+    root = Path(__file__).resolve().parents[2]
+    mapper = CashFlowMapper(
+        root / 'resources/schemas/cash_flow_schema.json',
+        root / 'resources/schemas/cash_flow_aliases.json',
+        sector='enterprise',
+        method='indirect',
+    )
+    row = mapper.map_rows([adapt_cashflow_row(ext['rows'][0])])[0]
+
+    assert row.mapping_status == 'mapped'
+    assert row.mapped_node_id == 'CASHFLOW.ENTERPRISE.CASH_BEGINNING'
+    assert row.mapping_method == 'form_code_disambiguation'

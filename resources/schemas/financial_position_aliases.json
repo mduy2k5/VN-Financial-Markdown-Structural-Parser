@@ -1681,7 +1681,8 @@
           "TRONG ĐÓ: LỢI THẾ THƯƠNG MẠI"
         ],
         "parent_context": [
-          "Tài sản khác"
+          "Tài sản khác",
+          "Tài sản Có khác"
         ],
         "contains": [],
         "exclude_if_contains": []
@@ -2248,7 +2249,11 @@
         "exact": [
           "Cổ phiếu phổ thông có quyền biểu quyết"
         ],
-        "aliases": [],
+        "aliases": [
+          "411a. Cổ phiếu phổ thông có quyền biểu quyết",
+          "411.1a. Cổ phiếu phổ thông có quyền biểu quyết",
+          "1a. Cổ phiếu phổ thông có quyền biểu quyết"
+        ],
         "parent_context": [
           "Vốn góp của chủ sở hữu"
         ],
@@ -2450,7 +2455,8 @@
           "LNST CHƯA PHÂN PHỐI LŨY KẾ ĐẾN CUỐI KỲ TRƯỚC",
           "LỢI NHUẬN/LỖ LŨY KẾ NĂM TRƯỚC",
           "LỢI NHUẬN SAU THUẾ CHƯA PHÂN PHỐI LŨY KẾ ĐẾN CUỐI NĂM TRƯỚC",
-          "Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối năm trước"
+          "Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối năm trước",
+          "421a. LNST chưa phân phối lũy kế đến cuối năm trước"
         ],
         "parent_context": [
           "Lợi nhuận sau thuế chưa phân phối / Lỗ lũy kế"
@@ -2474,7 +2480,8 @@
           "Lợi nhuận năm nay",
           "Lợi nhuận chưa phân phối kỳ này",
           "LỢI NHUẬN SAU THUẾ CHƯA PHÂN PHỐI NĂM NAY",
-          "Lợi nhuận sau thuế chưa phân phối năm nay"
+          "Lợi nhuận sau thuế chưa phân phối năm nay",
+          "421b. LNST chưa phân phối năm nay"
         ],
         "parent_context": [
           "Lợi nhuận sau thuế chưa phân phối / Lỗ lũy kế",
@@ -2689,7 +2696,8 @@
         ],
         "aliases": [
           "Dự phòng rủi ro tài sản Có nội bảng khác",
-          "Dự phòng cho các tài sản Có nội bảng khác"
+          "Dự phòng cho các tài sản Có nội bảng khác",
+          "Dự phòng rủi ro tài sản Có khác"
         ],
         "parent_context": [
           "Tài sản Có khác",
@@ -3056,7 +3064,9 @@
         "exact": [
           "Phải thu ngắn hạn khác"
         ],
-        "aliases": [],
+        "aliases": [
+          "Các khoản phải thu khác"
+        ],
         "parent_context": [
           "Phải thu khác"
         ],

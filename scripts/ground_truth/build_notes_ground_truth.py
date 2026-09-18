@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Make direct execution (`python scripts/ground_truth/build_notes_ground_truth.py`) resolve the
-# repository packages consistently across Windows Python installations.
+# Khi chạy trực tiếp (`python scripts/ground_truth/build_notes_ground_truth.py`),
+# bảo đảm package của repo được resolve nhất quán giữa các bản Python trên Windows.
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -40,7 +40,7 @@ def source_hash(raw: bytes) -> str:
 
 
 def native_rows(note_ir: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return row-level records with native JSON arrays instead of CSV strings."""
+    """Trả về record theo dòng với mảng JSON gốc thay vì chuỗi CSV."""
     rows = flatten_note_rows(note_ir)
     for row in rows:
         for field in NESTED_ROW_FIELDS:

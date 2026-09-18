@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import collections
 import hashlib
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 try:
-    from .source_recovery import clean, fold
+    from .source_recovery import clean, fold, parse_number
 except ImportError:
-    from source_recovery import clean, fold
+    from source_recovery import clean, fold, parse_number
 
 
 def _value_key(v: Any):
-    if isinstance(v, float):
-        return round(v, 8)
-    return v
+    parsed = parse_number(v)
+    if parsed is not None:
+        try:
+            normalized = Decimal(str(parsed))
+            if normalized == normalized.to_integral_value():
+                return int(normalized)
+            return round(float(normalized), 8)
+        except (InvalidOperation, ValueError):
+            return str(parsed)
+    return clean(v).casefold() if v is not None else None
 
 
 def _source_line(node: dict) -> int:
@@ -27,11 +35,10 @@ def _group_id(statement: str, section: str, label: str, context: str = "") -> st
 
 
 def _period_votes(nodes: list[dict], period: str):
-    """Return period vote table using both node value and occurrence evidence.
+    """Tạo bảng vote theo kỳ từ cả giá trị node và evidence occurrence.
 
-    A single node value contributes one vote. Occurrence values contribute only when they are
-    not identical to the node-level value from the same observation, avoiding accidental double
-    weighting of the same evidence.
+    Giá trị node đóng góp một vote. Giá trị occurrence chỉ đóng góp khi khác
+    giá trị cấp node của cùng observation, tránh vô tình tăng trọng số cùng evidence.
     """
     votes = collections.Counter()
     support: dict[Any, list[tuple[int, int]]] = collections.defaultdict(list)
@@ -58,11 +65,11 @@ def _period_votes(nodes: list[dict], period: str):
 
 
 def _resolve_period(nodes: list[dict], period: str):
-    """Conservative reconciliation.
+    """Reconciliation thận trọng.
 
-    - one distinct value: accept it;
-    - strict majority: accept majority value;
-    - tie/conflict: do not invent a winner.
+    - một giá trị khác biệt: nhận;
+    - đa số tuyệt đối: nhận giá trị đa số;
+    - hòa/xung đột: không tự tạo người thắng.
     """
     votes, support = _period_votes(nodes, period)
     if not votes:
@@ -87,7 +94,7 @@ def _resolve_period(nodes: list[dict], period: str):
 
 
 def _preferred_node(bucket: list[dict], current: Any, previous: Any) -> dict:
-    """Choose presentation-preferred source observation without dropping alternatives."""
+    """Chọn observation nguồn ưu tiên để trình bày mà không bỏ phương án khác."""
     def score(n: dict):
         v = n.get("value") or {}
         exact = int((current is None or _value_key(v.get("current")) == _value_key(current)) and
@@ -110,7 +117,7 @@ def _semantic_candidates(semantic: list[dict], statement: str, section: str, lab
 
 
 def _node_occurrences(node: dict) -> list[dict]:
-    """Return provenance records usable for source-to-semantic linking."""
+    """Trả về record provenance có thể dùng để liên kết nguồn với semantic."""
 
     meta = node.get("extraction_meta") or {}
     records = []
@@ -140,7 +147,7 @@ def _record_label(node: dict, occurrence: dict) -> str:
 
 
 def _period_values_match(source_node: dict, source_occurrence: dict, semantic_node: dict, semantic_occurrence: dict) -> bool:
-    """Compare evidence values without treating a source code as identity."""
+    """So sánh giá trị evidence mà không xem mã nguồn là identity."""
 
     compared = False
     for period in ("current", "previous"):
@@ -169,11 +176,11 @@ def _context_matches(source_node: dict, semantic_node: dict, statement: str) -> 
 
 
 def _link_source_observations(semantic: list[dict], source: list[dict], statement: str) -> dict:
-    """Link retained source evidence to semantic nodes when evidence is unambiguous.
+    """Liên kết evidence nguồn được giữ với node semantic khi không mơ hồ.
 
-    This is a provenance reconciliation step, not a new identity rule.  It uses the
-    extracted source line, normalized source label, period values, and structural
-    context.  Form codes are intentionally absent from every lookup key.
+    Đây là bước reconciliation provenance, không phải quy tắc identity mới. Nó
+    dùng dòng nguồn đã trích xuất, nhãn nguồn chuẩn hóa, giá trị kỳ và context
+    cấu trúc. Mã biểu mẫu cố ý vắng mặt trong mọi khóa tra cứu.
     """
 
     by_line: dict[str, list[tuple[dict, dict]]] = collections.defaultdict(list)
@@ -257,9 +264,13 @@ def _link_source_observations(semantic: list[dict], source: list[dict], statemen
         else:
             if len(unique) > 1:
                 ambiguous += 1
-            meta.setdefault("mapping_status", "source_only")
-            meta.setdefault("mapping_method", "source_preservation")
-            meta.setdefault("source_only_reason", "no_unique_semantic_evidence_link")
+                meta["mapping_status"] = "ambiguous"
+                meta["mapping_method"] = "source_evidence_conflict"
+                meta["source_only_reason"] = "multiple_semantic_evidence_links"
+            else:
+                meta.setdefault("mapping_status", "source_only")
+                meta.setdefault("mapping_method", "source_preservation")
+                meta.setdefault("source_only_reason", "no_unique_semantic_evidence_link")
             source_node["mapping"] = {
                 "status": meta["mapping_status"],
                 "method": meta["mapping_method"],
@@ -278,18 +289,18 @@ def _link_source_observations(semantic: list[dict], source: list[dict], statemen
 
 
 def reconcile_source_observations(canonical: dict | None, statement: str) -> dict | None:
-    """v16 structural-identity, non-destructive source reconciliation.
+    """Reconciliation nguồn v16 theo identity cấu trúc, không phá hủy.
 
-    Source observations stay intact. Financial Position duplicate families additionally use
-    hierarchy context so repeated generic labels under different parents are not collapsed.
-    Reconciliation is a parallel view:
+    Observation nguồn được giữ nguyên. Nhóm trùng của báo cáo tình hình tài chính
+    dùng thêm context hierarchy để không gộp nhãn chung lặp dưới parent khác.
+    Reconciliation là một view song song:
 
-    * all original observations remain available;
-    * duplicate groups are annotated, not deleted;
-    * one observation is marked preferred and moved before alternatives;
-    * original source-observation period values are never synthetically modified;
-    * semantic nodes are only hydrated when the semantic identity is unique and the period is null;
-    * conflicting evidence is retained verbatim for debugging.
+    * mọi observation gốc vẫn có thể truy cập;
+    * nhóm trùng được annotate, không xóa;
+    * một observation được đánh dấu ưu tiên và đặt trước phương án khác;
+    * giá trị kỳ của observation nguồn gốc không bao giờ bị tạo/chỉnh tổng hợp;
+    * node semantic chỉ hydrate khi identity duy nhất và kỳ đang null;
+    * evidence xung đột được giữ nguyên để debug.
     """
     if not canonical:
         return canonical
@@ -299,15 +310,15 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
     src = [n for n in nodes if n.get("kind") == "source_observation"]
     source_mapping = _link_source_observations(semantic, src, statement)
 
-    # Family identity deliberately ignores form code: code is supporting evidence and continuation
-    # pages often drop it. Cash Flow section remains part of identity because labels/codes can repeat.
+    # Identity của family cố ý bỏ qua mã biểu mẫu: mã chỉ là evidence hỗ trợ và
+    # trang tiếp nối thường bỏ mã. Section dòng tiền vẫn thuộc identity vì nhãn/mã có thể lặp.
     groups: dict[tuple[str, str, str], list[dict]] = collections.defaultdict(list)
     ungrouped = []
     for n in src:
         label = fold(n.get("canonical_name"))
         section = clean(n.get("section") or "") if statement == "CASHFLOW" else ""
-        # Financial-position labels such as "Nguyên giá" or "Dự phòng" legitimately repeat under
-        # different parents.  Preserve that source identity instead of collapsing by label alone.
+        # Nhãn báo cáo tình hình tài chính như "Nguyên giá" hoặc "Dự phòng" có
+        # thể lặp hợp lệ dưới parent khác. Giữ identity nguồn thay vì chỉ gộp theo nhãn.
         context = fold(n.get("hierarchy_path") or n.get("parent_label") or "") if statement == "FINANCIAL_POSITION" else ""
         if not label:
             ungrouped.append(n)
@@ -332,8 +343,8 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
             conflicts += 1
 
         preferred = _preferred_node(bucket, cur, prev)
-        # v16 keeps source observations byte-semantic: reconciliation is a parallel view only.
-        # Never synthesize a period directly into an original source observation.
+        # v16 giữ observation nguồn theo đúng nghĩa dữ liệu gốc: reconciliation
+        # chỉ là view song song. Không bao giờ tự tạo kỳ trong observation nguồn.
 
         member_ids = []
         for rank, n in enumerate(sorted(bucket, key=_source_line), start=1):
@@ -345,7 +356,7 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
             em["reconciliation_policy"] = "structural_identity_non_destructive_v16"
             member_ids.append(n.get("node_id"))
 
-        # Fill semantic node only if exact normalized identity is unique and semantic period is null.
+        # Chỉ điền node semantic khi identity chuẩn hóa chính xác là duy nhất và kỳ semantic đang null.
         sem = _semantic_candidates(semantic, statement, section, label)
         if len(sem) == 1:
             sv = sem[0].setdefault("value", {})
@@ -365,7 +376,8 @@ def reconcile_source_observations(canonical: dict | None, statement: str) -> dic
                     "policy": "fill_missing_only_v16",
                 })
 
-        # Preferred first, but every alternative remains in nodes for recall/debug evidence.
+        # Đặt phương án ưu tiên trước, nhưng vẫn giữ mọi phương án khác trong node
+        # để recall/evidence debug.
         ordered_src.append(preferred)
         ordered_src.extend(n for n in sorted(bucket, key=_source_line) if n is not preferred)
         view.append({

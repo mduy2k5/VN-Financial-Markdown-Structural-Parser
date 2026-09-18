@@ -49,7 +49,7 @@ def _json(value: Any) -> str:
 
 
 def _as_list(value: Any) -> list:
-    """Keep nested export fields as collections across legacy IR variants."""
+    """Giữ field lồng nhau dưới dạng collection giữa các biến thể IR cũ."""
     if value is None:
         return []
     if isinstance(value, list):
@@ -71,14 +71,14 @@ def _first_by_role(values: list[dict], role: str):
 
 
 def flatten_note_rows(note_ir: dict) -> list[dict]:
-    """Flatten Generic Note IR to one record per extracted source row.
+    """Làm phẳng Generic Note IR thành một record cho mỗi dòng nguồn đã lấy.
 
-    This is intentionally a presentation/export layer only. It does not change
-    extraction, linking, reconciliation, or canonical values.
+    Đây chỉ là lớp trình bày/xuất dữ liệu. Hàm không đổi extraction, linking,
+    reconciliation hay giá trị canonical.
 
-    Multi-axis tables are preserved losslessly in the `values`, `headers`, and
-    `dimensions` JSON columns while also exposing `current_*` / `previous_*`
-    convenience columns when those roles were inferred.
+    Bảng nhiều trục được giữ nguyên trong các cột JSON `values`, `headers` và
+    `dimensions`, đồng thời thêm các cột tiện ích `current_*` / `previous_*`
+    khi đã suy ra được hai role đó.
     """
     source_name = note_ir.get("source_name")
     sector = note_ir.get("sector")

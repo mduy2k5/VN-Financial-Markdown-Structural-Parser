@@ -51,7 +51,7 @@ Năm 2024
     assert allowance["value"]["current"] == "(1.200.078)"
     assert allowance["value"]["previous"] == "(1.705.890)"
 
-    # Parent occurrence should contain only its own two values.
+    # Occurrence của parent chỉ được chứa hai giá trị của chính nó.
     occ = parent["extraction_meta"]["occurrences"][0]
     assert len(occ["values"]) == 2
 
@@ -82,6 +82,54 @@ Năm 2024
 
     assert child1["value"]["current"] == "2.621.145"
     assert child2["value"]["current"] == "1.987.508"
+
+
+def test_flattened_parent_payload_stops_before_later_child_records():
+    raw = """
+# BÁO CÁO TÌNH HÌNH TÀI CHÍNH
+Năm 2025
+Năm 2024
+
+* Các khoản nợ khác
+    * Thuyết minh: 24.1
+    * Số cuối năm: 100
+    * Số đầu năm: 90
+    * Các khoản lãi, phí phải trả
+    * Thuyết minh: 24.2
+    * Số cuối năm: 60
+    * Số đầu năm: 50
+    * Các khoản phải trả và công nợ khác
+    * Số cuối năm: 40
+    * Số đầu năm: 30
+"""
+    result = make_pipeline().parse_text(raw, source_name="flattened_children.md")
+    nodes = node_map(result["canonical"])
+
+    assert nodes["LIABILITY.OTHER"]["value"]["current"] == "100"
+    assert nodes["LIABILITY.ACCRUED_INTEREST_FEES"]["value"]["current"] == "60"
+    assert nodes["LIABILITY.OTHER_PAYABLES"]["value"]["current"] == "40"
+
+
+def test_repeated_label_under_numeric_wrapper_routes_to_structural_child():
+    raw = """
+# BẢNG CÂN ĐỐI KẾ TOÁN
+Năm 2025
+Năm 2024
+
+* Hàng tồn kho
+    * Số cuối năm: 100
+    * Số đầu năm: 90
+    * 129
+        * Hàng tồn kho
+            * Số cuối năm: 120
+            * Số đầu năm: 110
+"""
+    result = make_pipeline().parse_text(raw, source_name="numeric_wrapper.md")
+    nodes = node_map(result["canonical"])
+
+    assert nodes["ASSET.INVENTORY"]["value"]["current"] == "100"
+    assert nodes["ASSET.INVENTORY.GROSS"]["value"]["current"] == "120"
+    assert nodes["ASSET.INVENTORY.GROSS"]["extraction_meta"]["occurrences"][0]["source_context"]
 
 
 def test_bank_cash_alias_and_total_assets():

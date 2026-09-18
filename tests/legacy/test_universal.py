@@ -100,7 +100,7 @@ def test_alias_structure_and_first_value_policy():
     assert total_assets["value"]["current"] == "50.000.000"
     assert total_assets["value"]["previous"] == "45.000.000"
 
-    # Notes section lies after scope boundary and cannot overwrite inventory.
+    # Section Notes nằm sau ranh giới scope và không được ghi đè inventory.
     assert inv["value"]["current"] != "999.999.999"
 
 

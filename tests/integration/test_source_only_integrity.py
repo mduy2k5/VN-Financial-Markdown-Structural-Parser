@@ -187,6 +187,8 @@ def test_production_report_has_stable_native_contract(tmp_path):
             assert isinstance(node["value"]["current"], (int, float, type(None)))
             assert isinstance(node["value"]["previous"], (int, float, type(None)))
             assert isinstance(node["value"]["raw_values"], dict)
+        assert all(node["record_type"] == "semantic_item" for node in statement["items"])
+        assert all(node["record_type"] == "source_observation" for node in statement["observations"])
 
 
 def test_inline_cashflow_source_observations_expose_semantic_links(tmp_path):

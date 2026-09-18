@@ -58,7 +58,7 @@ class StructuralNode:
     indent: int
     is_bullet: bool
     bullet_marker: Optional[str]
-    representation: str  # bullet | plain | table_row
+    representation: str  # dạng bullet | văn bản thuần | dòng bảng
     parent_index: Optional[int] = None
     children: list[int] = field(default_factory=list)
 
@@ -163,8 +163,8 @@ class ResolvedField:
     code: Optional[str] = None
     unit: Optional[str] = None
     warnings: list[str] = field(default_factory=list)
-    # Source hierarchy is evidence/provenance only.  It must never replace
-    # the schema node identity or become a code-based lookup key.
+    # Hierarchy nguồn chỉ là bằng chứng/provenance. Không được thay thế node
+    # identity của schema hay trở thành khóa tra cứu dựa trên mã.
     source_context: dict[str, Any] = field(default_factory=dict)
 
 

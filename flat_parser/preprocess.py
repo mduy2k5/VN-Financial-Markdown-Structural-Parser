@@ -24,7 +24,7 @@ def is_noise_line(line: SourceLine) -> bool:
     if not text:
         return False
 
-    # Root bullet consisting solely of likely page number.
+    # Bullet gốc chỉ gồm số trang có khả năng cao.
     if line.is_bullet and line.indent == 0 and PAGE_NUMBER_RE.fullmatch(text):
         return True
 

@@ -1,9 +1,8 @@
-"""Reporting-period inference for source-first pipeline runs.
+"""Suy luận kỳ báo cáo cho các lần chạy pipeline source-first.
 
-The low-level statement parsers still accept explicit years because they are
-also useful as standalone libraries.  The batch pipeline, however, must not
-silently apply one hard-coded year pair to every Markdown report.  This module
-provides the document-level resolver used at that boundary.
+Parser báo cáo cấp thấp vẫn nhận năm rõ vì có thể dùng như thư viện độc lập.
+Tuy nhiên pipeline batch không được âm thầm áp một cặp năm cố định cho mọi
+báo cáo Markdown. Module này cung cấp resolver cấp tài liệu ở ranh giới đó.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def _fold(value: Any) -> str:
 
 
 def _score_text_years(text: str) -> Counter[int]:
-    """Score years by nearby reporting cues, while down-weighting metadata."""
+    """Chấm năm theo cue báo cáo gần đó và giảm trọng số metadata."""
 
     scores: Counter[int] = Counter()
     lines = text.splitlines()
@@ -56,9 +55,9 @@ def _score_text_years(text: str) -> Counter[int]:
         has_report_cue = bool(REPORT_CUE_RE.search(folded))
         has_admin_cue = bool(ADMIN_CUE_RE.search(folded))
         for year in years:
-            # A reporting cue is strong evidence.  A bare year in a statement
-            # heading is useful but weaker; administrative dates are retained
-            # only as a low-weight fallback and cannot outrank report cues.
+            # Cue báo cáo là evidence mạnh. Năm đứng riêng trong heading hữu ích
+            # nhưng yếu hơn; ngày hành chính chỉ là fallback trọng số thấp và
+            # không thể vượt cue báo cáo.
             if has_report_cue and not has_admin_cue:
                 scores[year] += 12
             elif has_report_cue:
@@ -71,7 +70,7 @@ def _score_text_years(text: str) -> Counter[int]:
 
 
 # ---------------------------------------------------------------------------
-# Fiscal-period enrichment
+# Bổ sung thông tin kỳ tài chính.
 # ---------------------------------------------------------------------------
 
 FISCAL_END_CUE_RE = re.compile(
@@ -126,7 +125,7 @@ def _date_from_match(match: re.Match[str]) -> date | None:
 
 
 def _date_candidates(text: str) -> list[dict[str, Any]]:
-    """Collect dated evidence while discounting administrative dates."""
+    """Thu thập evidence có ngày và giảm trọng số ngày hành chính."""
 
     candidates: list[dict[str, Any]] = []
     seen: set[tuple[int, int, str]] = set()
@@ -149,8 +148,8 @@ def _date_candidates(text: str) -> list[dict[str, Any]]:
                     continue
                 seen.add(key)
 
-                # Day-one dates are usually opening/start dates.  Explicit
-                # beginning text takes precedence over a generic date header.
+                # Ngày đầu tháng thường là ngày mở đầu. Text chỉ rõ bắt đầu được
+                # ưu tiên hơn header ngày chung.
                 opening = has_opening or parsed.day == 1
                 end_candidate = not opening and (
                     has_fiscal_end or has_end or is_table or parsed.day >= 28
@@ -208,11 +207,10 @@ def _best_date(
         grouped[value] = grouped.get(value, 0.0) + float(item.get("weight") or 0.0)
     if not grouped:
         return None
-    # For a comparative period, temporal adjacency is more reliable than
-    # repetition count: an old legal/template date may occur many more times
-    # than the actual prior-year statement date.  The current end-date choice
-    # still uses evidence weight; a `before` query always chooses the latest
-    # compatible date.
+    # Với kỳ so sánh, gần nhau về thời gian đáng tin hơn số lần lặp: ngày pháp
+    # lý/mẫu cũ có thể xuất hiện nhiều hơn ngày báo cáo năm trước. Chọn ngày cuối
+    # kỳ hiện tại vẫn dùng trọng số evidence; truy vấn `before` luôn chọn ngày
+    # tương thích mới nhất.
     if before is not None:
         chosen = max(grouped, key=lambda value: (value, grouped[value]))
     else:
@@ -226,8 +224,8 @@ def _date_year_back(value: date) -> date:
 
 
 def _period_type(text: str) -> str:
-    # Only inspect the report header.  Annual notes can mention “lũy kế” in a
-    # movement description without being a YTD report.
+    # Chỉ kiểm tra header báo cáo. Notes năm có thể nhắc “lũy kế” trong mô tả
+    # biến động nhưng không phải báo cáo YTD.
     folded = _fold("\n".join(str(text or "").splitlines()[:100]))
     if YTD_CUE_RE.search(folded) and QUARTER_CUE_RE.search(folded):
         return "ytd"
@@ -244,15 +242,31 @@ def infer_report_period_context(
     previous_year: int | None = None,
     allow_unknown: bool = False,
 ) -> dict[str, Any]:
-    """Return years plus normalized dates, confidence, and conflicts.
+    """Trả về năm, ngày đã chuẩn hóa, độ tin cậy và xung đột.
 
-    Parser roles use the calendar year of the statement end date.  A filename
-    year that differs from it is retained as a fiscal-label candidate rather
-    than being silently treated as the same concept.
+    Đầu vào:
+    - ``text``: toàn bộ Markdown nguồn;
+    - ``source_name``: tên file, chỉ là một nguồn evidence phụ;
+    - ``current_year`` và ``previous_year``: năm được caller ép nếu có;
+    - ``allow_unknown``: cho phép trả về năm ``None`` khi source không đủ cue.
+
+    Xử lý:
+    - chấm các năm xuất hiện trong source và tên file;
+    - ưu tiên ngày kết thúc kỳ báo cáo có evidence mạnh;
+    - suy ra kỳ trước, ngày bắt đầu và loại kỳ;
+    - ghi lại conflict giữa tên file, header và argument rõ ràng.
+
+    Đầu ra:
+    - dict context gồm cặp năm, ngày kỳ, ``period_type``, ``method``,
+      ``confidence``, ``conflict_reasons`` và evidence ngày.
+
+    Role của parser dùng năm lịch của ngày kết thúc báo cáo. Năm trong tên file
+    khác ngày kết thúc được giữ làm candidate nhãn tài chính, không âm thầm xem
+    là cùng một khái niệm.
     """
 
-    # Reuse the original year-scoring implementation above, but enrich its
-    # result instead of creating a second independent resolver.
+    # Dùng lại implementation chấm năm ở trên và bổ sung kết quả thay vì tạo
+    # resolver độc lập thứ hai.
     resolved = _infer_year_pair_by_scores(
         text,
         source_name=source_name,
@@ -268,8 +282,8 @@ def infer_report_period_context(
     end_date = best_end["date"] if best_end and isinstance(best_end.get("date"), date) else None
     strong_end = bool(best_end and best_end["weight"] >= 60)
 
-    # Strong “financial year ended …” evidence outranks the filename.  A weak
-    # table-header date is used only when it agrees with the year score.
+    # Evidence mạnh dạng “năm tài chính kết thúc …” được ưu tiên hơn tên file.
+    # Ngày yếu ở header bảng chỉ dùng khi khớp điểm năm.
     if end_date is not None and not explicit_current and (
         strong_end or resolved["current_year"] == end_date.year
     ):
@@ -374,7 +388,7 @@ def _infer_year_pair_by_scores(
     previous_year: int | None = None,
     allow_unknown: bool = False,
 ) -> dict[str, Any]:
-    """Internal year fallback used by the enriched resolver."""
+    """Fallback năm nội bộ dùng bởi resolver mở rộng."""
 
     explicit_current = current_year is not None
     explicit_previous = previous_year is not None
@@ -440,7 +454,17 @@ def infer_report_year_pair(
     previous_year: int | None = None,
     allow_unknown: bool = False,
 ) -> dict[str, Any]:
-    """Backward-compatible name for :func:`infer_report_period_context`."""
+    """Giữ API cũ nhưng trả về context kỳ đầy đủ.
+
+    Đầu vào:
+    - cùng các tham số của ``infer_report_period_context``.
+
+    Xử lý:
+    - chuyển nguyên tham số sang resolver mở rộng, không tự đặt năm cố định.
+
+    Đầu ra:
+    - dict period context dùng chung cho B01, B02, B03 và Notes.
+    """
 
     return infer_report_period_context(
         text,
@@ -458,12 +482,24 @@ def resolve_report_years(
     current_year: int | None = None,
     previous_year: int | None = None,
 ) -> dict[str, Any]:
-    """Resolve optional parser arguments without a fixed 2025/2024 fallback."""
+    """Giải quyết cặp năm cho các engine mà không fallback năm cố định.
 
-    # The document boundary already resolved and persisted the full context.
-    # Lower-level parsers receive both years explicitly, so rescanning a large
-    # Markdown document in every engine would only add latency and could not
-    # improve the supplied decision.
+    Đầu vào:
+    - ``text`` và ``source_name`` của một báo cáo;
+    - hai năm tùy chọn từ CLI hoặc caller.
+
+    Xử lý:
+    - dùng trực tiếp cặp năm đã đủ;
+    - nếu thiếu, gọi resolver theo source và giữ toàn bộ provenance kỳ.
+
+    Đầu ra:
+    - dict có ít nhất ``current_year`` và ``previous_year``; khi suy luận từ
+      source, dict còn có ngày, confidence và conflict để output ghi lại.
+    """
+
+    # Ranh giới tài liệu đã giải quyết và lưu context đầy đủ. Parser cấp thấp
+    # nhận cả hai năm rõ ràng, nên quét lại Markdown lớn ở từng engine chỉ tăng
+    # latency và không cải thiện quyết định đã cung cấp.
     if current_year is not None and previous_year is not None:
         return {
             "current_year": current_year,

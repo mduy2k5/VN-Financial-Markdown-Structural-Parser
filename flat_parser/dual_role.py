@@ -19,7 +19,7 @@ def _has_local_total_payload(field: ResolvedField) -> bool:
 
     deltas = [v.source_line - field.source_line for v in field.values]
 
-    # Self-contained table/pipe rows keep values on the same source line.
+    # Dòng bảng/pipe tự chứa giữ giá trị trên cùng dòng nguồn.
     if field.pattern_id in {
         "SP_MARKDOWN_TABLE_ROW",
         "SP_PIPE_DELIMITED_INLINE_ROW",
@@ -27,11 +27,10 @@ def _has_local_total_payload(field: ResolvedField) -> bool:
     }:
         return all(abs(d) <= 1 for d in deltas)
 
-    # Wrapper/period-child serialization is valid only when ALL values are
-    # immediately local to the section row. This accepts:
+    # Serialize wrapper/child kỳ chỉ hợp lệ khi TẤT CẢ giá trị nằm ngay cạnh
+    # dòng section. Điều này chấp nhận:
     #   C - NỢ PHẢI TRẢ -> Chỉ tiêu -> Số cuối năm/Số đầu năm
-    # but rejects a structural section that accidentally collected values
-    # from distant semantic descendants.
+    # nhưng loại section cấu trúc vô tình lấy giá trị từ descendant semantic xa.
     if all(0 <= d <= 2 for d in deltas):
         return True
     return bool(field.code) and all(0 <= d <= 4 for d in deltas)
@@ -40,11 +39,11 @@ def _has_local_total_payload(field: ResolvedField) -> bool:
 
 def expand_dual_role_rows(fields: list[ResolvedField], catalog):
     """
-    Enterprise rows such as:
+    Dòng doanh nghiệp như:
       C - NỢ PHẢI TRẢ | 300 | ...values...
       D - VỐN CHỦ SỞ HỮU | 400 | ...values...
 
-    open section context but numeric payload belongs to TOTAL_* node.
+    mở context section nhưng payload số thuộc node TOTAL_*.
     """
     out = []
     log = []
@@ -75,14 +74,13 @@ def expand_dual_role_rows(fields: list[ResolvedField], catalog):
             continue
 
         section_id, total_id = matched
-        # If alias resolution already selected the total node, do not expand
-        # it again.  Dual-role conversion is only for a section row carrying
-        # a numeric total payload.
+        # Nếu alias đã chọn node tổng, không mở rộng lại. Chuyển đổi dual-role
+        # chỉ dành cho dòng section mang payload tổng dạng số.
         if f.node_id != section_id:
             out.append(f)
             continue
 
-        # Retain section occurrence without direct payload.
+        # Giữ occurrence section nhưng bỏ payload trực tiếp.
         section_copy = deepcopy(f)
         section_copy.node_id = section_id
         if section_id in catalog.nodes:

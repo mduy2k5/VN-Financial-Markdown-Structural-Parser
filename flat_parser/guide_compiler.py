@@ -18,7 +18,7 @@ PATTERN_FAMILY_MAP = {
     "structural_container": "SP_STRUCTURAL_CONTAINER",
     "context_header_or_unit_carrier": "SP_CONTEXT_CARRIER",
 
-    # A2-A5 names
+    # Tên trong A2-A5.
     "label_or_container": "SP_LABEL_CONTAINER",
     "label_value_inline": "SP_LABEL_VALUE_INLINE",
     "value_only_positional": "SP_VALUE_ONLY_POSITIONAL",
@@ -157,7 +157,7 @@ def compile_guides(guides_root: str | Path) -> dict:
                 for observed_key in detect.get(key, []):
                     _append_unique(universal["named_attribute_keys"], observed_key)
 
-    # Keys explicitly documented in A1/A2/A5 but not always present in observed_keys.
+    # Các key được mô tả rõ trong A1/A2/A5 nhưng không phải lúc nào cũng có trong observed_keys.
     for key in [
         "Thuyết minh",
         "Số liệu thuyết minh",

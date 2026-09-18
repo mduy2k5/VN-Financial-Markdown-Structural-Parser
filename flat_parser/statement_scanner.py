@@ -120,12 +120,12 @@ class StatementRange:
 
 
 def detect_document_sector(lines: list[SourceLine]) -> dict:
-    """Classify issuer/report sector using weighted document-identity evidence.
+    """Phân loại sector của đơn vị/báo cáo bằng evidence định danh có trọng số.
 
-    A sector keyword anywhere in notes is intentionally weak. Financial reports
-    routinely mention banks, securities depositories and insurers as counterparties.
-    Strong evidence is a sector-specific form code or issuer identity near the
-    document front matter / audited-statement introduction.
+    Từ khóa sector xuất hiện ở bất kỳ đâu trong thuyết minh chỉ là bằng chứng yếu.
+    Báo cáo tài chính thường nhắc ngân hàng, lưu ký chứng khoán và bảo hiểm như
+    đối tác. Bằng chứng mạnh là mã biểu mẫu riêng của sector hoặc định danh đơn vị
+    gần phần đầu tài liệu/phần mở đầu báo cáo đã kiểm toán.
     """
     front = "\n".join(x.clean for x in lines if x.clean and x.line_no <= 450)
     whole = "\n".join(x.clean for x in lines if x.clean)
@@ -139,7 +139,7 @@ def detect_document_sector(lines: list[SourceLine]) -> dict:
         scores[kind] += pts
         evidence[kind].append(f"{why}:+{pts:g}")
 
-    # Strong sector-specific report-form evidence.
+    # Bằng chứng mạnh từ mã biểu mẫu riêng của sector.
     if re.search(r"\bb0[2-5](?:[a-z])?/tctd(?:-hn)?\b", ff):
         add("bank", 12, "front_tctd_form_code")
     elif re.search(r"\bb0[2-5](?:[a-z])?/tctd(?:-hn)?\b", wf):
@@ -153,7 +153,7 @@ def detect_document_sector(lines: list[SourceLine]) -> dict:
     if re.search(r"\bb\s*0?[1-3](?:[ab])?\s*[-/]\s*dn(?:n|nklt)?\b", ff):
         add("enterprise", 10, "front_enterprise_form_code")
 
-    # Issuer identity near the front is strong; counterparty mentions later are not.
+    # Định danh đơn vị ở phần đầu là bằng chứng mạnh; nhắc đối tác phía sau thì không.
     if any(tok in ff for tok in ("ngan hang thuong mai co phan", "ngan hang tmcp", "to chuc tin dung")):
         add("bank", 6, "front_bank_identity")
     if "cong ty co phan chung khoan" in ff or "cong ty chung khoan" in ff:
@@ -161,7 +161,7 @@ def detect_document_sector(lines: list[SourceLine]) -> dict:
     if any(tok in ff for tok in ("tap doan bao hiem", "cong ty bao hiem", "tong cong ty bao hiem")):
         add("insurance", 7, "front_insurance_identity")
 
-    # Characteristic accounting vocabulary is corroborating evidence only.
+    # Từ vựng kế toán đặc trưng chỉ là bằng chứng củng cố.
     bank_vocab = sum(1 for tok in (
         "tien gui cua khach hang", "cho vay khach hang", "tien gui tai ngan hang nha nuoc",
         "cac to chuc tin dung khac", "von cua to chuc tin dung",
@@ -180,8 +180,8 @@ def detect_document_sector(lines: list[SourceLine]) -> dict:
     if ins_vocab >= 2:
         add("insurance", min(4, ins_vocab), f"insurance_vocab_{ins_vocab}")
 
-    # Whole-document single mentions such as VSDC or 'ngân hàng thương mại' are
-    # intentionally not sufficient to switch sector.
+    # Một lần nhắc trong toàn tài liệu như VSDC hay 'ngân hàng thương mại' cố ý
+    # không đủ để chuyển sector.
     if "vsdc" in wf:
         add("securities", 0.5, "whole_vsdc_weak")
     if "ngan hang thuong mai" in wf:
@@ -191,8 +191,8 @@ def detect_document_sector(lines: list[SourceLine]) -> dict:
     ordered = sorted(scores.values(), reverse=True)
     margin = best_score - (ordered[1] if len(ordered) > 1 else 0)
 
-    # Without strong identity evidence, default to enterprise rather than
-    # misclassifying an ordinary company because its notes mention banks.
+    # Khi không có bằng chứng định danh mạnh, mặc định là enterprise thay vì
+    # phân loại nhầm công ty thường vì phần thuyết minh có nhắc ngân hàng.
     if best_score < 5:
         best_kind = "enterprise"
         confidence = 0.70
@@ -214,7 +214,7 @@ def _nearby(lines: list[SourceLine], line_no: int, before: int = 8, after: int =
 
 def _title_type(text: str) -> str | None:
     f = fold(text or "").strip(" *#:_-")
-    # explicit metadata title
+    # tiêu đề metadata rõ ràng
     for prefix in ("tieu de ", "ten bao cao ", "report title "):
         if f.startswith(prefix):
             f = f[len(prefix):].strip(" :")
@@ -271,7 +271,7 @@ def _form_code_hint(lines: list[SourceLine], line_no: int, sector: str) -> tuple
     raw = " ".join(x.clean or "" for x in win)
     f = fold(raw)
 
-    # Sector-specific form codes. Codes are evidence only, never sole truth.
+    # Mã biểu mẫu riêng của sector. Mã chỉ là evidence, không bao giờ là sự thật duy nhất.
     mappings = []
     if sector == "bank":
         mappings = [
@@ -314,9 +314,9 @@ def _looks_like_toc_entry(lines: list[SourceLine], line: SourceLine) -> bool:
     return near_toc and (trailing_pages or trailing_page) and not near_reporting_date
 
 def _looks_like_statement_reference_entry(lines: list[SourceLine], line: SourceLine) -> bool:
-    """Reject TOC/front-matter references that start with a statement name.
+    """Loại tham chiếu mục lục/đầu báo cáo bắt đầu bằng tên báo cáo.
 
-    Examples rejected:
+    Ví dụ bị loại:
       Báo cáo tình hình tài chính (Mẫu B02/TCTD...) ...
       Bảng cân đối kế toán hợp nhất: Trang 06-09
       Báo cáo lưu chuyển tiền tệ - Trang 10-11
@@ -367,7 +367,7 @@ def _score_title_candidate(lines: list[SourceLine], line: SourceLine, kind: str,
 def _off_balance_fallback(lines: list[SourceLine], sector: str) -> StatementCandidate | None:
     if sector != "bank":
         return None
-    # Require a dense semantic cluster; a generic narrative mention is insufficient.
+    # Yêu cầu cluster semantic dày; một lần nhắc trong văn xuôi chung là chưa đủ.
     best = None
     for i, line in enumerate(lines):
         f = fold(line.clean or "")
@@ -393,17 +393,17 @@ def _off_balance_fallback(lines: list[SourceLine], sector: str) -> StatementCand
 
 
 def scan_statements(lines: list[SourceLine]) -> dict:
-    """Detect statement ranges with multi-signal classification.
+    """Nhận diện phạm vi báo cáo bằng phân loại nhiều tín hiệu.
 
-    Detection priority:
-      1. validated statement title;
-      2. sector-aware form code as supporting evidence;
-      3. statement-specific semantic signature and table shape;
-      4. conservative fallback for financial position / bank off-balance.
+    Thứ tự ưu tiên:
+      1. tiêu đề báo cáo đã xác thực;
+      2. mã biểu mẫu theo sector làm evidence hỗ trợ;
+      3. chữ ký semantic và hình dạng bảng riêng cho báo cáo;
+      4. fallback thận trọng cho báo cáo tình hình tài chính/ngoại bảng ngân hàng.
 
-    The scanner deliberately does not use the canonical alias catalog for range
-    detection. This prevents a rich alias pack from opening scope in narrative
-    notes merely because a business term is mentioned there.
+    Scanner cố ý không dùng catalog alias canonical để nhận diện phạm vi. Điều
+    này ngăn một alias pack lớn mở scope trong văn xuôi thuyết minh chỉ vì có
+    nhắc đến một thuật ngữ nghiệp vụ.
     """
     sector_info = detect_document_sector(lines)
     sector = sector_info["sector"]
@@ -420,9 +420,9 @@ def scan_statements(lines: list[SourceLine]) -> dict:
         ):
             candidates.append(_score_title_candidate(lines, line, kind, sector))
 
-    # Reuse the heavily regression-tested v0.4.14 FP start detector as the
-    # authoritative FINANCIAL_POSITION anchor. It already has TOC, continuation
-    # and dense-root recovery accumulated over the B02 corpus.
+    # Dùng lại bộ nhận diện điểm bắt đầu FP v0.4.14 đã được regression test kỹ
+    # làm anchor FINANCIAL_POSITION chính. Nó đã tích lũy xử lý mục lục, trang
+    # tiếp nối và khôi phục root dày qua bộ báo cáo B02.
     fp_start, fp_debug = find_validated_financial_position_start(lines)
     if fp_start is not None:
         candidates = [c for c in candidates if c.statement_type != STATEMENT_FINANCIAL_POSITION]
@@ -439,11 +439,11 @@ def scan_statements(lines: list[SourceLine]) -> dict:
     if ob and not any(c.statement_type == STATEMENT_OFF_BALANCE and abs(c.line_no - ob.line_no) <= 2 for c in candidates):
         candidates.append(ob)
 
-    # Keep only credible candidates. Notes need a title; others need >=5 after TOC penalties.
+    # Chỉ giữ candidate đáng tin. Notes cần tiêu đề; loại khác cần >=5 sau phạt mục lục.
     candidates = [c for c in candidates if c.score >= (4.5 if c.statement_type != STATEMENT_NOTES else 4.0)]
     candidates.sort(key=lambda c: (c.line_no, -c.score))
 
-    # Collapse duplicate/repeated continuation headings of the same type in close proximity.
+    # Gộp tiêu đề trùng/lặp của cùng loại khi nằm gần nhau.
     collapsed: list[StatementCandidate] = []
     for c in candidates:
         if collapsed and c.statement_type == collapsed[-1].statement_type and c.line_no - collapsed[-1].line_no <= 12:
@@ -463,13 +463,13 @@ def scan_statements(lines: list[SourceLine]) -> dict:
                 break
         end = (next_different.line_no - 1) if next_different else max_line
 
-        # FP should stop before a detected OFF_BALANCE substatement.
+        # FP phải dừng trước substatement OFF_BALANCE đã nhận diện.
         if c.statement_type == STATEMENT_FINANCIAL_POSITION:
             ob_after = next((x for x in candidates if x.statement_type == STATEMENT_OFF_BALANCE and c.line_no < x.line_no <= end), None)
             if ob_after:
                 end = ob_after.line_no - 1
             else:
-                # Preserve legacy validated end if it is earlier and credible.
+                # Giữ end legacy đã xác thực nếu nó sớm hơn và đáng tin.
                 legacy_end = find_validated_financial_position_end(lines, c.line_no)
                 if legacy_end >= c.line_no:
                     end = min(end, legacy_end)
@@ -490,14 +490,14 @@ def scan_statements(lines: list[SourceLine]) -> dict:
             c.evidence, sector, profile, status,
         ))
 
-    # Keep best range for each supported core type; repeated continuation titles belong to same report.
+    # Giữ range tốt nhất cho mỗi loại lõi được hỗ trợ; tiêu đề tiếp nối lặp thuộc cùng báo cáo.
     best_by_type: dict[str, StatementRange] = {}
     for r in ranges:
         prev = best_by_type.get(r.statement_type)
         if prev is None or r.confidence > prev.confidence:
             best_by_type[r.statement_type] = r
 
-    # When the best range started on a continuation page, prefer earliest credible range of same type.
+    # Nếu range tốt nhất bắt đầu ở trang tiếp nối, ưu tiên range đáng tin sớm nhất cùng loại.
     final_ranges: list[StatementRange] = []
     for kind in (STATEMENT_FINANCIAL_POSITION, STATEMENT_OFF_BALANCE, STATEMENT_INCOME, STATEMENT_CASH_FLOW, STATEMENT_NOTES):
         same = [r for r in ranges if r.statement_type == kind]

@@ -60,17 +60,16 @@ def strip_md(s: Any) -> str:
 def strip_mapping_qualifiers(s: str) -> str:
     s = strip_md(s)
     pats = [
-        # Note references may contain a nested parenthesis, e.g.
-        # "(Thuyết minh 20(a))".  Matching up to the final parenthesis keeps
-        # the source label intact while making the mapping key semantic.
+        # Tham chiếu thuyết minh có thể chứa ngoặc lồng, ví dụ
+        # "(Thuyết minh 20(a))". Khớp đến ngoặc cuối giúp giữ nguyên nhãn nguồn
+        # nhưng vẫn tạo được khóa mapping semantic.
         r"\s*\((?:Thuyết\s*minh|Mục|TM)\b.*\)\s*$",
         r"\s*\([IVXLCDM]+\)\s*$",
         r"\s*\([IVXLCDM]+(?:\.\d+)+\)\s*$",
         r"\s*\((?:VND|VNĐ|đồng|dong|triệu\s*(?:đồng|VND)?|trieu\s*(?:dong|VND)?)(?:/[^)]*)?\)\s*$",
         r"\s*\((?:Trình\s*bày\s*lại|Trinh\s*bay\s*lai|Điều\s*chỉnh|Dieu\s*chinh)\)\s*$",
-        # Carry-forward labels are layout metadata, not part of the
-        # accounting concept.  The rule is bounded to page references so it
-        # does not discard ordinary semantic parentheticals.
+        # Nhãn carry-forward là metadata bố cục, không thuộc khái niệm kế toán.
+        # Rule chỉ giới hạn ở tham chiếu trang để không bỏ ngoặc semantic thông thường.
         r"\s*\(\s*mang\s+[^)]*trang\s+(?:trước|truoc|sau)[^)]*\)\s*$",
         r"\s*\(\d+(?:[a-z])?\)\s*$",
         r"\s*\(\s*[\d\s+*/×xX–—-]+\s*\)",
@@ -91,17 +90,15 @@ def fold(s: Any) -> str:
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = s.replace("đ", "d").replace("Đ", "D").lower()
-    # Statement row numbers can be hierarchical (16.1., 17.2.) and may be
-    # followed by a prose qualifier such as "Trong đó".  They are display
-    # indexes, not semantic identity.
+    # Số dòng báo cáo có thể phân cấp (16.1., 17.2.) và theo sau bởi qualifier
+    # văn xuôi như "Trong đó". Chúng là chỉ mục hiển thị, không phải identity semantic.
     s = re.sub(r"^\s*(?:\d+|[ivxlcdm]+|[a-z])\s*[.)-]\s*", "", s, flags=re.I)
     s = re.sub(r"^\s*trong\s+do\s*:?\s*", "", s)
     s = re.sub(r"^\s*\d+(?:\.\d+)+[.)]?\s*", "", s)
-    # Some converters flatten the unit/code header into the first label.  It
-    # is metadata only when the whole label starts with an explicit unit and
-    # code marker.
+    # Một số bộ chuyển đổi dồn header đơn vị/mã vào nhãn đầu tiên. Đây chỉ là
+    # metadata khi toàn nhãn bắt đầu bằng marker đơn vị và mã rõ ràng.
     s = re.sub(r"^\s*don\s+vi\s*:\s*.*?\bma\s+so\b(?:\s+\w+)?\s+", "", s)
-    # Normalize common ownership wording without using a form code as a key.
+    # Chuẩn hóa cách viết quyền sở hữu thường gặp mà không dùng mã biểu mẫu làm khóa.
     s = re.sub(r"\bco\s+dong\s+cua\s+cong\s+ty\s+me\b", "co dong cong ty me", s)
     s = re.sub(r"\([^)]*(?:=|vnd|dong|triệu|trieu)[^)]*\)", " ", s, flags=re.I)
     s = re.sub(r"[^a-z0-9]+", " ", s)
@@ -114,11 +111,11 @@ _SEMANTIC_VARIANTS = {
 
 
 def semantic_label_similarity(left: Any, right: Any) -> float:
-    """Match layout/OCR wording variants using concept tokens only.
+    """Khớp biến thể từ ngữ do layout/OCR chỉ bằng token khái niệm.
 
-    Form codes and note references are intentionally excluded.  Exact aliases
-    and the bounded regex fallback remain preferred; this path only accepts a
-    clear overlap of at least three non-directional tokens.
+    Cố ý loại mã biểu mẫu và tham chiếu thuyết minh. Alias chính xác và regex
+    fallback có giới hạn vẫn được ưu tiên; nhánh này chỉ nhận phần giao rõ có
+    ít nhất ba token không chỉ hướng.
     """
     left_tokens = set(fold(left).split()) - _SEMANTIC_VARIANTS
     right_tokens = set(fold(right).split()) - _SEMANTIC_VARIANTS
@@ -134,10 +131,10 @@ def semantic_label_similarity(left: Any, right: Any) -> float:
 
 
 def clean_source_label_and_code(label: Any, code: Any = None):
-    """Normalize source labels before semantic mapping without changing display semantics too aggressively."""
+    """Chuẩn hóa nhãn nguồn trước mapping semantic mà không đổi quá mức cách hiển thị."""
     s = strip_md(label)
-    # Extract code embedded in labels such as "Doanh thu ... (Mã số 01, Mã tham chiếu 30)"
-    # or prefix layouts such as "100.1 Chi phí thuế..." / "44 Doanh thu khác...".
+    # Lấy mã nằm trong nhãn như "Doanh thu ... (Mã số 01, Mã tham chiếu 30)"
+    # hoặc bố cục tiền tố như "100.1 Chi phí thuế..." / "44 Doanh thu khác...".
     if code in (None, ""):
         m = re.search(r"(?i)\bMã\s*số\s*[: ]\s*([0-9]{1,3}(?:\.[0-9]+)?|[IVXLC]+)\b", s)
         if m:
@@ -147,13 +144,13 @@ def clean_source_label_and_code(label: Any, code: Any = None):
             if mp:
                 code = mp.group(1)
                 s = mp.group(2).strip()
-    # Remove mapping metadata suffixes while keeping semantic parentheses such as (lỗ)/lãi.
+    # Bỏ hậu tố metadata mapping nhưng giữ ngoặc semantic như (lỗ)/lãi.
     s = re.sub(r"(?i)\s*\(\s*Mã\s*số\s*[^)]*\)\s*$", "", s).strip()
     s = re.sub(r"(?i)\s*\(\s*Mã\s*tham\s*chiếu\s*[^)]*\)\s*$", "", s).strip()
-    # Combined metadata parenthesis.
+    # Ngoặc metadata gộp.
     s = re.sub(r"(?i)\s*\(\s*Mã\s*số\s*[^)]*Mã\s*tham\s*chiếu[^)]*\)\s*$", "", s).strip()
-    # Generic prefixes produced by keyed/column converters.  These are
-    # serialization fields, not part of the accounting concept.
+    # Tiền tố chung do bộ chuyển đổi keyed/column tạo ra. Đây là field serialize,
+    # không thuộc khái niệm kế toán.
     s = re.sub(r"(?i)^(?:Mã\s*số|Ma\s*so)\s*[: ]*\d{1,3}[a-z]?\s*[-–:]\s*", "", s).strip()
     s = re.sub(r"(?i)^(?:Chỉ\s*tiêu|Ghi\s*chú|Diễn\s*giải|Dien\s*giai)\s*:\s*", "", s).strip()
     s = re.sub(r"^\s*\d{1,3}[.)]\s+", "", s).strip()
@@ -170,8 +167,8 @@ def parse_number(v: Any):
     s = strip_md(v).strip()
     if not s:
         return None
-    # Source fidelity: dash means blank / no reported occurrence, not numeric zero.
-    # Formula views may coerce None to 0 separately when appropriate.
+    # Trung thành nguồn: dấu gạch nghĩa là trống/không có occurrence báo cáo,
+    # không phải số 0. View công thức có thể đổi None thành 0 ở bước riêng khi phù hợp.
     if s in {"-", "–", "—"}:
         return None
     neg = s.startswith("(") and s.endswith(")")
@@ -203,7 +200,7 @@ def _first(obj: dict, keys, default=None):
 
 
 def _source_raw_text(obj: dict) -> Optional[str]:
-    """Preserve the source serialization emitted by structural extractors."""
+    """Giữ dạng serialize nguồn do extractor cấu trúc phát ra."""
 
     direct = _first(obj, RAW_TEXT_KEYS)
     if isinstance(direct, str) and direct.strip():
@@ -243,15 +240,15 @@ def _role_from_period(x: Any, current_year=None, previous_year=None) -> Optional
 
 
 def _extract_period_payload(obj: dict, current_year=None, previous_year=None):
-    """Hydrate current/previous from heterogeneous converter payloads.
+    """Hydrate hiện tại/trước đây từ payload có nhiều dạng của bộ chuyển đổi.
 
-    Supports:
-      - current/previous fields
+    Hỗ trợ:
+      - field hiện tại/trước đây
       - value: {current, previous}
       - period_values: [{period/year, value}, ...]
-      - periods + values parallel arrays
+      - mảng song song periods + values
       - values: [{period, value}, ...]
-      - values as {2025: x, 2024: y}
+      - values dạng {2025: x, 2024: y}
     """
     cur = _first(obj, CURRENT_KEYS)
     prev = _first(obj, PREVIOUS_KEYS)
@@ -354,30 +351,30 @@ def adapt_row(obj: dict, idx=0, current_year=None, previous_year=None, inherited
 
 
 def _looks_like_row(obj: dict) -> bool:
-    """Return True only for a semantic observation, not a schema/container node.
+    """Chỉ trả về True cho observation semantic, không cho node schema/container.
 
-    Important invariant: code/note metadata alone is NOT enough to make a row.
-    A row must carry a numeric/current/previous payload or explicit period/value
-    structure. This prevents empty canonical schema nodes from being remapped as
-    source observations merely because they have form_code.
+    Bất biến quan trọng: metadata mã/thuyết minh không đủ để tạo một row.
+    Row phải có payload số/hiện tại/trước đây hoặc cấu trúc kỳ/giá trị rõ. Cách
+    này ngăn node schema canonical rỗng bị map lại thành observation nguồn chỉ
+    vì có form_code.
     """
     if not any(k in obj and obj[k] not in (None, "") for k in LABEL_KEYS):
         return False
 
-    # Direct current / previous values.
+    # Giá trị hiện tại/trước đây trực tiếp.
     if any(k in obj and obj[k] not in (None, "") for k in CURRENT_KEYS + PREVIOUS_KEYS):
         return True
 
-    # Explicit period/value carriers.
+    # Field mang kỳ/giá trị rõ ràng.
     for key in ("values", "period_values"):
         if obj.get(key) not in (None, "", [], {}):
             return True
 
-    # Parallel periods only count when values also exist.
+    # Kỳ song song chỉ được tính khi đồng thời có giá trị.
     if obj.get("periods") not in (None, "", [], {}) and obj.get("values") not in (None, "", [], {}):
         return True
 
-    # Canonical-like aggregate node. Empty schema nodes must remain containers.
+    # Node tổng hợp dạng canonical. Node schema rỗng phải tiếp tục là container.
     value_obj = obj.get("value")
     if isinstance(value_obj, dict):
         return any(value_obj.get(k) is not None for k in ("current", "previous", "additional"))
@@ -388,11 +385,11 @@ def _looks_like_row(obj: dict) -> bool:
 
 
 def discover_rows(root: Any, current_year=None, previous_year=None) -> list[IncomeRow]:
-    """Recursively discover row observations from the common converter JSON.
+    """Đệ quy tìm observation dòng từ JSON bộ chuyển đổi dùng chung.
 
-    This is intentionally independent of a particular extractor's container name.
-    It supports rows/observations/items/data, nested sections, node occurrences,
-    and canonical-like node payloads.
+    Hàm cố ý không phụ thuộc tên container của extractor cụ thể. Hỗ trợ
+    rows/observations/items/data, section lồng nhau, occurrence của node và
+    payload dạng canonical.
     """
     found: list[IncomeRow] = []
     seen_obj_ids = set()
@@ -410,8 +407,8 @@ def discover_rows(root: Any, current_year=None, previous_year=None) -> list[Inco
             return
         seen_obj_ids.add(oid)
 
-        # Canonical/debug node with occurrences: occurrences are closest to the
-        # original observations and therefore preferred over the aggregate node.
+        # Node canonical/debug có occurrence: occurrence gần observation gốc nhất
+        # nên được ưu tiên hơn node tổng hợp.
         meta = x.get("extraction_meta")
         if isinstance(meta, dict) and isinstance(meta.get("occurrences"), list) and meta["occurrences"]:
             base_label = _first(x, LABEL_KEYS)
@@ -433,15 +430,15 @@ def discover_rows(root: Any, current_year=None, previous_year=None) -> list[Inco
                     found.append(adapt_row(occ2, len(found), current_year, previous_year, base_inherited))
                 except ValueError:
                     pass
-            # Do not also emit the aggregate node as a duplicate row.
+            # Không phát thêm node tổng hợp thành một row trùng.
         elif _looks_like_row(x):
             try:
                 found.append(adapt_row(x, len(found), current_year, previous_year, inherited))
             except ValueError:
                 pass
 
-        # Propagate lightweight context only; never propagate values blindly from
-        # arbitrary containers because that creates false period assignments.
+        # Chỉ lan truyền context nhẹ; không lan truyền giá trị mù từ container
+        # bất kỳ vì sẽ tạo gán kỳ sai.
         next_inherited = dict(inherited)
         parent_label = _first(x, LABEL_KEYS)
         if parent_label:
@@ -473,8 +470,8 @@ def discover_rows(root: Any, current_year=None, previous_year=None) -> list[Inco
 def dedupe_rows(rows: list[IncomeRow]) -> list[IncomeRow]:
     best = {}
     for r in rows:
-        # Code/note columns are provenance.  Duplicate source rows are
-        # identified by source location, semantic label/context and periods.
+        # Cột mã/thuyết minh là provenance. Dòng nguồn trùng được nhận diện bằng
+        # vị trí nguồn, nhãn/context semantic và các kỳ.
         key = (
             r.source_line,
             fold(r.label),
@@ -489,8 +486,21 @@ def dedupe_rows(rows: list[IncomeRow]) -> list[IncomeRow]:
 
 
 class IncomeMapper:
+    """Map row B02 vào schema theo sector và tạo canonical statement.
+
+    Mapper chỉ nhận row đã được extractor tách. Identity chính là label
+    semantic sau khi chuẩn hóa; alias, regex và token similarity là các mức
+    fallback có ngưỡng. Code biểu mẫu và số thuyết minh chỉ giữ provenance.
+    """
+
     def __init__(self, schema_path=DEFAULT_SCHEMA, aliases_path=DEFAULT_ALIASES,
                  sector="enterprise", regex_fallback=True, regex_min_score=0.93, regex_gap=0.08):
+        """Nạp schema/alias và tạo catalog cho một sector.
+
+        Đầu vào là đường dẫn schema, alias, sector và các ngưỡng fallback. Xử
+        lý lọc node theo sector và index canonical name/alias. Đầu ra là mapper
+        sẵn sàng cho ``map_row`` và ``canonical``; chưa đọc source report.
+        """
         self.schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
         self.aliases = json.loads(Path(aliases_path).read_text(encoding="utf-8"))
         self.sector = sector
@@ -505,10 +515,9 @@ class IncomeMapper:
             labels += node_alias.get("exact", [])
             labels += node_alias.get("aliases", [])
 
-            # v22.1 compatibility: older alias packs may contain node aliases
-            # directly at the JSON top level instead of under `nodes`.
-            # Merge those aliases conservatively so a malformed/legacy pack
-            # does not silently lose sector coverage.
+            # Tương thích v22.1: alias pack cũ có thể chứa alias node trực tiếp
+            # ở cấp JSON cao nhất thay vì dưới `nodes`. Ghép các alias đó theo
+            # quy tắc bảo thủ để pack lỗi/cũ không âm thầm mất coverage sector.
             legacy_alias = self.aliases.get(nid)
             if isinstance(legacy_alias, list):
                 labels += legacy_alias
@@ -519,6 +528,14 @@ class IncomeMapper:
                 self.exact.setdefault(fold(lab), []).append(nid)
 
     def map_row(self, row: IncomeRow) -> IncomeRow:
+        """Gán một row B02 vào tối đa một node semantic.
+
+        Đầu vào là ``IncomeRow`` đã có label và giá trị. Hàm thử exact alias,
+        parent total, regex và semantic token theo thứ tự bảo thủ; chỉ nhận
+        candidate duy nhất vượt ngưỡng và khoảng cách với candidate thứ hai.
+        Đầu ra là chính row được cập nhật ``node_id``, method, confidence và
+        ``mapping_status``.
+        """
         fl = fold(row.label)
         cands = list(self.exact.get(fl, []))
         method = "exact_alias"
@@ -585,9 +602,23 @@ class IncomeMapper:
         return row
 
     def map_rows(self, rows: Iterable[IncomeRow]) -> list[IncomeRow]:
+        """Map toàn bộ row B02 theo cùng catalog sector.
+
+        Đầu vào là iterable ``IncomeRow`` từ extractor. Xử lý gọi
+        ``map_row`` cho từng row và giữ nguyên thứ tự source. Đầu ra là list
+        row đã có trạng thái ``mapped``, ``ambiguous`` hoặc ``unmapped``.
+        """
         return [self.map_row(r) for r in rows]
 
     def canonical(self, rows: list[IncomeRow], source_name="input", current_year=None, previous_year=None, statement_unit: Optional[str] = None):
+        """Gộp row đã map thành canonical B02 và diagnostics.
+
+        Đầu vào là row sau ``map_rows``, provenance source, cặp năm và unit.
+        Hàm gom theo node, điền từng kỳ, giữ occurrences/raw text, ghi conflict
+        nếu cùng node có giá trị khác nhau, rồi chạy chuẩn hóa dấu và formula.
+        Đầu ra là dict canonical gồm schema, nodes, mapping summary và
+        diagnostics; row chưa map không bị ép vào node.
+        """
         by = {nid: {
             "node_id": nid,
             "canonical_name": n["canonical_name"],
@@ -649,7 +680,7 @@ class IncomeMapper:
         elif self.sector == "securities":
             sign_normalizations = normalize_securities_semantic_signs(by)
         elif self.sector == "enterprise":
-            # Formula-only normalization: preserve source-facing canonical values.
+            # Chuẩn hóa chỉ cho công thức: giữ nguyên giá trị canonical theo nguồn.
             sign_normalizations = normalize_enterprise_formula_signs(by)
         elif self.sector == "insurance":
             sign_normalizations = []
@@ -701,9 +732,9 @@ class IncomeMapper:
         else:
             formula_checks = validate_enterprise_formulas(by)
         formula_summary = summarize_formula_checks(formula_checks)
-        # Mapping/extraction status and accounting-validation status are separate in v17.
-        # A formula mismatch must remain visible for debugging, but it must not relabel
-        # a structurally complete extraction as a mapping failure/conflict.
+        # Trạng thái mapping/extraction và validation kế toán tách biệt từ v17.
+        # Lệch công thức phải còn visible để debug, nhưng không được đổi một
+        # extraction cấu trúc đầy đủ thành lỗi mapping/conflict.
         validation_status = "ok" if formula_summary["failed"] == 0 else "formula_warning"
         validation_diagnostic = None if validation_status == "ok" else (
             "One or more accounting identity checks failed. Canonical source values are preserved; "
@@ -811,8 +842,8 @@ def detect_special_sector(rows: list[IncomeRow]) -> Optional[str]:
             for h in hints:
                 if h in lab:
                     hits.add(h)
-        # Two strong semantic hints are enough; this avoids triggering on a
-        # single incidental insurance/security line in a bank/enterprise report.
+        # Hai hint semantic mạnh là đủ; cách này tránh kích hoạt bởi một dòng
+        # bảo hiểm/chứng khoán lẻ trong báo cáo ngân hàng/doanh nghiệp.
         if len(hits) >= 2:
             return sector
     return None

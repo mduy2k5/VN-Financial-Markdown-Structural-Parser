@@ -1,10 +1,10 @@
-"""Compare current three-statement canonical output with source-grounded baselines.
+"""So sánh output canonical hiện tại của ba báo cáo với baseline theo nguồn.
 
-The baseline stores observations by source row, while the current parser stores
-semantic canonical nodes.  This comparator therefore compares normalized
-``label + period + value`` evidence instead of requiring identical JSON shape
-or node IDs.  It reports missing expected values separately from extra parser
-observations so structural changes do not get misreported as numeric errors.
+Baseline lưu observation theo dòng nguồn, còn parser hiện tại lưu node canonical
+semantic. Vì vậy comparator so sánh evidence đã chuẩn hóa
+``label + period + value`` thay vì yêu cầu cùng JSON shape hoặc node ID. Lệnh
+tách giá trị kỳ vọng bị thiếu khỏi observation parser bổ sung để thay đổi cấu
+trúc không bị báo nhầm là lỗi số.
 """
 
 from __future__ import annotations
@@ -117,9 +117,9 @@ def collect_expected_evidence(
             period_role(observation.get("period_raw"), current_year, previous_year),
             period_role(observation.get("raw_text"), current_year, previous_year),
         }
-        # A generic ``Số liệu`` row inherits the nearest explicit section year;
-        # this repairs baselines that flattened two year sections into one
-        # current-period column without changing rows with explicit raw years.
+        # Dòng ``Số liệu`` chung kế thừa năm section rõ gần nhất. Cách này sửa
+        # baseline đã làm phẳng hai section năm thành một cột kỳ hiện tại mà
+        # không đổi các dòng đã có năm raw rõ.
         key_period = period_role(
             observation.get("period_key"), current_year, previous_year
         )
@@ -185,7 +185,7 @@ def collect_expected_evidence(
 
 
 def expected_evidence(statement: dict[str, Any]) -> set[tuple[str, str, int | float]]:
-    """Backward-compatible raw evidence helper used by older callers."""
+    """Helper evidence raw tương thích ngược cho caller cũ."""
 
     return collect_expected_evidence(statement)[0]
 
@@ -196,10 +196,9 @@ def current_evidence(
     previous_year: int | None = None,
 ) -> set[tuple[str, str, int | float]]:
     evidence: set[tuple[str, str, int | float]] = set()
-    # The source reconciliation view keeps the original recovered labels and
-    # the consensus value even when the canonical mapper chose a different
-    # semantic label.  Include it so a layout/label normalization difference
-    # is not mistaken for a missing number.
+    # View reconciliation theo nguồn giữ nhãn đã khôi phục ban đầu và giá trị
+    # đồng thuận ngay cả khi canonical mapper chọn nhãn semantic khác. Đưa view
+    # này vào để khác biệt layout/chuẩn hóa nhãn không bị hiểu là thiếu số.
     for row in document.get("reconciled_source_view") or []:
         label = fold_text(row.get("display_label") or row.get("normalized_label"))
         if label:
@@ -209,11 +208,10 @@ def current_evidence(
                     evidence.add((label, period, value))
     for node in document.get("nodes") or []:
         metadata = node.get("extraction_meta") or {}
-        # Hydration/reconciliation may fill the canonical value while keeping
-        # the original occurrence unchanged.  The canonical value is still
-        # source-backed output and must participate in comparison; otherwise a
-        # correctly recovered prior-period value is reported as missing merely
-        # because it was added after the first occurrence was emitted.
+        # Hydration/reconciliation có thể điền giá trị canonical nhưng vẫn giữ
+        # occurrence ban đầu. Giá trị canonical vẫn có nguồn và phải tham gia so
+        # sánh; nếu không, giá trị kỳ trước được khôi phục đúng sẽ bị báo thiếu
+        # chỉ vì nó được thêm sau khi occurrence đầu tiên đã phát ra.
         node_label = fold_text(node.get("canonical_name"))
         node_value = node.get("value") or {}
         if node_label and isinstance(node_value, dict):

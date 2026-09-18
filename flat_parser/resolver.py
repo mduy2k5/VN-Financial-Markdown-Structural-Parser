@@ -19,15 +19,15 @@ def _period_key(period, context: StatementContext):
     if any(x in f for x in ("so dau nam", "dau nam", "nam truoc", "du no dau nam")):
         return "previous"
 
-    # Balance-sheet opening date 01/01/YYYY represents previous-period end,
-    # even though it has the same calendar year as the current 31/12/YYYY.
+    # Ngày mở đầu bảng cân đối 01/01/YYYY đại diện cho cuối kỳ trước,
+    # dù cùng năm lịch với ngày hiện tại 31/12/YYYY.
     if context.report_year and re.search(
         rf"\b0?1[./]0?1[./]{context.report_year}\b",
         period.raw_period or "",
     ):
         return "previous"
 
-    # Exact context labels should beat generic year classification.
+    # Nhãn context khớp chính xác phải được ưu tiên hơn phân loại năm chung.
     if context.current_label and fold(context.current_label) == f:
         return "current"
     if context.previous_label and fold(context.previous_label) == f:
@@ -46,9 +46,9 @@ def _period_key(period, context: StatementContext):
 
 
 def _financial_unit(value_unit, observation_unit, context_unit):
-    """
-    Prefer local explicit monetary unit, otherwise statement context.
-    Avoid propagating unrelated structural units such as 'cổ phần' to money rows.
+    """Ưu tiên đơn vị tiền tệ rõ ở local, nếu không dùng context báo cáo.
+
+    Không lan truyền đơn vị cấu trúc không liên quan như ``cổ phần`` vào dòng tiền.
     """
     monetary_markers = (
         "đồng", "vnd", "vnđ", "usd", "eur",
@@ -66,6 +66,12 @@ def resolve_observation(
     allow_structure_unknown: bool = False,
     source_context: dict | None = None,
 ):
+    """Chuyển payload observation thô thành giá trị đã giải quyết theo kỳ.
+
+    Nhãn kỳ rõ ràng được ưu tiên. Giá trị theo vị trí chỉ dùng context cục bộ
+    khi bộ phân loại cấu trúc đã xác định pattern an toàn; cấu trúc chưa biết
+    vẫn chưa giải quyết để xem xét.
+    """
     c = obs.selected
     if not obs.pattern_id and not allow_structure_unknown:
         return None, "unknown_structure"
@@ -94,7 +100,7 @@ def resolve_observation(
     else:
         raw = list(obs.values)
 
-        # Generic BCTC positional payload. Small first number may be code/note.
+        # Payload BCTC theo vị trí dạng chung. Số đầu nhỏ có thể là mã/thuyết minh.
         if len(raw) > 2:
             first = raw[0]
             if (
@@ -104,7 +110,7 @@ def resolve_observation(
             ):
                 raw = raw[1:]
 
-        # Role-bearing A4 pipe segments are not forced into current/previous.
+        # Segment pipe A4 có role không bị ép vào hiện tại/trước đây.
         if raw and any(v.role for v in raw):
             for v in raw:
                 values.append(
@@ -142,12 +148,11 @@ def resolve_observation(
                     )
                 )
 
-    # Off-balance disclosures are especially prone to damaged indentation:
-    # a heading with no payload may be followed by the next heading carrying
-    # two distinct current/previous pairs (one pair actually belongs to the
-    # preceding heading).  Never let canonical first-wins silently choose a
-    # value when one observation contains conflicting values for the same
-    # period.  Surface the source/structure ambiguity for review instead.
+    # Thuyết minh ngoại bảng đặc biệt dễ hỏng thụt lề: một tiêu đề không có
+    # payload có thể theo sau bởi tiêu đề kế tiếp mang hai cặp hiện tại/trước đây
+    # khác nhau (một cặp thực ra thuộc tiêu đề trước). Không để canonical
+    # first-wins âm thầm chọn một giá trị khi một observation có giá trị xung đột
+    # cho cùng kỳ; đưa mơ hồ nguồn/cấu trúc ra để xem xét.
     if c.node_id.startswith("OFF_BALANCE.") and values:
         by_period = {}
         for v in values:
@@ -155,9 +160,9 @@ def resolve_observation(
         if any(len(raws) > 1 for raws in by_period.values()):
             return None, "conflicting_period_payloads"
 
-    # A malformed indentation tree can expose the same period attributes
-    # through two structural paths.  One semantic observation still has at
-    # most one identical value per period; keep the earliest provenance.
+    # Cây thụt lề hỏng có thể lộ cùng thuộc tính kỳ qua hai nhánh cấu trúc.
+    # Một observation semantic vẫn chỉ có tối đa một giá trị giống nhau cho mỗi
+    # kỳ; giữ provenance sớm nhất.
     deduped_values = []
     seen_values = set()
     for v in values:

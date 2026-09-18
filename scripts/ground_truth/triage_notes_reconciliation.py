@@ -1,4 +1,4 @@
-"""Build an evidence-rich triage queue from audited Notes reconciliation output."""
+"""Tạo hàng đợi phân loại giàu evidence từ output reconciliation Notes đã audit."""
 
 from __future__ import annotations
 

@@ -17,15 +17,15 @@ class StructuralClassifier:
         self.guide = guide
 
     def classify_all(self, nodes: list[StructuralNode]):
-        # First pass: leaf/local patterns.
+        # Pass 1: mẫu leaf/local.
         for node in nodes:
             self._classify_local(node)
 
-        # Second pass: parent patterns depending on children.
+        # Pass 2: mẫu parent phụ thuộc vào child.
         for node in reversed(nodes):
             self._upgrade_parent_pattern(node, nodes)
 
-        # Third pass: propagate period/unit/qualifier context.
+        # Pass 3: lan truyền context kỳ/đơn vị/qualifier.
         for node in nodes:
             self._inherit_context(node, nodes)
 
@@ -39,7 +39,7 @@ class StructuralClassifier:
         text = node.text.strip()
         f = fold(text)
 
-        # Table context beats generic pipe parsing.
+        # Context bảng được ưu tiên hơn việc tách pipe chung.
         if node.representation == "table_row":
             self._set(node, "SP_MARKDOWN_TABLE_ROW", 1.0, "table_header_context")
             return
@@ -50,24 +50,24 @@ class StructuralClassifier:
             self._set(node, "SP_QUALIFIER_CONTAINER", 1.0, "qualifier_lexicon")
             return
 
-        # Whole bullet period without payload is a period-container.
-        # If the same line already has a value (e.g. "Năm 2025: -"),
-        # it must remain a period-value attribute.
+        # Bullet chỉ có kỳ mà không có payload là period-container.
+        # Nếu cùng dòng đã có giá trị (ví dụ "Năm 2025: -"), nó phải giữ là
+        # thuộc tính giá trị kỳ.
         p = whole_text_period(text, node.line_no, self.guide)
         if p and node.is_bullet and not node.values:
             node.periods = [p]
             self._set(node, "SP_PERIOD_CONTAINER", 1.0, "whole_text_period")
             return
 
-        # Non-table pipe row.
+        # Dòng pipe không thuộc bảng.
         if "|" in text:
             segments = [x.strip() for x in text.split("|") if x.strip()]
             if len(segments) >= 2:
                 self._set(node, "SP_PIPE_DELIMITED_INLINE_ROW", 0.98, "pipe_without_table_context")
                 return
 
-        # Compact OCR/LLM statement row hydrated by document parser:
-        # label + 3-digit code + [note] + current + previous.
+        # Dòng báo cáo OCR/LLM compact đã được document parser hydrate:
+        # nhãn + mã ba chữ số + [thuyết minh] + hiện tại + trước đây.
         if (
             node.representation in {"plain", "bullet"}
             and node.code
@@ -82,7 +82,7 @@ class StructuralClassifier:
             self._set(node, "SP_CODE_NOTE_PERIOD_INLINE_ROW", 0.99, *evidence)
             return
 
-        # Multi-period inline.
+        # Dòng inline nhiều kỳ.
         if len(node.periods) >= 2 and len(node.values) >= 2:
             self._set(node, "SP_MULTI_PERIOD_INLINE", 0.98, "period_count>=2", "value_count>=2")
             return
@@ -96,7 +96,7 @@ class StructuralClassifier:
             self._set(node, "SP_PERIOD_VALUE_ATTRIBUTE", 0.98, "period_lhs", "rhs_value")
             return
 
-        # Bare value-only line, optionally followed by a unit:
+        # Dòng chỉ có giá trị, có thể theo sau bởi đơn vị:
         #   195.820.302
         #   195.820.302 (Triệu VND)
         stripped = text.strip()
@@ -114,15 +114,15 @@ class StructuralClassifier:
             self._set(node, "SP_VALUE_ONLY_POSITIONAL", 0.95, "whole_text_value_or_value_plus_unit")
             return
 
-        # Plain-text OCR/LLM tables often serialize one financial row as:
-        #   Label
+        # Bảng OCR/LLM dạng plain thường serialize một dòng tài chính thành:
+        #   Nhãn
         #   100
         #   5
         #   58.015.996.839.126
         #   48.680.623.561.824
-        # Numeric-only lines in this representation are positional row atoms
-        # even though they are not Markdown bullets. Semantic role (code/note/
-        # current/previous) is assigned later by the local sequential collector.
+        # Các dòng chỉ có số trong dạng này là atom dòng theo vị trí dù không
+        # phải bullet Markdown. Role semantic (mã/thuyết minh/hiện tại/trước đây)
+        # được gán sau bởi collector tuần tự cục bộ.
         if len(values_full) == 1 and not node.lhs and not node.periods:
             raw_value = values_full[0].raw_value
             if raw_value == stripped:
@@ -133,7 +133,7 @@ class StructuralClassifier:
             self._set(node, "SP_LABEL_VALUE_INLINE", 0.90, "colon_rhs_value")
             return
 
-        # Unit/period non-business context.
+        # Context đơn vị/kỳ không phải dòng nghiệp vụ.
         if node.unit and not node.values:
             self._set(node, "SP_CONTEXT_CARRIER", 0.85, "unit_without_value")
             return

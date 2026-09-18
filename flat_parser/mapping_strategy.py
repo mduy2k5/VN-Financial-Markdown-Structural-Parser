@@ -17,23 +17,25 @@ def _regex_fallback_candidates(
     *,
     allow_fuzzy=False,
     detected_sector=None,
+    source_context=None,
 ):
-    """Strict regex fallback used only after normal alias mapping fails.
+    """Fallback regex nghiêm ngặt, chỉ dùng sau khi mapping alias thường thất bại.
 
-    Policy:
-      * regex never competes with a successful legacy/alias result;
-      * fuzzy regex is disabled for automatic fallback;
-      * top result must be high confidence;
-      * if there is a runner-up, require a meaningful score gap;
-      * ambiguous generic labels therefore remain unresolved/reviewable.
+    Chính sách:
+      * regex không cạnh tranh với kết quả legacy/alias đã thành công;
+      * tắt regex fuzzy trong fallback tự động;
+      * kết quả đầu phải có độ tin cậy cao;
+      * nếu có kết quả thứ hai, phải có khoảng cách điểm đủ lớn;
+      * vì vậy nhãn chung mơ hồ sẽ ở trạng thái chưa giải quyết/cần xem xét.
     """
     candidates = regex_match_candidates(
         node,
         nodes,
         catalog,
         prior_selected,
-        allow_fuzzy=False,  # automatic fallback must stay deterministic
+        allow_fuzzy=False,  # fallback tự động phải có tính quyết định
         detected_sector=detected_sector,
+        source_context=source_context,
     )
     if not candidates:
         return []
@@ -47,7 +49,7 @@ def _regex_fallback_candidates(
         if gap < 0.08:
             return []
 
-    # Mark provenance explicitly so diagnostics/alias discovery can find it.
+    # Ghi rõ provenance để chẩn đoán và phát hiện alias có thể truy vết.
     for c in candidates:
         original = c.method
         c.method = f"regex_fallback_{original.removeprefix('regex_')}"
@@ -64,6 +66,7 @@ def match_candidates_for_strategy(
     *,
     allow_fuzzy=False,
     detected_sector=None,
+    source_context=None,
 ):
     strategy = (strategy or MAPPING_LEGACY).lower()
 
@@ -72,6 +75,7 @@ def match_candidates_for_strategy(
             node, nodes, catalog, prior_selected,
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
+            source_context=source_context,
         )
 
     if strategy == MAPPING_LEGACY:
@@ -79,6 +83,7 @@ def match_candidates_for_strategy(
             node, nodes, catalog, prior_selected,
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
+            source_context=source_context,
         )
 
     if strategy == MAPPING_ALIAS_REGEX_FALLBACK:
@@ -86,6 +91,7 @@ def match_candidates_for_strategy(
             node, nodes, catalog, prior_selected,
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
+            source_context=source_context,
         )
         selected, _ = choose_candidate(legacy)
         if selected is not None:
@@ -97,6 +103,7 @@ def match_candidates_for_strategy(
             prior_selected,
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
+            source_context=source_context,
         )
 
     raise ValueError(f"Unknown mapping strategy: {strategy}")

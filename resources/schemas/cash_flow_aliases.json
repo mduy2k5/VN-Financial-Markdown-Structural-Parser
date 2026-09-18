@@ -546,7 +546,8 @@
     "Thuế TNDN đã nộp"
   ],
   "CASHFLOW.ENTERPRISE.INDIRECT.OTHER_OPERATING_PAYMENTS": [
-    "Tiền chi khác"
+    "Tiền chi khác",
+    "Tiền chi khác từ hoạt động kinh doanh"
   ],
   "CASHFLOW.BANK.DIRECT.OPERATING_BEFORE_BALANCE_CHANGES": [
     "Lưu chuyển tiền từ hoạt động kinh doanh trước những thay đổi về tài sản và công nợ hoạt động",

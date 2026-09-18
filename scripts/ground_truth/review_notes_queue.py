@@ -1,8 +1,8 @@
-"""Verify each Notes review-queue item against its cited Markdown source line.
+"""Kiểm tra từng item hàng đợi Notes với dòng Markdown nguồn được trích dẫn.
 
-This creates a source-evidenced validation set. Items without direct evidence
-remain explicitly queued for human adjudication instead of being silently
-promoted to gold data.
+Lệnh tạo tập validation có evidence nguồn. Item không có evidence trực tiếp vẫn
+được giữ rõ ràng trong hàng đợi để người dùng phân xử, không âm thầm nâng thành
+gold data.
 """
 
 from __future__ import annotations

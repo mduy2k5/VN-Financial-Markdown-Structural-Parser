@@ -52,9 +52,9 @@ def parse_number(raw: str):
 
 def _row_role(label: str, *, current_year: int | None = None, previous_year: int | None = None) -> str:
     f = fold_text(label)
-    # ``cong`` is not sufficient evidence for a total: ``cong ty`` and
-    # ``cong cu`` are ordinary business labels.  Prefer the explicit
-    # ``tong`` prefix and the standalone ``cong`` row.
+    # ``cong`` không đủ làm bằng chứng của tổng: ``cong ty`` và ``cong cu``
+    # là nhãn nghiệp vụ thông thường. Ưu tiên tiền tố rõ ``tong`` và dòng
+    # ``cong`` đứng riêng.
     if f == 'cong' or f.startswith('tong '): return 'total'
     if any(x in f for x in ('cuoi nam', '31 12', 'so du cuoi', f'tai ngay 31 thang 12 nam {current_year}')): return 'closing'
     if any(x in f for x in ('dau nam', '01 01', 'so du dau', f'tai ngay 1 thang 1 nam {current_year}', f'tai ngay 31 thang 12 nam {previous_year}')): return 'opening'
@@ -63,7 +63,7 @@ def _row_role(label: str, *, current_year: int | None = None, previous_year: int
 
 
 def _infer_period_role(header: str, *, current_year: int | None = None, previous_year: int | None = None) -> Optional[str]:
-    """Use the shared period policy, including a distinct YTD/quarter role."""
+    """Dùng chính sách kỳ dùng chung, gồm cả role YTD/quý riêng biệt."""
 
     role = quality_period_role(header, current_year, previous_year)
     return role if role in {"current", "previous", "quarter"} else None
@@ -91,7 +91,8 @@ def _compose_headers(header_rows: list[list[str]], width: int) -> list[str]:
         for row in header_rows:
             val = _strip_md(row[col] if col < len(row) else '')
             if not val: continue
-            # Unit-only rows are retained in header provenance but do not become semantic header labels.
+            # Dòng chỉ có đơn vị được giữ trong provenance của header nhưng
+            # không trở thành nhãn header semantic.
             if fold_text(val) in {'trieu dong', 'dong', 'vnd', 'nghin dong'}: continue
             if not parts or fold_text(parts[-1]) != fold_text(val): parts.append(val)
         out.append(' / '.join(parts))
@@ -128,7 +129,7 @@ def parse_markdown_tables(
         width=max([len(first)] + [len(c) for _,c in raw_rows])
         header_rows=[first]
         data_start=0
-        # Multi-row headers: consume leading non-data rows after separator.
+        # Header nhiều dòng: lấy các dòng đầu không phải dữ liệu sau separator.
         for ridx, (_, cells) in enumerate(raw_rows):
             if _is_data_row(cells):
                 data_start=ridx; break

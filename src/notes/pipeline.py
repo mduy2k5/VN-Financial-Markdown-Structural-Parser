@@ -23,7 +23,14 @@ from .dimension_inference import infer_movement_role
 
 
 class NotesPipeline:
+    """Điều phối parser cho vùng thuyết minh bổ sung.
+
+    Instance nhận cặp năm tùy chọn và dùng chúng cho mọi section trong một
+    source. Notes được parse thành IR riêng, sau đó mới link với primary.
+    """
+
     def __init__(self, *, current_year: int | None = None, previous_year: int | None = None):
+        """Lưu ngữ cảnh kỳ cho một phiên parse Notes."""
         self.current_year = current_year
         self.previous_year = previous_year
 
@@ -36,6 +43,24 @@ class NotesPipeline:
         scanner_result: Optional[dict] = None,
         primary: Optional[dict] = None,
     ) -> dict:
+        """Parse Notes từ Markdown và trả về Notes IR.
+
+        Đầu vào:
+        - ``text``: Markdown nguồn;
+        - ``source_name`` và ``sector``: provenance/ngữ cảnh;
+        - ``scanner_result``: evidence scope nếu caller đã scan;
+        - ``primary``: kết quả B01/B02/B03 để tạo link bổ sung.
+
+        Xử lý:
+        - giải quyết kỳ và tìm vùng Notes;
+        - chia section, block và row;
+        - suy luận unit, topic, movement role;
+        - link và reconcile với primary rồi tạo diagnostics.
+
+        Đầu ra là dict Notes IR gồm section, block/row, link, period và
+        diagnostics. Nếu không tìm thấy Notes, kết quả giữ trạng thái rõ ràng
+        thay vì tạo row rỗng có vẻ hợp lệ.
+        """
         period = resolve_report_years(
             text,
             source_name=source_name,
@@ -111,6 +136,11 @@ class NotesPipeline:
         scanner_result: Optional[dict] = None,
         primary: Optional[dict] = None,
     ) -> dict:
+        """Đọc file Markdown rồi gọi ``parse_text``.
+
+        Đầu vào là ``path`` cùng ngữ cảnh sector, scanner và primary tùy chọn.
+        Đầu ra giữ nguyên dict Notes IR do ``parse_text`` trả về.
+        """
         path = Path(path)
         return self.parse_text(
             path.read_text(encoding="utf-8-sig", errors="replace"),
@@ -131,6 +161,12 @@ def parse_notes(
     current_year: int | None = None,
     previous_year: int | None = None,
 ) -> dict:
+    """API tiện ích để parse Notes trong một lời gọi.
+
+    Đầu vào là text, provenance, sector, primary và cặp năm tùy chọn. Hàm tạo
+    ``NotesPipeline`` rồi trả về Notes IR; nó không ghi file và không đọc output
+    của lần chạy trước.
+    """
     return NotesPipeline(current_year=current_year, previous_year=previous_year).parse_text(
         text,
         source_name=source_name,

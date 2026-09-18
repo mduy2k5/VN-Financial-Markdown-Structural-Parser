@@ -1,8 +1,8 @@
-"""Export a compact per-report comparison table from existing evaluation artifacts.
+"""Xuất bảng so sánh gọn theo report từ artifact đánh giá hiện có.
 
-The exporter is intentionally data-driven: it reads the report list emitted by
-the comparator and joins Notes by ``source_file``. It does not know any ticker,
-filename pattern, or expected number of reports.
+Exporter hoạt động theo dữ liệu: đọc danh sách report do comparator tạo và ghép
+Notes theo ``source_file``. Lệnh không biết mã cổ phiếu, mẫu tên file hay số
+report kỳ vọng.
 """
 
 from __future__ import annotations

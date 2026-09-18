@@ -1,8 +1,8 @@
-"""Compare two versioned Notes linking/reconciliation outputs.
+"""So sánh hai output linking/reconciliation Notes có phiên bản.
 
-The comparison is non-destructive.  It produces an aggregate/per-report
-delta report and a focused review queue for reconciliation entries that are
-new in the right-hand output or changed to ``conflict`` there.
+Phép so sánh không phá hủy dữ liệu. Lệnh tạo báo cáo chênh lệch tổng hợp/theo
+report và một hàng đợi rà soát tập trung cho các entry reconciliation mới ở
+output bên phải hoặc đã chuyển thành ``conflict`` ở đó.
 """
 
 from __future__ import annotations
@@ -24,10 +24,10 @@ def _json_key(value: Any) -> str:
 
 
 def _entry_key(source_file: str, entry: dict[str, Any]) -> tuple[str, ...]:
-    # Values and references form the semantic identity.  Derived fields such as
-    # ``difference`` may change when a sign convention is normalized, so they
-    # must not make the same reconciliation look like a new/removed entry.
-    # Status is deliberately excluded so a status transition can be detected.
+    # Giá trị và tham chiếu tạo thành identity semantic. Các field dẫn xuất như
+    # ``difference`` có thể đổi khi chuẩn hóa quy ước dấu, nên không được làm
+    # cho cùng một reconciliation bị hiểu là entry mới/bị xóa.
+    # Cố ý bỏ status để có thể phát hiện chuyển trạng thái.
     return (
         source_file,
         str(entry.get("source_ref") or ""),

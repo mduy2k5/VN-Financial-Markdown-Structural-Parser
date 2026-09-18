@@ -15,7 +15,7 @@ def test_detached_total_consumes_entire_long_table_block():
         "| Mã số TÀI SẢN | Thuyết minh | 31/12/2025 | 01/01/2025 |",
         "|---|---|---|---|",
     ]
-    # >40 source lines between detached heading and terminal total row.
+    # Có hơn 40 dòng nguồn giữa heading tách rời và dòng tổng cuối.
     for i in range(1, 43):
         rows.append(f"| {i}. Chi tiết {i} | | {i}.000 | {i}.100 |")
     rows.append("| TỔNG CỘNG TÀI SẢN | | 15.148.255.852.020 | 14.199.525.343.428 |")

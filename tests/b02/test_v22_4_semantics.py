@@ -24,7 +24,7 @@ def test_unit_detection_no_conversion():
     assert detect_statement_unit("Đơn vị tính: Triệu VND").unit == "million_vnd"
     assert detect_statement_unit("| Chỉ tiêu | 2025 VND | 2024 VND |").unit == "vnd"
     assert parse_number("21.100.000") == 21100000
-    # Mixed declaration where currency must take precedence over %
+    # Khai báo trộn trong đó đơn vị tiền tệ phải được ưu tiên hơn %.
     assert detect_statement_unit("**Đơn vị tính:** triệu đồng, %").unit == "million_vnd"
     assert detect_statement_unit("Không có đơn vị", fallback_unit="million_vnd").unit == "million_vnd"
     from src.common import detect_document_unit

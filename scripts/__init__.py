@@ -1,1 +1,1 @@
-"""Project maintenance, evaluation and ground-truth commands."""
+"""Các lệnh bảo trì dự án, đánh giá và xây dựng ground truth."""

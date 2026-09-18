@@ -1,3 +1,10 @@
+"""Pipeline parse cấu trúc dùng chung cho các engine statement.
+
+Pipeline dựng cây source trước khi gán giá trị semantic. Điều này cần thiết
+cho layout bảng cân đối, nơi cùng một label có thể nằm dưới parent khác nhau
+hoặc giá trị xuất hiện trong một block cột tách rời.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,6 +33,24 @@ from .version import PARSER_VERSION
 
 
 class FlatParserPipeline:
+    """Chuyển một statement Markdown thành record cấu trúc và canonical.
+
+    Đầu vào khởi tạo:
+    - đường dẫn schema, alias và structural guide;
+    - các cờ chọn fuzzy mapping, scope, strategy và locator.
+
+    Xử lý:
+    - nạp catalog semantic và guide;
+    - tạo structural classifier;
+    - chuẩn bị locator dùng chung cho các profile statement.
+
+    Đầu ra:
+    - một parser giữ cấu hình cho nhiều lần gọi ``parse_text`` hoặc ``parse_file``.
+
+    B01 dùng toàn bộ pipeline. B02 và B03 chỉ dùng một số tiện ích định tuyến,
+    như :class:`StatementLocator`, còn engine row vẫn nằm riêng.
+    """
+
     def __init__(
         self,
         *,
@@ -39,6 +64,15 @@ class FlatParserPipeline:
         enable_locator=True,
         locator_min_confidence=0.72,
     ):
+        """Nạp cấu hình cần cho một phiên parse B01.
+
+        Đầu vào là đường dẫn các nguồn cấu hình và các tùy chọn chiến lược.
+        Hàm chỉ khởi tạo dependency; nó chưa đọc một báo cáo cụ thể và chưa
+        tạo canonical node.
+
+        Đầu ra là instance có ``catalog``, ``guide``, ``classifier`` và locator
+        sẵn sàng cho ``parse_text``.
+        """
         self.catalog = SemanticCatalog(schema_path, aliases_path)
         self.guide = UniversalGuide(universal_guide_path)
         self.classifier = StructuralClassifier(self.guide)
@@ -63,13 +97,17 @@ class FlatParserPipeline:
         baseline_end: int,
         locator_debug: dict,
     ) -> tuple[bool, str]:
-        """Accept only a nearby, title-backed locator result.
+        """Chỉ nhận locator result gần và có title evidence.
 
-        The locator is a routing optimization, not a reason to widen a
-        statement into notes.  A title-backed candidate must substantially
-        overlap the existing structural scope and may move the boundaries only
-        within bounded structural context.  Otherwise the established scope
-        detector remains authoritative.
+        Đầu vào là baseline boundary và locator debug. Hàm gọi safety gate
+        dùng chung để so overlap, độ lệch boundary và confidence. Đầu ra là
+        ``(accepted, reason)`` để ``parse_text`` quyết định giữ baseline hay
+        dùng scope locator.
+
+        Locator là tối ưu định tuyến, không phải lý do để mở rộng statement
+        vào vùng Notes. Candidate có title phải chồng lấn đủ lớn với scope cấu
+        trúc hiện có và chỉ được dịch boundary trong giới hạn cho phép. Nếu
+        không, bộ phát hiện scope ban đầu vẫn có thẩm quyền.
         """
 
         return StatementLocator.evaluate_scope(
@@ -87,6 +125,30 @@ class FlatParserPipeline:
         detected_sector_override: str | None = None,
         statement_profile: str = "financial_position",
     ):
+        """Parse source text qua các phase cấu trúc.
+
+        Đầu vào:
+        - ``raw_text``: toàn bộ Markdown của một statement hoặc báo cáo;
+        - ``source_name``: tên source để ghi provenance;
+        - ``scope_override``: scope đã biết, nếu caller cần ép boundary;
+        - ``detected_sector_override`` và ``statement_profile``: ngữ cảnh parse.
+
+        Xử lý:
+        - chuẩn hóa và lọc dòng;
+        - chọn scope bằng scanner, sau đó kiểm tra locator safety gate;
+        - dựng cây/table, phân loại cấu trúc và thu observation;
+        - resolve period, consolidate continuation, map canonical và validate.
+
+        Đầu ra:
+        - dict gồm ``canonical`` và ``debug``;
+        - ``debug`` giữ scope, node, observation, validation và coverage để audit;
+        - nếu source không tạo được canonical, ``canonical`` có thể là ``None``.
+
+        Các phase gồm: chuẩn hóa dòng, chọn scope an toàn, dựng node, phân loại
+        cấu trúc, thu observation, resolve period, gộp continuation, map node
+        canonical và validate kết quả. Locator chỉ được đổi scope sau khi qua
+        safety gate dùng chung; nếu không scope ban đầu vẫn có thẩm quyền.
+        """
         raw_lines = normalize_lines(raw_text)
         lines = filter_noise(raw_lines)
 
@@ -169,8 +231,8 @@ class FlatParserPipeline:
         if column_major_log:
             self.classifier.classify_all(nodes)
 
-        # Scope health must be explicit in QA. "unresolved=0" is not success
-        # when scope detection produced only one structural node.
+        # QA phải ghi rõ sức khỏe scope. "unresolved=0" chưa phải thành công
+        # nếu scope chỉ tạo ra một structural node.
         scope_health = scope_debug.get("health", "unknown")
         if len(nodes) <= 3:
             scope_health = "critical_tiny_scope"
@@ -186,15 +248,15 @@ class FlatParserPipeline:
         ignored_non_errors = []
 
         # ----------------------------------------------------------
-        # PASS 1: semantic anchor discovery only.
-        # This determines where each canonical record begins.
+        # PASS 1: chỉ tìm semantic anchor.
+        # Bước này xác định điểm bắt đầu của từng canonical record.
         # ----------------------------------------------------------
         prior_selected = []
         anchor_selection = {}
         semantic_anchor_indices = set()
 
-        # Detect sector before alias matching so sector-specific nodes cannot
-        # leak across bank / enterprise / securities / insurance contexts.
+        # Xác định sector trước khi match alias để node theo sector không bị
+        # tràn sang context bank / enterprise / securities / insurance khác.
         sector_qa = detect_sector("\n".join(x.clean for x in scoped), self.catalog)
         if detected_sector_override:
             sector_qa = dict(sector_qa)
@@ -209,6 +271,15 @@ class FlatParserPipeline:
             if not node.label_text:
                 continue
 
+            # Dựng hierarchy evidence của source trước khi chọn candidate
+            # semantic. Context này vẫn được giữ trên resolved field để làm
+            # provenance và dùng để phân biệt label chung bị lặp khi map.
+            source_context = source_context_for_node(
+                node,
+                nodes,
+                prior_selected=prior_selected,
+                catalog=self.catalog,
+            )
             candidates = match_candidates_for_strategy(
                 self.mapping_strategy,
                 node,
@@ -217,6 +288,7 @@ class FlatParserPipeline:
                 prior_selected,
                 allow_fuzzy=self.allow_fuzzy,
                 detected_sector=sector_qa.get("detected_sector"),
+                source_context=source_context,
             )
             if not candidates:
                 continue
@@ -226,6 +298,7 @@ class FlatParserPipeline:
                 "candidates": candidates,
                 "selected": selected,
                 "reason": reason,
+                "source_context": source_context,
             }
 
             if selected is not None:
@@ -240,7 +313,7 @@ class FlatParserPipeline:
         )
 
         # ----------------------------------------------------------
-        # PASS 2: collect payload bounded by semantic child anchors.
+        # PASS 2: thu payload trong boundary của semantic child anchor.
         # ----------------------------------------------------------
         for node in nodes:
             selection = anchor_selection.get(node.node_index)
@@ -275,7 +348,8 @@ class FlatParserPipeline:
                 obs,
                 context,
                 allow_structure_unknown=self.allow_unknown_structure,
-                source_context=source_context_for_node(
+                source_context=selection.get("source_context")
+                or source_context_for_node(
                     node,
                     nodes,
                     prior_selected=prior_selected,
@@ -295,10 +369,10 @@ class FlatParserPipeline:
             else:
                 resolved.append(field)
 
-        # Reclassify no-payload cases that are not extraction failures.
-        # 1) another occurrence of the same node already resolved successfully;
-        # 2) source record contains only code/note attributes and no financial
-        #    value.  Keep these in QA metadata but not in unresolved errors.
+        # Phân loại lại các trường hợp không có payload nhưng không phải lỗi đọc.
+        # 1) occurrence khác của cùng node đã resolve thành công;
+        # 2) source record chỉ có mã/số thuyết minh, không có giá trị tài chính.
+        # Giữ chúng trong QA metadata nhưng không đưa vào unresolved error.
         resolved_node_ids = {f.node_id for f in resolved}
 
         def _has_financial_payload_descendant(node):
@@ -346,10 +420,9 @@ class FlatParserPipeline:
             if isinstance(node_index, int) and 0 <= node_index < len(nodes):
                 anchor_node = nodes[node_index]
 
-                # A repeated same-label semantic child is a common structural
-                # wrapper: the parent row has no source value while the child
-                # carries the actual current/previous payload. Do not report
-                # the wrapper as an extraction failure (EIB-like layout).
+                # Semantic child lặp cùng label thường là wrapper cấu trúc:
+                # parent không có giá trị source, còn child giữ payload hiện tại
+                # và trước đó. Không báo wrapper này là lỗi đọc dữ liệu.
                 same_label_semantic_child = any(
                     child_idx in semantic_anchor_indices
                     and fold(nodes[child_idx].label_text or nodes[child_idx].text)
@@ -374,15 +447,15 @@ class FlatParserPipeline:
 
         unresolved = kept_unresolved
 
-        # Consolidate structural continuations before final collision protection.
+        # Gộp continuation cấu trúc trước khi bảo vệ collision cuối cùng.
         consolidated, consolidation_log = consolidate_resolved_fields(
             resolved,
             context,
         )
 
-        # Expand dual-role enterprise section/total rows only for the balance sheet.
-        # OFF_BALANCE has its own group/value semantics and must not inherit B02
-        # section/total synthesis rules.
+        # Chỉ mở rộng row section/total hai vai trò cho bảng cân đối enterprise.
+        # OFF_BALANCE có semantics group/value riêng, không được thừa hưởng rule
+        # tổng hợp section/total của B02.
         if statement_profile == "financial_position":
             expanded, dual_role_log = expand_dual_role_rows(
                 consolidated,
@@ -404,8 +477,8 @@ class FlatParserPipeline:
             )
             completeness = canonical_completeness(canonical, explicit_totals)
         else:
-            # OFF_BALANCE is point-in-time disclosure data and is deliberately
-            # excluded from Assets = Liabilities + Equity validation.
+            # OFF_BALANCE là dữ liệu công bố tại một thời điểm nên cố ý không
+            # đưa vào kiểm tra Tài sản = Nợ phải trả + Vốn chủ sở hữu.
             validation = {
                 "checks": [],
                 "passed": 0,
@@ -460,8 +533,8 @@ class FlatParserPipeline:
         elif sector_qa.get("schema_sector_gap"):
             statement_health = f"schema_sector_gap:{sector_qa['schema_sector_gap']}"
         else:
-            # Semantic coverage is a ranking/QA metric, not a hard health gate:
-            # the denominator still varies across serialization families.
+            # Semantic coverage là metric xếp hạng/QA, không phải health gate
+            # cứng vì mẫu số vẫn thay đổi giữa các kiểu serialize.
             statement_health = "healthy"
 
         semantic_dedup = (canonical.get("diagnostics") or {}).get("semantic_dedup") or {}
@@ -563,6 +636,11 @@ class FlatParserPipeline:
         }
 
     def parse_file(self, path):
+        """Đọc một file Markdown rồi chuyển vào ``parse_text``.
+
+        Đầu vào là ``path`` tới file source. Hàm đọc UTF-8 có BOM, dùng tên file
+        làm provenance và trả về đúng dict do ``parse_text`` tạo ra.
+        """
         path = Path(path)
         return self.parse_text(
             path.read_text(encoding="utf-8-sig"),

@@ -56,6 +56,12 @@ def _set_statement_unit(canonical: dict, unit: Optional[str]) -> dict:
 def summarize_canonical(
     canonical: dict,
 ) -> dict:
+    """Tính metrics production từ canonical B01.
+
+    Đầu vào là dict canonical đã được structural parser tạo. Hàm đếm node có
+    giá trị theo từng kỳ và đọc các conflict/recovery diagnostics. Đầu ra là
+    dict metrics, không sửa canonical và không đọc source hay output cũ.
+    """
     nodes = canonical.get("nodes") or []
     valued = []
     current = []
@@ -73,6 +79,10 @@ def summarize_canonical(
     diagnostics = canonical.get("diagnostics") or {}
     dedup = diagnostics.get("semantic_dedup") or {}
     semantic_conflicts = int(dedup.get("conflict_count") or 0)
+    recovery = diagnostics.get("source_statement_recovery") or {}
+    source_mapping = diagnostics.get("source_observation_mapping") or {}
+    recovery_conflicts = int(recovery.get("conflicts") or 0)
+    ambiguous_source_nodes = int(source_mapping.get("ambiguous_source_nodes") or 0)
     if not valued_n:
         status = "no_financial_position_values"
     elif semantic_conflicts:
@@ -97,13 +107,19 @@ def summarize_canonical(
             "schema_version": canonical.get("schema_version"),
             "integration_mode": "source_parse",
             "semantic_dedup_conflicts": semantic_conflicts,
+            "source_recovery_conflicts": recovery_conflicts,
+            "ambiguous_source_nodes": ambiguous_source_nodes,
         },
     }
     return metrics
 
 
 class FinancialPositionSourceParser:
-    """Parse B01 directly from Markdown without reading prior report output."""
+    """Đọc B01 trực tiếp từ Markdown mà không đọc output lần trước.
+
+    Instance giữ một ``FlatParserPipeline`` cho B01. Parser cấu trúc tạo cây
+    semantic trước, sau đó source recovery chỉ bổ sung evidence còn thiếu.
+    """
 
     def __init__(
         self,
@@ -112,8 +128,14 @@ class FinancialPositionSourceParser:
         aliases_path: Optional[Path] = None,
         guide_path: Optional[Path] = None,
     ):
-        # Import lazily so importing the package does not initialize the
-        # structural parser before a source document is actually parsed.
+        """Khởi tạo B01 parser từ schema, alias và structural guide.
+
+        Đầu vào là các path tùy chọn; khi bỏ trống, parser dùng resource chuẩn
+        trong repository. Đầu ra là instance giữ structural pipeline, chưa đọc
+        một báo cáo cụ thể.
+        """
+        # Import lazy để import package không khởi tạo structural parser trước
+        # khi có source document thực sự cần parse.
         from flat_parser.pipeline import FlatParserPipeline
 
         project_root = Path(__file__).resolve().parents[2]
@@ -135,6 +157,28 @@ class FinancialPositionSourceParser:
         previous_year: int | None = None,
         fallback_unit: Optional[str] = None,
     ) -> dict:
+        """Đọc B01 từ source text và chạy source recovery thận trọng.
+
+        Đầu vào:
+        - ``source_text``: toàn bộ Markdown nguồn;
+        - ``source_name`` và ``source_sha256``: provenance của file;
+        - cặp năm và ``fallback_unit``: ngữ cảnh kỳ/đơn vị nếu source thiếu.
+
+        Xử lý:
+        - suy luận kỳ;
+        - chạy ``FlatParserPipeline.parse_text`` để dựng canonical B01;
+        - trích xuất source rows, hydrate node, reconcile conflict và gắn unit;
+        - tính metrics cùng provenance.
+
+        Đầu ra:
+        - dict gồm ``canonical``, ``metrics``, ``scope`` và ``sector``;
+        - khi parser không tạo canonical, trả trạng thái thiếu source thay vì
+          tạo một kết quả rỗng trông như hợp lệ.
+
+        Structural parser tạo semantic node trước. Recovery kiểm tra row nguồn
+        để bổ sung kỳ còn thiếu hoặc giữ observation chưa map. Nó không bao giờ
+        dùng mã biểu mẫu hoặc số thuyết minh làm identity.
+        """
         period = resolve_report_years(
             source_text,
             source_name=source_name,
@@ -219,6 +263,11 @@ class FinancialPositionSourceParser:
             "source_recovery_added_nodes": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("added_nodes", 0),
             "source_recovery_filled_nodes": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("filled_existing_nodes", 0),
             "source_recovery_conflicts": ((canonical.get("diagnostics") or {}).get("source_statement_recovery") or {}).get("conflicts", 0),
+            # Đưa trạng thái parser vào production metrics để quality gate
+            # không phải đọc audit artifact.
+            "statement_health": raw_stats.get("statement_health"),
+            "scope_health": raw_stats.get("scope_health"),
+            "unresolved": raw_stats.get("unresolved", 0),
             "source_statement_health": raw_stats.get("statement_health"),
             "source_scope_health": raw_stats.get("scope_health"),
             "locator_enabled": raw_stats.get("locator_enabled"),

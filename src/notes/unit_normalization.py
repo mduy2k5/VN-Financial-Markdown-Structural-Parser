@@ -41,10 +41,10 @@ _CANONICAL_UNITS = {
 
 
 def canonical_unit(raw: Optional[str]) -> Optional[str]:
-    """Return a stable unit vocabulary without changing numeric magnitude.
+    """Trả về từ vựng đơn vị ổn định mà không đổi độ lớn số.
 
-    The raw/display unit remains in ``NoteValue.unit``. This helper only supplies
-    a comparable semantic label for evaluation and linking.
+    Đơn vị raw/hiển thị vẫn nằm trong ``NoteValue.unit``. Helper này chỉ cung
+    cấp nhãn semantic có thể so sánh cho đánh giá và liên kết.
     """
     if raw is None:
         return None

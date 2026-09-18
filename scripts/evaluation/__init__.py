@@ -1,1 +1,1 @@
-"""Commands for parser evaluation and result comparison."""
+"""Các lệnh đánh giá parser và so sánh kết quả."""

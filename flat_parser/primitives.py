@@ -10,7 +10,7 @@ from .textnorm import fold
 
 DASHES = {"-", "–", "—", "−"}
 
-# Broad fallback regexes complement the source-guide regex union.
+# Regex fallback rộng bổ sung cho nhóm regex trong guide nguồn.
 DATE_PATTERNS = [
     re.compile(r"(?i)(?:Tại ngày\s+)?\d{1,2}[./]\d{1,2}[./]\d{4}"),
     re.compile(r"(?i)(?:Ngày\s+)?\d{1,2}\s+tháng\s+\d{1,2}\s+năm\s+20\d{2}"),
@@ -119,7 +119,7 @@ def extract_periods(text: str, line_no: int, guide: UniversalGuide) -> list[Prim
     for m in RELATIVE_PERIOD_RE.finditer(text):
         matches.append((m.start(), m.end(), m.group(0)))
 
-    # De-duplicate overlapping exact-ish spans, prefer longer.
+    # Loại các span gần trùng bị chồng lấn, ưu tiên span dài hơn.
     matches.sort(key=lambda x: (x[0], -(x[1] - x[0])))
     kept = []
     for item in matches:
@@ -173,8 +173,8 @@ def extract_values(
     *,
     mask_periods: bool = True,
 ) -> list[PrimitiveValue]:
-    # A displayed dash is an explicit source value, not missing data.
-    # Preserve it as raw_value with normalized_candidate=None.
+    # Dấu gạch hiển thị là giá trị nguồn rõ ràng, không phải dữ liệu thiếu.
+    # Giữ ở raw_value với normalized_candidate=None.
     stripped = text.strip()
     if stripped in DASHES:
         return [
@@ -189,8 +189,8 @@ def extract_values(
 
     work = text
     if mask_periods:
-        # Inline year tags such as "(2025)" / "(2024)" are period labels,
-        # not negative financial values.
+        # Tag năm inline như "(2025)" / "(2024)" là nhãn kỳ, không phải
+        # giá trị tài chính âm.
         year_parens = list(re.finditer(r"\(\s*20\d{2}\s*\)", work))
         if year_parens:
             work = _mask_spans(work, [(m.start(), m.end()) for m in year_parens])
@@ -205,7 +205,7 @@ def extract_values(
     values = []
     occupied = []
 
-    # Preserve decimal-comma ranges such as "5,20 - 9,60" as one structural value.
+    # Giữ khoảng số dùng dấu phẩy thập phân như "5,20 - 9,60" thành một giá trị cấu trúc.
     for m in RANGE_TOKEN_RE.finditer(work):
         raw = text[m.start():m.end()].strip()
         values.append(
@@ -225,9 +225,8 @@ def extract_values(
         if not raw:
             continue
 
-        # A dash is a value only when the whole value field is a dash.
-        # Do not interpret display separators such as "C - NỢ PHẢI TRẢ"
-        # as numeric payload.
+        # Dấu gạch chỉ là giá trị khi toàn bộ field giá trị là dấu gạch.
+        # Không xem dấu phân cách hiển thị như "C - NỢ PHẢI TRẢ" là payload số.
         if raw in DASHES:
             continue
 

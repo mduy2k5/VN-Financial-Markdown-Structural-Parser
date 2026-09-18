@@ -40,7 +40,7 @@
     "quality": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "issues", "statements", "periods"],
+      "required": ["status", "issues", "statements", "periods", "gate"],
       "properties": {
         "status": { "type": "string" },
         "issues": { "type": "array", "items": { "type": "string" } },
@@ -59,6 +59,23 @@
           "additionalProperties": false,
           "required": ["conflict"],
           "properties": { "conflict": { "type": "boolean" } }
+        },
+        "gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "eligible_for_use", "policy", "issues"],
+          "properties": {
+            "status": { "type": "string" },
+            "eligible_for_use": { "type": "boolean" },
+            "policy": { "type": "string" },
+            "issues": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }
@@ -257,7 +274,7 @@
         "validation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["status", "formulas"],
+          "required": ["status", "formulas", "gate"],
           "properties": {
             "status": { "type": ["string", "null"] },
             "formulas": {
@@ -270,9 +287,21 @@
                 "failed": { "type": ["integer", "null"] },
                 "pass_rate": { "type": ["number", "null"] }
               }
-            }
+            },
+            "gate": { "$ref": "#/$defs/statementGate" }
           }
         }
+      }
+    },
+    "statementGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "eligible_for_use", "policy", "issues"],
+      "properties": {
+        "status": { "type": "string" },
+        "eligible_for_use": { "type": "boolean" },
+        "policy": { "type": "string" },
+        "issues": { "type": "array", "items": { "type": "string" } }
       }
     },
     "notes": {

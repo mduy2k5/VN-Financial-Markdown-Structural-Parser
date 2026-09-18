@@ -1,6 +1,9 @@
 from pathlib import Path
 
+from flat_parser.alias_matcher import choose_candidate, match_candidates
+from flat_parser.models import StructuralNode
 from flat_parser.pipeline import FlatParserPipeline
+from flat_parser.semantic_catalog import SemanticCatalog
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +24,40 @@ def _pipeline():
 
 def _nodes(result):
     return {node["node_id"]: node for node in result["canonical"]["nodes"]}
+
+
+def test_source_context_breaks_generic_nguyen_gia_tie_before_resolution():
+    catalog = SemanticCatalog(SCHEMA, ALIASES)
+    node = StructuralNode(
+        node_index=0,
+        line_no=10,
+        raw_text="Nguyên giá",
+        text="Nguyên giá",
+        indent=0,
+        is_bullet=True,
+        bullet_marker="*",
+        representation="bullet",
+        label_text="Nguyên giá",
+    )
+    context = {
+        "path": ["Tài sản cố định", "Tài sản cố định thuê tài chính", "Nguyên giá"],
+        "parent_label": "Tài sản cố định thuê tài chính",
+        "semantic_anchor": "Tài sản cố định thuê tài chính",
+    }
+
+    candidates = match_candidates(
+        node,
+        [node],
+        catalog,
+        [],
+        source_context=context,
+    )
+    selected, reason = choose_candidate(candidates)
+
+    assert reason is None
+    assert selected is not None
+    assert selected.node_id == "ASSET.FIXED_ASSETS.FINANCE_LEASE.COST"
+    assert "source_context_semantic_anchor" in selected.evidence
 
 
 def test_plain_numbered_rows_keep_short_long_context_and_bound_section_values():
@@ -98,6 +135,8 @@ Năm 2024
 
     assert result["canonical"]["status"] == "review_required"
     assert dedup["conflict_count"] == 2
+    assert node["mapping"]["status"] == "review_required"
+    assert node["mapping"]["method"] == "semantic_dedup_conflict"
     actions = [
         action
         for occurrence in node["extraction_meta"]["occurrences"]

@@ -36,7 +36,7 @@ def _label_implies_expense(label: str | None) -> bool:
 
 
 def normalize_bank_semantic_signs(by: dict) -> list[dict]:
-    """Normalize bank income-statement values to an additive signed convention."""
+    """Chuẩn hóa giá trị B02 ngân hàng về quy ước cộng có dấu."""
     actions = []
     for nid, node in by.items():
         value = node.get("value") or {}
@@ -86,7 +86,7 @@ ENTERPRISE_PRESENTATION_MAGNITUDE_NODES = {
 
 
 def normalize_enterprise_formula_signs(by: dict) -> list[dict]:
-    """Build a diagnostic sign-normalization view for enterprise formulas."""
+    """Tạo view chẩn đoán chuẩn hóa dấu cho công thức doanh nghiệp."""
     actions = []
     for nid in ENTERPRISE_PRESENTATION_MAGNITUDE_NODES:
         node = by.get(nid) or {}
@@ -134,7 +134,7 @@ SECURITIES_ALWAYS_NEGATIVE_NODES = {
 
 
 def normalize_securities_semantic_signs(by: dict) -> list[dict]:
-    """Normalize B02-CTCK to additive signed values."""
+    """Chuẩn hóa B02-CTCK thành giá trị cộng có dấu."""
     actions = []
     for nid, node in by.items():
         value = node.get("value") or {}
@@ -233,7 +233,7 @@ def validate_securities_formulas(by: dict) -> list[dict]:
 
 
 def validate_insurance_formulas(by: dict) -> list[dict]:
-    """Conservative validation for consolidated insurance income statements."""
+    """Validation bảo thủ cho báo cáo kết quả kinh doanh bảo hiểm hợp nhất."""
     checks = []
     def val(nid, period):
         return by.get(nid, {}).get("value", {}).get(period)
@@ -280,7 +280,7 @@ def validate_insurance_formulas(by: dict) -> list[dict]:
 
 
 def validate_enterprise_formulas(by: dict) -> list[dict]:
-    """Conservative enterprise checks using presentation-magnitude conventions."""
+    """Kiểm tra doanh nghiệp theo quy ước độ lớn trình bày, với rule bảo thủ."""
     checks = []
 
     def val(nid, period):

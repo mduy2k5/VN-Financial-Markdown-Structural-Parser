@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from difflib import SequenceMatcher
 
-from .alias_matcher import normalize_label
+from .alias_matcher import _source_context_score, normalize_label
 from .models import AliasCandidate, StructuralNode
 from .semantic_catalog import SemanticCatalog
 
@@ -12,8 +12,8 @@ def _phrase_regex(normalized_phrase: str) -> re.Pattern | None:
     phrase = " ".join((normalized_phrase or "").split())
     if not phrase:
         return None
-    # normalize_label() leaves a whitespace-token stream, so token boundaries
-    # are safer than Python \b for Vietnamese-normalized text.
+    # normalize_label() giữ chuỗi token cách nhau bằng khoảng trắng, nên ranh
+    # giới token an toàn hơn \b của Python với text tiếng Việt đã chuẩn hóa.
     return re.compile(r"(?:^|\s)" + re.escape(phrase) + r"(?:\s|$)")
 
 
@@ -36,13 +36,13 @@ def regex_match_candidates(
     *,
     allow_fuzzy: bool = False,
     detected_sector: str | None = None,
+    source_context: dict | None = None,
 ):
-    """Flat regex matcher.
+    """Matcher regex phẳng với bằng chứng context nguồn có giới hạn.
 
-    Deliberately ignores source hierarchy, prior semantic anchors and parent
-    context. It maps only from the normalized source label to the schema alias
-    catalog. This makes it suitable for testing the hypothesis that once rows
-    are resolved, schema hierarchy is sufficient for final classification.
+    Regex vẫn match phẳng để phát hiện alias. Hierarchy nguồn đã tính trước
+    có thể thêm điểm phá hòa thận trọng, nhưng không bao giờ tạo candidate
+    khi không có match regex/alias rõ ràng.
     """
     source = normalize_label(node.label_text or node.text or "")
     if not source:
@@ -78,9 +78,9 @@ def regex_match_candidates(
             if source == xn:
                 matches.append((0.990, x, "regex_alias_exact", len(xn)))
 
-        # Search all configured names with token boundaries. Exact matches above
-        # always dominate. The specificity bonus favors the longest phrase and
-        # avoids generic aliases winning only because they were listed first.
+        # Tìm mọi tên đã cấu hình với ranh giới token. Match chính xác ở trên
+        # luôn được ưu tiên. Thưởng specificity ưu tiên cụm dài hơn và tránh
+        # để alias chung thắng chỉ vì đứng trước trong danh sách.
         phrase_sources = (
             [(spec.canonical_name, "regex_canonical_search", 0.925)]
             + [(x, "regex_exact_search", 0.920) for x in spec.exact]
@@ -115,6 +115,11 @@ def regex_match_candidates(
             continue
 
         score, alias, method, alias_len = max(matches, key=lambda x: (x[0], x[3]))
+        context_score, context_evidence = _source_context_score(
+            spec,
+            catalog,
+            source_context,
+        )
         candidates.append(
             AliasCandidate(
                 node_id=spec.node_id,
@@ -125,9 +130,13 @@ def regex_match_candidates(
                 matched_alias=alias,
                 method=method,
                 alias_score=score,
-                context_score=0.0,
-                final_score=score,
-                evidence=["flat_regex_no_hierarchy", f"matched_length:{alias_len}"],
+                context_score=context_score,
+                final_score=score + context_score,
+                evidence=[
+                    "flat_regex_no_hierarchy",
+                    f"matched_length:{alias_len}",
+                    *context_evidence,
+                ],
             )
         )
 

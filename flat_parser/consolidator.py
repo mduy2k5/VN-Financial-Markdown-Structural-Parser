@@ -10,7 +10,7 @@ def _compatible_occurrences(a: ResolvedField, b: ResolvedField) -> bool:
         return False
     if a.source_label.strip().casefold() != b.source_label.strip().casefold():
         return False
-    # Keep merge local: repeated positional rows are normally adjacent / nearby.
+    # Giữ phạm vi gộp cục bộ: dòng lặp theo vị trí thường nằm gần nhau.
     return abs(a.source_line - b.source_line) <= 8
 
 
@@ -19,16 +19,16 @@ def consolidate_resolved_fields(
     context,
 ) -> tuple[list[ResolvedField], list[dict]]:
     """
-    Merge repeated one-value occurrences before canonical dedup.
+    Gộp các occurrence một giá trị lặp lại trước khi loại trùng canonical.
 
-    Typical serialization:
+    Dạng serialize thường gặp:
       Tiền gửi tại các TCTD khác: 25.819.775
       Tiền gửi tại các TCTD khác: 12.454.527
 
-    under a two-column [current, previous] context.
+    trong context hai cột [hiện tại, trước đây].
 
-    First occurrence -> current
-    second occurrence -> previous
+    Occurrence đầu -> hiện tại
+    occurrence thứ hai -> trước đây
     """
     fields = sorted(fields, key=lambda x: x.source_line)
     out = []
@@ -48,9 +48,9 @@ def consolidate_resolved_fields(
             v1 = cur.values[0]
             v2 = nxt.values[0]
 
-            # Merge only when BOTH occurrences came from positional inference.
-            # Explicit/inherited periods already carry trustworthy semantics and
-            # must never be rewritten merely because identical labels are near.
+            # Chỉ gộp khi CẢ HAI occurrence đến từ suy luận theo vị trí.
+            # Kỳ explicit/inherited đã có ngữ nghĩa đáng tin và không được
+            # viết lại chỉ vì các nhãn giống nhau nằm gần nhau.
             if (
                 v1.period_key in {"current", "previous"}
                 and v2.period_key in {"current", "previous"}

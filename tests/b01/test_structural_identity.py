@@ -151,11 +151,14 @@ def test_statement_code_and_note_reference_do_not_change_source_identity():
     assert len(canonical["nodes"]) == 1
 
 
-def test_code_only_period_evidence_cannot_hydrate_a_semantic_node():
+def test_unique_code_only_period_evidence_hydrates_a_semantic_node():
     canonical = {
         "nodes": [{
             "node_id": "CASHFLOW.TEST.PROFIT",
             "canonical_name": "Lợi nhuận trước thuế",
+            "sector": "enterprise",
+            "method": "indirect",
+            "form_code": "01",
             "value": {"current": None, "previous": None},
         }]
     }
@@ -166,5 +169,37 @@ def test_code_only_period_evidence_cannot_hydrate_a_semantic_node():
         "indirect",
     )
 
-    assert canonical["nodes"][0]["value"] == {"current": None, "previous": None}
-    assert canonical["diagnostics"]["form_code_period_recovery"]["filled_nodes"] == 0
+    assert canonical["nodes"][0]["value"] == {"current": 100, "previous": 90}
+    assert canonical["diagnostics"]["form_code_period_recovery"]["filled_nodes"] == 1
+    assert canonical["diagnostics"]["form_code_period_recovery"]["filled_periods"] == 2
+
+
+def test_ambiguous_code_only_period_evidence_does_not_hydrate():
+    canonical = {
+        "nodes": [
+            {
+                "node_id": "CASHFLOW.TEST.ONE",
+                "sector": "bank",
+                "method": "direct",
+                "form_code": "01",
+                "value": {"current": None, "previous": None},
+            },
+            {
+                "node_id": "CASHFLOW.TEST.TWO",
+                "sector": "bank",
+                "method": "direct",
+                "form_code": "01",
+                "value": {"current": None, "previous": None},
+            },
+        ]
+    }
+
+    hydrate_canonical_by_form_code(
+        canonical,
+        [{"code": "01", "current": 100, "previous": 90}],
+        "bank",
+        "direct",
+    )
+
+    assert all(node["value"] == {"current": None, "previous": None} for node in canonical["nodes"])
+    assert canonical["diagnostics"]["form_code_period_recovery"]["ambiguous_codes"] == ["1"]

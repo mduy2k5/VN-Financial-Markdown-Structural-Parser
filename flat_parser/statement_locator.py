@@ -1,13 +1,13 @@
-"""Alias-assisted statement location.
+"""Định vị statement bằng alias.
 
-The locator is intentionally a *routing* layer.  It does not assign a
-canonical value and it does not use statement codes or note references as
-identities.  It only ranks source windows before the structural parser runs.
+Locator chỉ là lớp *định tuyến*. Nó không gán giá trị canonical và không dùng
+mã statement hoặc số thuyết minh làm identity. Nó chỉ xếp hạng các vùng source
+trước khi structural parser chạy.
 
-The structural parser remains authoritative for row boundaries, hierarchy,
-period columns and semantic mapping.  This separation lets the pipeline use a
-large alias catalogue to find a likely statement without turning an alias hit
-in a note or a repeated generic label into a mapped value.
+Structural parser vẫn quyết định ranh giới row, hierarchy, cột kỳ và semantic
+mapping. Nhờ tách hai việc này, pipeline có thể dùng catalog alias lớn để tìm
+statement có khả năng phù hợp mà không biến alias trong Notes hoặc label chung
+bị lặp thành giá trị đã map.
 """
 
 from __future__ import annotations
@@ -184,7 +184,7 @@ def _clean_for_match(value: Any) -> str:
 
 
 def _numeric_payload(text: str) -> bool:
-    # This is a routing signal only.  It deliberately does not parse values.
+    # Đây chỉ là tín hiệu định tuyến; hàm này cố ý không parse giá trị.
     return bool(
         re.search(r"\(?-?\d[\d., ]{2,}\)?", text)
         or re.search(r"\b(?:nam|ky)\s+(?:nay|truoc|nay|truoc)\b", fold(text))
@@ -216,13 +216,12 @@ def _is_noise_line(text: str) -> bool:
 
 
 def _toc_line_numbers(lines: list[SourceLine], max_span: int = 50) -> set[int]:
-    """Return lines belonging to a table-of-contents block.
+    """Trả về các dòng thuộc block mục lục.
 
-    A table of contents repeats the exact statement titles and often contains
-    more aliases than the real first page.  Treating it as source evidence is
-    the most dangerous failure mode for an alias-first locator, so it is
-    filtered before scoring.  The boundary is structural (page separator or
-    metadata page), not tied to a report name or a fixed page number.
+    Mục lục lặp lại đúng title statement và thường chứa nhiều alias hơn trang
+    thật. Nếu dùng nó làm source evidence, locator rất dễ chọn sai scope, nên
+    phải lọc trước khi chấm điểm. Boundary dựa trên cấu trúc page separator
+    hoặc metadata page, không dựa trên tên report hay số trang cố định.
     """
 
     result: set[int] = set()
@@ -278,7 +277,7 @@ def _alias_entries(
     names = _schema_names(schema_path)
     nodes = document.get("nodes") if isinstance(document, dict) else None
     if not isinstance(nodes, dict):
-        # B02/B03 alias packs are flat maps: node_id -> [aliases].
+    # Alias pack của B02/B03 là map phẳng: node_id -> [aliases].
         nodes = document if isinstance(document, dict) else {}
 
     entries: list[AliasEntry] = []
@@ -323,11 +322,20 @@ def _alias_entries(
 
 
 class StatementLocator:
-    """Locate a statement using aliases and cheap structural evidence.
+    """Định vị statement bằng alias và structural evidence nhẹ.
 
-    The class is reusable for all three main statements.  It does not need a
-    report name, issuer symbol, form code or previous output.  Profile-specific
-    titles/signatures and the alias pack are the only semantic configuration.
+    Đầu vào khởi tạo là schema, alias pack và các giới hạn cửa sổ. Locator
+    lập catalog alias một lần rồi dùng catalog đó cho từng source.
+
+    Xử lý chính là tìm alias hit, gom các hit gần nhau, mở rộng đến boundary
+    phù hợp, chấm điểm title/alias/số liệu/kỳ và xếp hạng candidate.
+
+    Đầu ra của ``locate`` là thông tin định tuyến. Nó không tạo canonical node
+    và không thay cho extractor hoặc mapper.
+
+    Class này dùng được cho cả ba statement chính. Nó không cần tên report,
+    mã tổ chức, mã biểu mẫu hoặc output cũ. Cấu hình semantic duy nhất là
+    title/signature theo profile và alias pack.
     """
 
     def __init__(
@@ -340,6 +348,13 @@ class StatementLocator:
         context_after: int = 24,
         min_confidence: float = 0.72,
     ):
+        """Khởi tạo locator và nạp catalog semantic.
+
+        Đầu vào là đường dẫn cấu hình cùng khoảng context trước/sau candidate.
+        Xử lý chỉ xây index alias và lưu ngưỡng confidence; source chưa được
+        quét ở bước này. Đầu ra là instance locator dùng cho một hoặc nhiều
+        báo cáo.
+        """
         self.aliases_path = str(aliases_path) if aliases_path else None
         self.schema_path = str(schema_path) if schema_path else None
         self.entries = _alias_entries(aliases_path, schema_path=schema_path)
@@ -351,8 +366,8 @@ class StatementLocator:
     def _hits(self, lines: list[SourceLine]) -> list[AliasHit]:
         hits: list[AliasHit] = []
         toc_lines = _toc_line_numbers(lines)
-        # Index entries by first token so the scan remains cheap even for the
-        # largest alias catalogues.  Matching still uses normalized phrases.
+        # Index entry theo token đầu để việc quét vẫn nhẹ với catalog alias lớn.
+        # Bước match vẫn dùng phrase đã chuẩn hóa.
         by_first: dict[str, list[AliasEntry]] = {}
         for entry in self.entries:
             by_first.setdefault(entry.normalized.split()[0], []).append(entry)
@@ -389,13 +404,12 @@ class StatementLocator:
 
     @staticmethod
     def _primary_lines(lines: list[SourceLine]) -> list[SourceLine]:
-        """Exclude the notes body from the cheap alias scan.
+        """Loại phần thân Notes khỏi lần quét alias nhẹ.
 
-        Main statements are structurally before the notes section in the
-        source format.  Notes repeat many primary-statement labels, so scanning
-        them adds cost and creates false candidate clusters without improving
-        statement routing.  The boundary is detected from the source text and
-        is not tied to page count, issuer or filename.
+        Trong source, statement chính thường đứng trước Notes. Notes lặp nhiều
+        label của primary statement, nên quét tiếp vừa tốn chi phí vừa tạo
+        candidate cluster giả. Boundary được tìm từ text source, không dựa vào
+        số trang, mã tổ chức hoặc tên file.
         """
 
         note_patterns = (
@@ -441,11 +455,10 @@ class StatementLocator:
             for line in lines
             if self._title(line, profile, toc_lines=toc_lines)
         ]
-        # When a real statement heading exists, it is the only structural
-        # start candidate we need to score.  Alias clusters are still scanned
-        # and scored inside that window.  Cluster starts are used only for
-        # heading-less/OCR documents; this prevents the locator from doing a
-        # quadratic full-document score for every repeated alias in notes.
+        # Khi có heading statement thật, đó là start candidate cấu trúc duy nhất
+        # cần chấm điểm. Alias cluster vẫn được quét trong vùng đó. Chỉ dùng
+        # cluster start cho file thiếu heading/OCR; cách này tránh chấm điểm
+        # toàn văn theo cấp số nhân khi Notes lặp nhiều alias.
         starts = list(title_lines)
         hit_lines = sorted({hit.line_no for hit in hits})
         if hit_lines and not title_lines:
@@ -457,10 +470,9 @@ class StatementLocator:
                     cluster_start = line_no
             previous = line_no
             starts.append(cluster_start)
-        # If an alias cluster starts in the metadata immediately before a real
-        # heading, use the heading as the scope start.  This keeps the locator
-        # from treating metadata as part of a statement while preserving the
-        # useful cluster as supporting evidence.
+        # Nếu alias cluster bắt đầu ở metadata ngay trước heading thật, dùng
+        # heading làm scope start. Nhờ đó metadata không bị đưa vào statement,
+        # còn cluster vẫn được giữ làm evidence bổ trợ.
         aligned: list[int] = []
         for start in starts:
             nearby_titles = [
@@ -528,8 +540,8 @@ class StatementLocator:
                 row.matched_aliases.append(hit.alias)
             row.has_numeric_payload = row.has_numeric_payload or hit.has_numeric_payload
 
-        # The score is intentionally evidence-based and bounded.  It ranks
-        # candidate windows; it is not a semantic mapping confidence.
+        # Score dựa trên evidence và có giới hạn. Nó dùng để xếp hạng vùng
+        # ứng viên, không phải confidence của semantic mapping.
         score = 0.0
         evidence: list[str] = []
         if title_detected:
@@ -560,8 +572,8 @@ class StatementLocator:
             score += value
             evidence.append(f"table_signals:{table_signals}:+{value:g}")
 
-        # Normalize the routing confidence by evidence capacity rather than
-        # by a report-specific expected row count.
+        # Chuẩn hóa confidence định tuyến theo lượng evidence, không theo số
+        # row kỳ vọng riêng của một report.
         confidence = min(
             0.995,
             0.30
@@ -612,11 +624,22 @@ class StatementLocator:
         max_end_delta: int = 160,
         min_confidence: float = 0.72,
     ) -> tuple[bool, str]:
-        """Check whether a located scope is safe to route into a parser.
+        """Kiểm tra scope đã định vị có an toàn để đưa vào parser không.
 
-        The same gate is shared by B01, B02 and B03.  It prevents a valid alias
-        cluster in a note from widening or replacing an existing structural
-        scope when the two pieces of evidence disagree.
+        Đầu vào:
+        - ``locator_result``: kết quả từ ``locate``;
+        - ``baseline_start`` và ``baseline_end``: scope do scanner cấu trúc tạo;
+        - các ngưỡng overlap, delta và confidence.
+
+        Xử lý so sánh candidate đã chọn với baseline, yêu cầu title evidence,
+        overlap đủ lớn và boundary không lệch quá xa.
+
+        Đầu ra là ``(accepted, reason)``. ``accepted=False`` buộc caller giữ
+        baseline thay vì mở rộng scope theo alias cluster.
+
+        B01, B02 và B03 dùng chung gate này. Gate ngăn alias cluster hợp lệ
+        trong Notes mở rộng hoặc thay thế scope cấu trúc khi hai nguồn evidence
+        không thống nhất.
         """
 
         locator_result = locator_result or {}
@@ -659,6 +682,26 @@ class StatementLocator:
         return True, "title_backed_scope_overlap"
 
     def locate(self, raw_text: str, *, profile: str | StatementProfile) -> dict[str, Any]:
+        """Xếp hạng các vùng statement ứng viên bằng source evidence.
+
+        Đầu vào:
+        - ``raw_text``: Markdown nguồn cần quét;
+        - ``profile``: ``financial_position``, ``income_statement`` hoặc
+          ``cash_flow`` để chọn title/signature phù hợp.
+
+        Xử lý:
+        - chuẩn hóa và lọc dòng nhiễu;
+        - tìm alias hit và các điểm bắt đầu candidate;
+        - tạo cửa sổ, chấm evidence, rồi sắp xếp candidate.
+
+        Đầu ra là dict gồm catalog size, alias hit, candidate rows, danh sách
+        candidate và ``selected_scope``. Caller phải chạy ``evaluate_scope``
+        hoặc gate tương đương trước khi dùng scope này.
+
+        Đây là router, không phải mapper. Hàm trả về alias hit, candidate row
+        và selected window để caller đánh giá. Caller vẫn phải so sánh window
+        với scope cấu trúc riêng trước khi kích hoạt.
+        """
         profile_obj = _profile_for(profile)
         raw_lines = normalize_lines(raw_text or "")
         lines = filter_noise(raw_lines)
@@ -670,9 +713,8 @@ class StatementLocator:
         toc_lines = _toc_line_numbers(lines)
         for start in starts:
             end = self._end_for(lines, start, profile_obj)
-            # Alias clusters without a title are narrowed to their local
-            # evidence block; titled statements retain the full continuation
-            # range up to the next statement boundary.
+            # Alias cluster không có title chỉ lấy vùng evidence cục bộ; statement
+            # có title giữ toàn bộ continuation đến boundary tiếp theo.
             if not any(
                 self._title(line, profile_obj, toc_lines=toc_lines)
                 for line in lines
@@ -721,10 +763,14 @@ def locator_for_profile(
     schema_path: str | Path | None = None,
     aliases_path: str | Path | None = None,
 ) -> StatementLocator:
-    """Small factory used by the three statement engines."""
+    """Tạo locator theo profile cho B01, B02 hoặc B03.
 
-    # Keep the profile argument in the factory API so callers can construct
-    # profile-specific locators without report-specific branches.  The current
-    # locator object shares the same generic scanning implementation.
+    Đầu vào là tên profile cùng đường dẫn schema/alias tùy chọn. Hàm kiểm tra
+    profile hợp lệ rồi trả về ``StatementLocator``; nó không quét source.
+    """
+
+    # Giữ profile trong API factory để caller tạo locator theo profile mà
+    # không cần nhánh riêng cho từng report. Locator dùng chung một cơ chế
+    # scan tổng quát.
     _profile_for(profile)
     return StatementLocator(schema_path=schema_path, aliases_path=aliases_path)

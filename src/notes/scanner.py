@@ -67,15 +67,15 @@ def _fold(value: Any) -> str:
 
 
 def _strip_inline_markdown(value: str) -> str:
-    """Presentation normalization for scope/title detection only.
+    """Chuẩn hóa cách trình bày chỉ để phát hiện scope/tiêu đề.
 
-    Deliberately removes Markdown decoration without changing source/provenance.
-    Handles real corpus variants such as:
+    Cố ý loại trang trí Markdown mà không đổi source/provenance. Xử lý các dạng
+    như:
       **THUYẾT MINH BÁO CÁO TÀI CHÍNH HỢP NHẤT**
       __THUYẾT MINH ...__
       # THUYẾT MINH ...
       > **THUYẾT MINH ...**
-      plain text title
+      tiêu đề văn bản thuần
     """
     s = unicodedata.normalize("NFKC", value or "").replace("\u00a0", " ")
     s = BLOCKQUOTE_PREFIX_RE.sub("", s)
@@ -134,9 +134,9 @@ def _prev_nonblank(lines: list[str], idx0: int, limit: int = 12) -> list[tuple[i
 
 
 def _near_toc(lines: list[str], idx0: int) -> bool:
-    # Look backwards for a nearby TOC heading, but stop treating the area as TOC
-    # once a real primary-statement title has started. This avoids rejecting the
-    # actual Notes title merely because a short test/report has a TOC a few lines above.
+    # Tìm ngược một heading mục lục gần đó, nhưng dừng xem vùng này là mục lục
+    # khi đã gặp tiêu đề báo cáo chính thật. Cách này tránh loại tiêu đề Notes
+    # chỉ vì test/báo cáo ngắn có mục lục vài dòng ở phía trên.
     lo = max(0, idx0 - 20)
     toc_idx = None
     for j in range(idx0 - 1, lo - 1, -1):
@@ -153,9 +153,9 @@ def _near_toc(lines: list[str], idx0: int) -> bool:
 
 
 def _statement_list_reference(lines: list[str], idx0: int, raw: str) -> bool:
-    """Detect audit-report/front-matter lists enumerating the statements audited.
+    """Phát hiện danh sách ở đầu báo cáo liệt kê các báo cáo được kiểm toán.
 
-    Example real corpus:
+    Ví dụ:
       * Bảng cân đối kế toán hợp nhất
       * Báo cáo kết quả hoạt động kinh doanh hợp nhất
       * Báo cáo lưu chuyển tiền tệ hợp nhất
@@ -170,7 +170,7 @@ def _statement_list_reference(lines: list[str], idx0: int, raw: str) -> bool:
 
 
 def _numbered_toc_reference(lines: list[str], idx0: int, raw: str) -> bool:
-    # Common OCR shape:
+    # Dạng OCR thường gặp:
     #   7. Bản thuyết minh báo cáo tài chính hợp nhất ...
     #      - Trang: 15-78
     if not re.match(r"^\s*\d{1,2}[.)]\s+", raw):
@@ -182,7 +182,7 @@ def _numbered_toc_reference(lines: list[str], idx0: int, raw: str) -> bool:
             return True
         if re.search(r"\b(?:trang|page)\s*:?\s*\d{1,3}(?:\s*[-–—]\s*\d{1,3})?\s*$", clean, re.I):
             return True
-        # Folded fallback because OCR/normalization may turn punctuation into spaces.
+        # Fallback sau fold vì OCR/chuẩn hóa có thể biến dấu câu thành khoảng trắng.
         if re.fullmatch(r"(?:trang|page)\s+\d{1,3}(?:\s+\d{1,3})?", nf):
             return True
         if nf and not PAGE_RANGE_ONLY_RE.fullmatch(nxt):
@@ -191,9 +191,9 @@ def _numbered_toc_reference(lines: list[str], idx0: int, raw: str) -> bool:
 
 
 def _looks_like_toc_candidate(lines: list[str], idx0: int, raw: str) -> tuple[bool, Optional[str]]:
-    """Reject table-of-contents references without requiring a formal TOC heading.
+    """Loại tham chiếu mục lục mà không cần heading mục lục chính thức.
 
-    Important real-corpus case:
+    Trường hợp quan trọng:
       Thuyết minh báo cáo tài chính hợp nhất
       12 - 86
     """
@@ -212,23 +212,23 @@ def _looks_like_toc_candidate(lines: list[str], idx0: int, raw: str) -> tuple[bo
             if numeric_cells:
                 return True, "toc_table_row_with_page_number"
 
-    # Same-line page suffix: "Thuyết minh ... 12 - 86"
+    # Hậu tố số trang trên cùng dòng: "Thuyết minh ... 12 - 86".
     if TRAILING_PAGE_RANGE_RE.search(stripped) and len(_normalized_title_line(raw).split()) > 4:
-        # Avoid rejecting a year embedded in a real title; page ranges are short and trailing.
+        # Không loại năm nằm trong tiêu đề thật; khoảng số trang thường ngắn và ở cuối.
         m = re.search(r"\b(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\s*$", stripped)
         if m and int(m.group(1)) < 200:
             return True, "title_with_trailing_page_number"
 
-    # Page number/range on one of the immediate following nonblank lines.
+    # Số trang/khoảng trang nằm trên một trong các dòng không rỗng ngay sau.
     for _, nxt in _next_nonblank(lines, idx0, 3):
         if PAGE_RANGE_ONLY_RE.fullmatch(nxt):
             return True, "next_line_is_page_number_or_range"
-        # Stop once content looks like the actual note body/heading.
+        # Dừng khi nội dung có vẻ là phần thân/heading Notes thật.
         nf = _normalized_title_line(nxt)
         if nf and not nf.startswith(("trang", "page")):
             break
 
-    # Typical TOC context has another statement title very nearby with a page number.
+    # Context mục lục thường có một tiêu đề báo cáo khác gần đó kèm số trang.
     prev = _prev_nonblank(lines, idx0, 4)
     nxt = _next_nonblank(lines, idx0, 4)
     neighborhood = prev + nxt
@@ -241,7 +241,7 @@ def _looks_like_toc_candidate(lines: list[str], idx0: int, raw: str) -> tuple[bo
 
 
 def _frontmatter_notes_ranges(lines: list[str]) -> list[tuple[int, int, int | None]]:
-    """Return content ranges whose page frontmatter explicitly says statement_type: notes."""
+    """Trả về các khoảng nội dung có frontmatter trang ghi rõ ``statement_type: notes``."""
     ranges: list[tuple[int, int, int | None]] = []
     i = 0
     n = len(lines)
@@ -318,19 +318,19 @@ def _scanner_notes_start(scanner_result: Optional[dict]) -> Optional[tuple[int, 
 
 
 def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> NotesScope:
-    """Detect one sticky Notes scope with scanner validation.
+    """Phát hiện một scope Notes liên tục kèm kiểm tra từ scanner.
 
-    v23 policy:
-      1. explicit page metadata is strongest;
-      2. normalized Notes titles support heading/bold/plain presentation;
-      3. TOC references are rejected using local page-number signatures;
-      4. project scanner is corroborating evidence, not unquestioned authority;
-      5. once Notes starts, primary-looking headings inside Notes never terminate scope.
+    Chính sách v23:
+      1. metadata trang rõ ràng có độ ưu tiên cao nhất;
+      2. tiêu đề Notes đã chuẩn hóa hỗ trợ dạng heading/in đậm/plain;
+      3. tham chiếu mục lục bị loại bằng dấu hiệu số trang cục bộ;
+      4. scanner của dự án chỉ là bằng chứng bổ trợ, không có quyền tuyệt đối;
+      5. khi Notes bắt đầu, heading giống báo cáo chính bên trong không kết thúc scope.
     """
     lines = text.splitlines()
     evidence: list[str] = []
 
-    # 1) Page metadata is authoritative when OCR/frontmatter explicitly labels Notes pages.
+    # 1) Metadata trang có thẩm quyền khi OCR/frontmatter ghi rõ đây là trang Notes.
     meta_ranges = _frontmatter_notes_ranges(lines)
     if meta_ranges:
         start = min(x[0] for x in meta_ranges)
@@ -344,7 +344,7 @@ def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> Note
     valid = [c for c in candidates if not c.rejected]
     scanner = _scanner_notes_start(scanner_result)
 
-    # 2) Prefer the earliest valid real title. Real reports may repeat it on continuation pages.
+    # 2) Ưu tiên tiêu đề thật hợp lệ sớm nhất. Báo cáo thật có thể lặp lại trên trang tiếp nối.
     if valid:
         start_cand = min(valid, key=lambda c: c.line_no)
         confidence = min(0.995, 0.90 + max(0.0, start_cand.score - 8.0) / 50.0)
@@ -357,7 +357,7 @@ def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> Note
                 evidence.append("project_statement_scanner:corroborated")
                 confidence = max(confidence, min(0.995, scanner_conf))
             elif scanner_line < start_cand.line_no:
-                # Handle documents whose first scanned page is a table of contents.
+                # Xử lý tài liệu có trang quét đầu tiên là mục lục.
                 scanner_raw = lines[scanner_line - 1] if 1 <= scanner_line <= len(lines) else ""
                 scanner_is_toc, reason = _looks_like_toc_candidate(lines, scanner_line - 1, scanner_raw)
                 if scanner_is_toc or any(c.line_no == scanner_line and c.rejected for c in candidates):
@@ -371,7 +371,7 @@ def detect_notes_scope(text: str, scanner_result: Optional[dict] = None) -> Note
             evidence.append("notes_continuation_heading")
         return NotesScope(True, start_cand.line_no, len(lines), confidence, evidence)
 
-    # 3) Last-resort scanner fallback only if its own line is not recognizably TOC.
+    # 3) Chỉ dùng fallback scanner cuối cùng khi dòng của scanner không có dạng mục lục.
     if scanner:
         scanner_line, scanner_conf = scanner
         raw = lines[scanner_line - 1] if 1 <= scanner_line <= len(lines) else ""
@@ -408,6 +408,6 @@ def primary_heading_decoys_in_scope(text: str, scope: NotesScope) -> list[dict]:
 
 
 def explain_notes_scope_candidates(text: str) -> list[dict]:
-    """Public diagnostic helper used by the v23 coverage evaluator."""
+    """Helper chẩn đoán công khai dùng bởi bộ đánh giá coverage v23."""
     lines = text.splitlines()
     return [asdict(c) for c in _title_candidates(lines)]

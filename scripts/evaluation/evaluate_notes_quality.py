@@ -1,4 +1,4 @@
-"""Create a compact, reproducible quality report for Notes batch outputs."""
+"""Tạo báo cáo chất lượng Notes batch gọn và có thể tái lập."""
 
 from __future__ import annotations
 

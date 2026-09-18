@@ -7,11 +7,11 @@ from .sectionizer import fold_text
 
 
 def _is_note_total_label(label: str) -> bool:
-    """Return whether a normalized note label is a usable total candidate.
+    """Cho biết nhãn thuyết minh đã chuẩn hóa có thể là tổng hợp lệ hay không.
 
-    Keep this conservative.  In particular, the token ``cong`` also occurs
-    in common labels such as ``cong ty`` and must not promote a detail row to
-    a reconciliation total.
+    Giữ quy tắc thận trọng. Đặc biệt, token ``cong`` cũng xuất hiện trong các
+    nhãn thông thường như ``cong ty`` và không được nâng dòng chi tiết thành
+    tổng để đối chiếu.
     """
     f = fold_text(label or '').strip()
     if f == 'cong' or f.startswith('tong '):
@@ -25,12 +25,11 @@ def _is_note_total_label(label: str) -> bool:
 
 
 def _sign_convention_match(primary_value, note_value, primary_label: str, note_label: str) -> bool:
-    """Recognize equal magnitudes shown with opposite presentation signs.
+    """Nhận diện cùng độ lớn nhưng trái dấu do cách trình bày.
 
-    Primary income statements use an additive signed convention for expense
-    rows, while tax-reconciliation notes commonly print the expense amount as
-    a positive number.  This is evidence of the same amount, not permission
-    to mutate the primary value.
+    Báo cáo kết quả kinh doanh dùng quy ước chi phí có dấu trong phép cộng,
+    còn thuyết minh đối chiếu thuế thường in chi phí dưới dạng số dương. Đây
+    là bằng chứng của cùng một khoản, không phải quyền thay đổi giá trị chính.
     """
     if not isinstance(primary_value, (int, float)) or not isinstance(note_value, (int, float)):
         return False
@@ -41,7 +40,7 @@ def _sign_convention_match(primary_value, note_value, primary_label: str, note_l
 
 
 def _baseline_row_node(row: dict) -> dict:
-    """Adapt persisted observation rows to the small primary-node view used here."""
+    """Chuyển row observation đã lưu sang view node chính tối giản dùng ở đây."""
     if isinstance(row.get("value"), dict):
         return row
     observations = row.get("observations") or []
@@ -92,7 +91,7 @@ def _primary_node_index(primary: Optional[dict]) -> dict[str, dict]:
 
 
 def _best_note_totals(sections):
-    """Return simple total candidates by period role, with source references."""
+    """Trả về candidate tổng đơn giản theo role kỳ, kèm tham chiếu nguồn."""
     out = {}
     if not isinstance(sections, (list, tuple)):
         sections = [sections]
@@ -128,14 +127,14 @@ def _sections_for_source_ref(doc: NoteDocument, source_ref: str):
 
 
 def reconcile_notes(doc: NoteDocument, primary: Optional[dict] = None) -> list[ReconciliationResult]:
-    """Non-destructive reconciliation.
+    """Đối chiếu không phá hủy dữ liệu.
 
-    Policy:
-      - primary values remain authoritative;
-      - equal note totals confirm;
-      - conflicts are reported, never overwritten;
-      - missing primary values are not mutated here. Recovery must be an explicit
-        downstream decision based on an exact link and an exact reconciliation.
+    Chính sách:
+      - giá trị báo cáo chính vẫn có thẩm quyền;
+      - tổng thuyết minh bằng nhau được xác nhận;
+      - xung đột chỉ được báo cáo, không ghi đè;
+      - không sửa giá trị chính đang thiếu ở đây. Việc khôi phục phải là quyết
+        định rõ ràng ở bước sau dựa trên liên kết chính xác và đối chiếu chính xác.
     """
     index = _primary_node_index(primary)
     results = []
@@ -164,9 +163,9 @@ def reconcile_notes(doc: NoteDocument, primary: Optional[dict] = None) -> list[R
                 ))
                 continue
 
-            # Exact match is preferred.  A single equal-magnitude expense/tax
-            # total is also confirmable when the primary uses a signed expense
-            # convention and the note prints the amount as positive.
+            # Ưu tiên khớp chính xác. Một tổng chi phí/thuế có cùng độ lớn cũng
+            # được xác nhận khi báo cáo chính dùng quy ước chi phí có dấu còn
+            # thuyết minh in số dương.
             exact = [x for x in candidates if primary_value is not None and x[0] == primary_value]
             sign_normalized = False
             if exact:

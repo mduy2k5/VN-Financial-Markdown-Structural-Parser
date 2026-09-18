@@ -20,15 +20,14 @@ COLON_RE = re.compile(r"^([^:：]{1,180})\s*[:：]\s*(.*)$")
 
 
 def _parse_code_note_period_inline_row(text: str, line_no: int, guide: UniversalGuide):
-    """Parse compact OCR/LLM financial rows such as:
+    """Đọc dòng tài chính OCR/LLM compact như:
 
         Các khoản phải thu ngắn hạn 130 4.260.806.610.198 2.252.910.212.253
         Chi phí trả trước ngắn hạn 151 13 32.309.453.139 24.815.192.830
 
-    Returns ``(label, code, note, payload_values)`` or ``None``.  The parser is
-    deliberately conservative: it only accepts a 3-digit statement code
-    immediately before one/two trailing financial values, with an optional
-    small note reference between code and values.
+    Trả về ``(label, code, note, payload_values)`` hoặc ``None``. Parser cố ý
+    thận trọng: chỉ nhận mã báo cáo ba chữ số ngay trước một/hai giá trị tài
+    chính ở cuối, với tham chiếu thuyết minh ngắn tùy chọn giữa mã và giá trị.
     """
     body = strip_inline_financial_metadata(
         strip_financial_prefix(strip_numbering(text or ""))
@@ -58,7 +57,7 @@ def _parse_code_note_period_inline_row(text: str, line_no: int, guide: Universal
             or re.fullmatch(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?", u)
         )
 
-    # Prefer two trailing financial columns (current/previous).
+    # Ưu tiên hai cột tài chính cuối (hiện tại/trước đây).
     payload_match_count = 2 if looks_financial(raw(matches[-1])) and looks_financial(raw(matches[-2])) else 1
     if payload_match_count == 1 and not looks_financial(raw(matches[-1])):
         return None
@@ -71,7 +70,7 @@ def _parse_code_note_period_inline_row(text: str, line_no: int, guide: Universal
     code_match = prefix_matches[-1]
     note = None
 
-    # Optional note reference sits between statement code and payload.
+    # Tham chiếu thuyết minh tùy chọn nằm giữa mã báo cáo và payload.
     if len(prefix_matches) >= 2:
         maybe_note = raw(prefix_matches[-1])
         maybe_code = raw(prefix_matches[-2])
@@ -88,7 +87,7 @@ def _parse_code_note_period_inline_row(text: str, line_no: int, guide: Universal
     if len(label) < 3 or not re.search(r"[A-Za-zÀ-ỹ]", label):
         return None
 
-    # Reject obvious headers/formulas/metadata even if they accidentally contain numbers.
+    # Loại header/công thức/metadata rõ ràng dù chúng vô tình chứa số.
     f = fold(label)
     if any(x in f for x in (
         "mau so", "cong thuc", "ngay ", "dia chi", "cho nam tai chinh",
@@ -105,7 +104,7 @@ def _parse_code_note_period_inline_row(text: str, line_no: int, guide: Universal
 
 
 def _split_top_level_colon(text: str):
-    """Split key:value only when the colon is outside parentheses."""
+    """Tách key:value chỉ khi dấu hai chấm nằm ngoài ngoặc đơn."""
     depth = 0
     for i, ch in enumerate(text):
         if ch == "(":
@@ -139,13 +138,12 @@ def _table_label_and_metadata(
         return s.strip()
 
     # ---------------------------------------------------------------
-    # Robust period-column anchoring.
+    # Neo cột kỳ một cách ổn định.
     # ---------------------------------------------------------------
-    # Many OCR/LLM Markdown tables lose the explicit "Chỉ tiêu" header or an
-    # empty Thuyết minh cell. Column-by-column zip then shifts code/note into
-    # current/previous. Financial period columns, however, are almost always the
-    # rightmost columns. Anchor them from the right first, then infer metadata
-    # from the prefix.
+    # Nhiều bảng Markdown OCR/LLM mất header "Chỉ tiêu" hoặc ô Thuyết minh rỗng.
+    # Ghép tuần tự từng cột khi đó sẽ đẩy mã/thuyết minh vào hiện tại/trước đây.
+    # Tuy nhiên, cột kỳ tài chính gần như luôn nằm bên phải. Neo từ bên phải
+    # trước, rồi suy ra metadata từ phần tiền tố.
     header_periods = []
     for i, h in enumerate(headers):
         ps = extract_periods(h, line.line_no, guide)
@@ -158,21 +156,21 @@ def _table_label_and_metadata(
             period_cells = cells[-period_count:]
             prefix_cells = cells[:-period_count]
 
-            # Pair rightmost source cells with period headers in header order.
+            # Ghép các ô nguồn bên phải với header kỳ theo thứ tự header.
             for (_, p), cell in zip(header_periods, period_cells):
                 vals = extract_values(cell, line.line_no, guide, mask_periods=False)
                 if vals:
                     period_values.append((p, vals[0]))
 
-            # Remove structural empty cells from metadata prefix.
+            # Bỏ các ô cấu trúc rỗng khỏi phần tiền tố metadata.
             prefix = [clean_cell(x) for x in prefix_cells if clean_cell(x)]
 
-            # Label = first prefix cell that is not a bare code/value token.
+            # Nhãn = ô tiền tố đầu tiên không phải token mã/giá trị thuần.
             label_idx = None
             for i, cell in enumerate(prefix):
                 vals = extract_values(cell, line.line_no, guide, mask_periods=False)
-                # Small textual labels can contain numbering/markdown but should
-                # not be treated as a pure financial value.
+                # Nhãn text ngắn có thể chứa số thứ tự/Markdown nhưng không được
+                # xem là giá trị tài chính thuần.
                 if not vals or any(ch.isalpha() for ch in cell):
                     label = strip_numbering(cell)
                     label_idx = i
@@ -186,7 +184,7 @@ def _table_label_and_metadata(
             has_code_header = any('ma so' in hfold(h) for h in headers)
             has_note_header = any('thuyet minh' in hfold(h) for h in headers)
 
-            # Explicit form-code column is metadata only.
+            # Cột mã biểu mẫu rõ ràng chỉ là metadata.
             if has_code_header:
                 for i, cell in enumerate(list(remaining)):
                     raw = cell.strip('*_ ')
@@ -195,9 +193,9 @@ def _table_label_and_metadata(
                         remaining.pop(i)
                         break
 
-            # Any remaining prefix token belongs to note when table declares a
-            # note column. Without a code header, a numeric prefix can still be
-            # a note reference rather than a current-period value.
+            # Token tiền tố còn lại là thuyết minh khi bảng khai báo cột thuyết
+            # minh. Nếu không có header mã, tiền tố số vẫn có thể là tham chiếu
+            # thuyết minh thay vì giá trị kỳ hiện tại.
             if has_note_header and remaining:
                 note = remaining[0].strip('*_ ')
 
@@ -209,7 +207,7 @@ def _table_label_and_metadata(
             return label, code, note, period_values, raw_values, cells
 
     # ---------------------------------------------------------------
-    # Legacy/fallback path for tables without recognizable period headers.
+    # Nhánh legacy/fallback cho bảng không có header kỳ nhận diện được.
     # ---------------------------------------------------------------
     for i, cell in enumerate(cells):
         header = headers[i] if i < len(headers) else ""
@@ -258,15 +256,20 @@ def build_nodes(
     table_line_map: dict[int, TableContext],
     guide: UniversalGuide,
 ) -> list[StructuralNode]:
+    """Tạo một cây nguồn từ dòng bảng, bullet và văn bản thuần.
+
+    Input có thể trộn nhiều dạng biểu diễn. Cây giữ thứ tự nguồn và thụt lề để
+    các pass sau phân biệt dòng parent với giá trị kỳ mà không dựa vào số dòng
+    riêng của báo cáo.
+    """
     nodes: list[StructuralNode] = []
-    # The source is not consistently serialized as Markdown bullets.  A
-    # common layout uses a plain/numbered label as the parent and indented
-    # bullets for its period values.  Keep one mixed structural stack so the
-    # parent is inferred from indentation + document order, independent of
-    # whether the label itself has a bullet marker.
+    # Nguồn không phải lúc nào cũng serialize thành bullet Markdown. Một bố cục
+    # thường gặp dùng nhãn thuần/có số làm parent và bullet thụt lề cho giá trị
+    # kỳ. Giữ một stack cấu trúc trộn để suy ra parent từ thụt lề + thứ tự tài
+    # liệu, không phụ thuộc nhãn có marker bullet hay không.
     hierarchy_stack: list[int] = []
 
-    # Header/separator table lines are not data nodes.
+    # Dòng header/dấu phân cách của bảng không phải node dữ liệu.
     skip_table_lines = set()
     seen_table_ids = set()
     for ctx in table_line_map.values():
@@ -307,14 +310,14 @@ def build_nodes(
                 node.values,
                 node.table_cells,
             ) = _table_label_and_metadata(line, table_ctx, guide)
-            # Store paired table values through temporary period/value arrays.
+            # Lưu cặp giá trị bảng qua các mảng kỳ/giá trị tạm.
             for p, v in period_values:
                 node.periods.append(p)
                 node.values.append(v)
                 v.role = p.role
 
         else:
-            # Non-table pipe row: label lives in the first segment/cell.
+            # Dòng pipe không thuộc bảng: nhãn nằm ở segment/ô đầu tiên.
             if line.has_pipe:
                 first_segment = line.clean.split("|", 1)[0].strip()
                 if ":" in first_segment:
@@ -343,7 +346,7 @@ def build_nodes(
             node.unit = extract_unit(line.clean, guide)
             node.note = explicit_note(line.clean, guide)
 
-            # For colon syntax, values should come from rhs to avoid label/item numbers.
+            # Với cú pháp dấu hai chấm, lấy giá trị từ rhs để tránh số trong nhãn/item.
             if node.rhs is not None:
                 node.values = extract_values(
                     node.rhs,
@@ -359,9 +362,9 @@ def build_nodes(
                     mask_periods=True,
                 )
 
-            # Compact statement row: label + code + [note] + current + previous.
-            # Hydrate before alias matching so the semantic label is clean and
-            # the code/note never compete with period values.
+            # Dòng báo cáo compact: nhãn + mã + [thuyết minh] + hiện tại + trước đây.
+            # Hydrate trước alias matching để nhãn semantic sạch và mã/thuyết minh
+            # không cạnh tranh với giá trị kỳ.
             compact = _parse_code_note_period_inline_row(line.clean, line.line_no, guide)
             if compact:
                 compact_label, compact_code, compact_note, compact_values = compact
@@ -370,16 +373,14 @@ def build_nodes(
                 node.note = node.note or compact_note
                 node.values = compact_values
 
-        # Mixed bullet/plain hierarchy.  A plain label at the same indentation
-        # may still be the container for a following bullet block (for
-        # example ``Phải trả người bán ngắn hạn`` followed by indented period
-        # rows), so retain that label as a same-level parent for bullets.
+        # Hierarchy bullet/văn bản trộn. Nhãn thuần cùng mức thụt lề vẫn có thể
+        # là container của block bullet theo sau (ví dụ ``Phải trả người bán
+        # ngắn hạn`` rồi đến các dòng kỳ thụt lề), nên giữ nhãn làm parent cùng mức.
         while hierarchy_stack:
             parent = nodes[hierarchy_stack[-1]]
-            # Plain labels become mixed-hierarchy parents only when the child
-            # is actually indented below them.  Same-level bullet blocks keep
-            # the legacy sequential fallback semantics used by wrapper/table
-            # layouts.
+            # Nhãn thuần chỉ trở thành parent hierarchy trộn khi child thực sự
+            # thụt lề bên dưới. Block bullet cùng mức vẫn giữ semantics fallback
+            # tuần tự legacy dùng cho bố cục wrapper/bảng.
             if parent.indent < node.indent:
                 break
             hierarchy_stack.pop()
@@ -423,7 +424,7 @@ def ancestors(nodes: list[StructuralNode], idx: int):
 
 def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
     """
-    Promote OCR/LLM keyed records such as:
+    Nâng record có khóa OCR/LLM như:
 
       * Mã số: 400
           * Tên chỉ tiêu: D. VỐN CHỦ SỞ HỮU
@@ -431,9 +432,8 @@ def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
           * 31/12/2025: ...
           * 01/01/2025: ...
 
-    into a semantic anchor whose label is the `Tên chỉ tiêu` value.  The raw
-    source tree and provenance are preserved; only semantic fields on the
-    wrapper node are hydrated.
+    thành anchor semantic có nhãn là giá trị `Tên chỉ tiêu`. Cây nguồn thô và
+    provenance được giữ nguyên; chỉ các field semantic trên wrapper được hydrate.
     """
     from .textnorm import fold
 
@@ -445,7 +445,7 @@ def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
         code = node.code
         note = node.note
 
-        # The wrapper itself may be `Mã số: 400`.
+        # Wrapper có thể chính là `Mã số: 400`.
         if node.lhs and fold(node.lhs) in {"ma so", "chi tieu", "code"}:
             code = code or (node.rhs.strip() if node.rhs else None)
 
@@ -463,10 +463,9 @@ def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
                 if raw_note not in {"-", "–", "—"}:
                     note = note or raw_note
 
-        # A compact section wrapper may expose only ``Chỉ tiêu: <code>``
-        # without a separate ``Tên chỉ tiêu`` child.  Preserve that metadata
-        # on the wrapper as well; it is evidence for local payload recovery,
-        # never a semantic identity key.
+        # Wrapper section compact có thể chỉ lộ ``Chỉ tiêu: <code>`` mà không
+        # có child ``Tên chỉ tiêu`` riêng. Giữ metadata đó trên wrapper; đây là
+        # bằng chứng để khôi phục payload cục bộ, không phải khóa định danh semantic.
         if code is not None:
             node.code = code
         if note is not None:
@@ -483,12 +482,12 @@ def hydrate_keyed_record_wrappers(nodes: list[StructuralNode]) -> None:
 
 def hydrate_column_major_statement_blocks(nodes: list[StructuralNode], guide: UniversalGuide):
     """
-    Rehydrate OCR column-major blocks:
+    Khôi phục block OCR theo cột:
       [N labels]
       Thuyết minh / Mã số / Số cuối năm / Số đầu năm
-      [optional code column]
-      [N current values]
-      [N previous values]
+      [cột mã tùy chọn]
+      [N giá trị hiện tại]
+      [N giá trị trước đây]
     """
     hydrated = []
 
@@ -504,8 +503,8 @@ def hydrate_column_major_statement_blocks(nodes: list[StructuralNode], guide: Un
         ):
             continue
 
-        # Labels are the semantic-looking nodes immediately before the header,
-        # back to the nearest root/context boundary.
+        # Nhãn là các node có vẻ semantic ngay trước header, lùi đến ranh giới
+        # root/context gần nhất.
         label_nodes = []
         j = i - 1
         while j >= 0 and len(label_nodes) < 100:
@@ -526,7 +525,7 @@ def hydrate_column_major_statement_blocks(nodes: list[StructuralNode], guide: Un
         if N < 3:
             continue
 
-        # Numeric-only run after the header.
+        # Chuỗi chỉ gồm số sau header.
         k = i + 4
         atom_nodes = []
         while k < len(nodes):

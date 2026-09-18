@@ -1,4 +1,4 @@
-"""B03 - Cash Flow Statement Package."""
+"""Gói B03 - Báo cáo lưu chuyển tiền tệ."""
 
 from .extractor import (
     CashFlowObservation,

@@ -1,4 +1,4 @@
-"""B01 - Balance Sheet / Statement of Financial Position Package."""
+"""Gói B01 - Bảng cân đối kế toán / Báo cáo tình hình tài chính."""
 
 from .extractor import FinancialPositionSourceParser
 

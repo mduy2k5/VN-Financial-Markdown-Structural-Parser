@@ -1,4 +1,4 @@
-"""Build a small, dependency-free HTML inspector for production JSON output."""
+"""Tạo trình kiểm tra HTML nhỏ, không phụ thuộc thư viện, cho output JSON production."""
 
 from __future__ import annotations
 

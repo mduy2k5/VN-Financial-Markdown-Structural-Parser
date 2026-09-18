@@ -1,7 +1,7 @@
-"""Repair unambiguous column/period shifts in persisted three-statement baselines.
+"""Sửa lệch cột/kỳ không mơ hồ trong baseline ba báo cáo đã lưu.
 
-The original baseline files are never overwritten. Repairs are copied to a new
-directory and carry a per-row rule so every change remains auditable.
+Không ghi đè file baseline gốc. Bản sửa được chép sang thư mục mới và mang rule
+theo từng dòng để mọi thay đổi vẫn audit được.
 """
 
 from __future__ import annotations
@@ -110,9 +110,9 @@ def _repair_table_row(row: dict, source_line: str = "") -> str | None:
     if not NUMERIC_LABEL_RE.fullmatch(_strip(row.get("label") or "")):
         return None
 
-    # Heading rows such as ``I. ... | 15 | |`` have a label and a note
-    # reference but no financial observation. Restore those fields without
-    # inventing values.
+    # Dòng heading như ``I. ... | 15 | |`` có nhãn và tham chiếu thuyết minh
+    # nhưng không có observation tài chính. Khôi phục các field đó mà không tự
+    # tạo giá trị.
     if (
         len(cells) >= 3
         and cells[0]
@@ -126,8 +126,8 @@ def _repair_table_row(row: dict, source_line: str = "") -> str | None:
         row["note"] = cells[1]
         return "restore_heading_label_and_note_columns"
 
-    # Use the final two cells only when both are numeric/dash. This avoids
-    # treating note references or codes as financial observations.
+    # Chỉ dùng hai ô cuối khi cả hai là số/gạch. Cách này tránh xem tham chiếu
+    # thuyết minh hoặc mã là observation tài chính.
     if len(cells) >= 3 and not all(_number(cell) is not None or cell in {"", "-", "–", "—"} for cell in cells[-2:]):
         return None
     final_values = cells[-2:] if len(cells) >= 3 else []
@@ -145,23 +145,23 @@ def _repair_table_row(row: dict, source_line: str = "") -> str | None:
     rule = None
 
     if CODE_RE.fullmatch(first) and second and not (_number(second) is not None):
-        # Code | label | current | prior
+        # Mã | nhãn | hiện tại | trước đây
         new_code = first
         new_label = second
         rule = "split_code_label_value_columns"
     elif first and _number(first) is None and not NOTE_REF_RE.fullmatch(first):
-        # Label | current | prior, or Label | note-ref | current | prior
+        # Nhãn | hiện tại | trước đây, hoặc Nhãn | tham chiếu thuyết minh | hiện tại | trước đây
         new_label = first
         if len(cells) >= 4 and second and (_number(second) is None):
             new_note = second
         rule = "shift_label_before_value_columns"
     elif first and NOTE_REF_RE.fullmatch(first):
-        # Note reference | current | prior, with no semantic label in this OCR row.
+        # Tham chiếu thuyết minh | hiện tại | trước đây, không có nhãn semantic trong dòng OCR này.
         new_label = ""
         new_note = first
         rule = "preserve_note_reference_without_promoting_value_to_label"
     elif not first:
-        # Blank label | current | prior is an unlabeled continuation/total row.
+        # Nhãn trống | hiện tại | trước đây là dòng tiếp nối/tổng không có nhãn.
         new_label = ""
         new_note = old_note or None
         rule = "preserve_unlabeled_value_row"

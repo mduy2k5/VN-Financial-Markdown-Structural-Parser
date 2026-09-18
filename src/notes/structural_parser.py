@@ -43,8 +43,8 @@ def _split_numeric_unit(raw: str):
     if m:
         unit = m.group(0)
         s = (s[:m.start()] + s[m.end():]).strip()
-        # Removing a parenthesized unit (e.g. ``58.066 (triệu đồng)``) must
-        # not leave synthetic punctuation in the source-faithful raw value.
+        # Khi bỏ đơn vị trong ngoặc (ví dụ ``58.066 (triệu đồng)``), không để lại
+        # dấu câu nhân tạo trong giá trị raw trung thành với nguồn.
         s = re.sub(r"\(\s*\)", "", s).strip()
     return s, unit
 
@@ -60,10 +60,10 @@ def _period_role(text: str, *, current_year: int | None = None, previous_year: i
 
 def _row_role(label: str, *, current_year: int | None = None, previous_year: int | None = None):
     f = fold_text(label)
-    # Do not treat every occurrence of ``cong`` as a total.  OCR labels such
-    # as ``Chuyển lỗ từ công ty con`` contain the same token but are detail
-    # rows.  A total is normally explicitly introduced by ``Tổng`` (or the
-    # standalone label ``Cộng``).
+    # Không xem mọi lần xuất hiện của ``cong`` là tổng. Nhãn OCR như
+    # ``Chuyển lỗ từ công ty con`` có cùng token nhưng là dòng chi tiết.
+    # Dòng tổng thường được giới thiệu rõ bằng ``Tổng`` hoặc nhãn đứng riêng
+    # ``Cộng``.
     if f == 'cong' or f.startswith('tong '):
         return 'total'
     if any(x in f for x in ('so cuoi nam', 'cuoi nam', f'31 12 {current_year}')):
@@ -84,14 +84,14 @@ def parse_bullet_structures(
     current_year: int | None = None,
     previous_year: int | None = None,
 ):
-    """Extract generic bullet/key-value structures without sector semantics.
+    """Lấy cấu trúc bullet/key-value chung mà không dùng semantic theo ngành.
 
-    Core shapes:
-      A) period container -> repeated label:value children
-      B) semantic label -> current/previous value children
-      C) flat key:value bullet rows (single-value fallback)
+    Các dạng chính:
+      A) container kỳ -> các child nhãn:giá trị lặp lại
+      B) nhãn semantic -> child hiện tại/trước đây
+      C) dòng bullet key:value phẳng (fallback một giá trị)
 
-    Values are never scaled. Source hierarchy and period roles are preserved.
+    Không scale giá trị. Giữ nguyên hierarchy nguồn và role kỳ.
     """
     occupied_lines = occupied_lines or set()
     raw_lines = section_text.splitlines()
@@ -114,7 +114,7 @@ def parse_bullet_structures(
     if not toks:
         return []
 
-    # Find nearest parent bullet by indentation.
+    # Tìm bullet parent gần nhất theo thụt lề.
     stack = []
     for pos, t in enumerate(toks):
         while stack and toks[stack[-1]]['indent'] >= t['indent']:
@@ -132,7 +132,7 @@ def parse_bullet_structures(
     used = set()
     block_no = 0
 
-    # A) Pair matching label:value rows across current/previous period containers.
+    # A) Ghép các dòng nhãn:giá trị giữa container kỳ hiện tại/trước đây.
     period_groups = []
     for pos, t in enumerate(toks):
         role = _period_role(t['body'], current_year=current_year, previous_year=previous_year)
@@ -153,7 +153,7 @@ def parse_bullet_structures(
         if items:
             period_groups.append((pos, role, items))
 
-    # Group adjacent/sibling period containers by parent and pair labels.
+    # Gom các container kỳ liền kề/sibling theo parent rồi ghép nhãn.
     by_parent = defaultdict(list)
     for pg in period_groups:
         by_parent[toks[pg[0]]['parent']].append(pg)
@@ -193,7 +193,7 @@ def parse_bullet_structures(
             metadata={'parser': 'bullet_period_pair_v23_1'}
         ))
 
-    # B) Parent semantic row with direct current/previous children.
+    # B) Dòng parent semantic có child hiện tại/trước đây trực tiếp.
     for pos, t in enumerate(toks):
         if pos in used or _period_role(t['body'], current_year=current_year, previous_year=previous_year) or KV_RE.match(t['body']):
             continue
@@ -223,7 +223,7 @@ def parse_bullet_structures(
             ))
             used.add(pos); used.update(child_positions)
 
-    # C) Conservative single-value key:value rows not owned by extracted structures.
+    # C) Dòng key:value một giá trị theo quy tắc bảo thủ, chưa thuộc cấu trúc đã lấy.
     singles = []
     for pos, t in enumerate(toks):
         if pos in used:
@@ -238,9 +238,9 @@ def parse_bullet_structures(
         num = parse_number(raw_val)
         if num is None and raw_val not in {'-', '–', '—', '−'}:
             continue
-        # Single-period fallback is intentionally strict. Without an explicit
-        # financial unit, `key:value` commonly represents STT, phone numbers,
-        # percentages, IDs or layout metadata rather than a financial observation.
+    # Fallback một kỳ được cố ý đặt chặt. Nếu không có đơn vị tài chính rõ,
+    # `key:value` thường là STT, số điện thoại, phần trăm, ID hoặc metadata bố
+    # cục thay vì observation tài chính.
         if not unit:
             continue
         if fold_text(label) in {'page', 'year', 'status', 'symbol', 'stt', 'so luong don vi'}:

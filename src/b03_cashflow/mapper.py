@@ -55,21 +55,30 @@ def fold(s: Any) -> str:
     return " ".join(s.split())
 
 
-# Grammatical/directional words that vary across report layouts.  These are
-# not statement codes or note references: the fallback compares the accounting
-# concepts carried by the remaining tokens.
+def _form_code_key(value: Any) -> str | None:
+    """Chuẩn hóa mã biểu mẫu dòng tiền theo luật định để phân biệt có guard."""
+
+    text = strip_md(value)
+    if not text or not re.fullmatch(r"0*\d+", text):
+        return None
+    return str(int(text))
+
+
+# Từ ngữ ngữ pháp/hướng biến đổi giữa các layout báo cáo. Đây không phải mã
+# báo cáo hay tham chiếu thuyết minh; fallback so sánh khái niệm kế toán từ
+# các token còn lại.
 _SEMANTIC_VARIANTS = {
     "tang", "giam", "thay", "doi", "bien", "dong",
 }
 
 
 def semantic_label_similarity(left: Any, right: Any) -> float:
-    """Compare accounting concepts for conservative OCR/layout variants.
+    """So sánh khái niệm kế toán cho các biến thể OCR/layout theo quy tắc bảo thủ.
 
-    Exact and ordinary fuzzy matching remain the primary paths.  This fallback
-    handles labels such as ``Các khoản phải thu`` versus ``Tăng, giảm các
-    khoản phải thu`` without consulting a form code.  It only accepts a clear
-    overlap with at least three non-variant tokens.
+    Khớp chính xác và fuzzy thông thường vẫn là các nhánh chính. Fallback này
+    xử lý nhãn như ``Các khoản phải thu`` và ``Tăng, giảm các khoản phải thu``
+    mà không tra mã biểu mẫu. Chỉ nhận phần giao rõ có ít nhất ba token không
+    thuộc biến thể.
     """
     l_tokens = set(fold(left).split())
     r_tokens = set(fold(right).split())
@@ -83,7 +92,7 @@ def semantic_label_similarity(left: Any, right: Any) -> float:
     coverage = shared / min(len(l_core), len(r_core))
     if coverage < 0.80:
         return 0.0
-    # Keep semantic fallback below exact labels, but above ordinary threshold.
+    # Giữ fallback semantic dưới nhãn chính xác nhưng trên ngưỡng thông thường.
     return min(0.96, 0.90 + 0.06 * coverage)
 
 
@@ -140,13 +149,30 @@ def adapt_cashflow_row(obj: dict) -> CFRow:
 
 
 class CashFlowMapper:
+    """Map row B03 theo sector, method và label semantic.
+
+    Mapper lọc schema theo direct/indirect trước khi map. Section giúp loại
+    candidate sai ngữ cảnh; form code chỉ là tie-breaker khi code duy nhất và
+    label semantic chưa đủ phân biệt.
+    """
+
     def __init__(self, schema_path=DEFAULT_SCHEMA, aliases_path=DEFAULT_ALIASES, sector="enterprise", method="indirect"):
+        """Nạp schema/alias cho một profile B03.
+
+        Đầu vào là đường dẫn cấu hình, sector và phương pháp. Xử lý index node,
+        form code và alias catalog. Đầu ra là mapper chưa đọc source report.
+        """
         self.schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
         self.aliases = json.loads(Path(aliases_path).read_text(encoding="utf-8"))
         self.sector = sector
         self.method = method
         self.nodes = [n for n in self.schema["nodes"] if n["sector"] == sector and n.get("method", "any") in {"any", method}]
         self.by_id = {n["node_id"]: n for n in self.nodes}
+        self.by_form_code = {}
+        for node in self.nodes:
+            code_key = _form_code_key(node.get("form_code"))
+            if code_key:
+                self.by_form_code.setdefault(code_key, []).append(node)
         self.alias_catalog = {}
         for n in self.nodes:
             labels = [n["canonical_name"]] + list(self.aliases.get(n["node_id"], []))
@@ -161,16 +187,22 @@ class CashFlowMapper:
         return False
 
     def map_one(self, row: CFRow):
+        """Gán một row B03 vào node phù hợp hoặc để row chưa map.
+
+        Đầu vào là ``CFRow`` có label, section, method và giá trị. Hàm thử
+        label exact/fuzzy/semantic trong profile, sau đó chỉ dùng form code
+        duy nhất để phân biệt khi cần. Đầu ra là row được cập nhật status,
+        node id, method và confidence.
+        """
         flabel = fold(row.label)
         best = None
-        # Primary identity: section + method + semantic label. Statement codes
-        # and note references are retained as metadata, never as identity or a
-        # rescue key.
+        # Identity chính: section + method + nhãn semantic. Mã báo cáo và tham
+        # chiếu thuyết minh chỉ giữ làm metadata, không phải identity hay khóa cứu hộ.
         for node in self.nodes:
             aliases = self.alias_catalog[node["node_id"]]
             exact = bool(flabel and flabel in aliases)
-            # Exact semantic label may repair a missing/wrong section emitted by LLM.
-            # Fuzzy and token-semantic fallbacks remain section-aware.
+            # Nhãn semantic chính xác có thể sửa section bị thiếu/sai do LLM phát ra.
+            # Fallback fuzzy và token-semantic vẫn nhận biết section.
             if not exact and not self._compatible(node, row):
                 continue
             if exact:
@@ -187,6 +219,21 @@ class CashFlowMapper:
                             score, how = token_sim, "semantic_tokens"
             if best is None or score > best[0]:
                 best = (score, how, node)
+
+        # Bảng theo luật định tách rời có thể mang mã biểu mẫu đáng tin nhưng
+        # nhãn bị rút gọn đến mức fuzzy khớp nhầm node semantic (ví dụ
+        # ``Tiền và tương đương tiền đầu năm`` với node thay đổi tiền thuần).
+        # Chỉ dùng mã làm tie-breaker có guard: mã phải duy nhất trong profile
+        # sector+method đã chọn; nhãn semantic chính xác luôn có thẩm quyền.
+        # Profile có mã lặp (đặc biệt báo cáo ngân hàng) tiếp tục dựa vào nhãn
+        # và evidence section.
+        code_key = _form_code_key(row.statement_code or row.code)
+        code_candidates = self.by_form_code.get(code_key, []) if code_key else []
+        if len(code_candidates) == 1:
+            code_node = code_candidates[0]
+            exact_best = bool(best and best[1] == "exact_label")
+            if not exact_best and (best is None or best[2]["node_id"] != code_node["node_id"]):
+                best = (0.97, "form_code_disambiguation", code_node)
         if best and best[0] >= 0.90:
             row.mapping_status = "mapped"
             row.mapping_confidence = round(best[0], 4)
@@ -195,9 +242,22 @@ class CashFlowMapper:
         return row
 
     def map_rows(self, rows):
+        """Map toàn bộ row B03 và giữ thứ tự source.
+
+        Đầu vào là iterable ``CFRow`` từ extractor. Đầu ra là list row sau khi
+        mỗi row đi qua ``map_one``.
+        """
         return [self.map_one(r) for r in rows]
 
     def canonical(self, rows, source_name: str, current_year=None, previous_year=None, statement_unit: Optional[str] = None):
+        """Gộp row B03 đã map thành canonical statement.
+
+        Đầu vào là row sau ``map_rows``, provenance source, cặp năm và unit.
+        Hàm nhóm theo node, điền hai kỳ, lưu occurrences, phát hiện nhiều giá
+        trị xung đột và chạy formula checks. Đầu ra là dict canonical gồm node,
+        mapping summary, validation và diagnostics; row chưa map vẫn nằm trong
+        danh sách diagnostics.
+        """
         nodes_out = []
         conflicts = []
         grouped = {}
@@ -288,9 +348,9 @@ class CashFlowMapper:
                 if target is None or any(v is None for v in ops):
                     checks.append({"name": frm["name"], "period": period, "status": "skipped_missing_operand"})
                     continue
-                # Some statutory presentations add reconciliation-only lines such as
-                # translation differences (code 62). Include them when reported, but
-                # do not require them for documents that do not present the line.
+                # Một số cách trình bày theo luật định thêm dòng chỉ phục vụ đối
+                # chiếu như chênh lệch quy đổi (mã 62). Lấy nếu có nhưng không
+                # bắt buộc với tài liệu không trình bày dòng này.
                 optional_ops = [
                     values.get(x, {}).get(period)
                     for x in frm.get("optional_components", [])

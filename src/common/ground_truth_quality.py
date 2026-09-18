@@ -1,15 +1,14 @@
-"""Reusable quality rules for source-grounded statement baselines.
+"""Quy tắc chất lượng dùng lại cho baseline báo cáo có căn cứ nguồn.
 
-The persisted baselines are useful evidence, but they are not automatically a
-gold standard.  This module classifies individual observations without knowing
-the report ticker or filename.  It deliberately separates:
+Baseline đã lưu là evidence hữu ích nhưng không tự động là gold standard. Module
+này phân loại từng observation mà không cần biết mã chứng khoán hay tên file. Nó
+cố ý tách:
 
-* observations eligible for a primary current/prior-period comparison; and
-* observations that need adjudication because their period, label, scope, or
-  source evidence is ambiguous.
+* observation đủ điều kiện so sánh kỳ hiện tại/trước đây chính;
+* observation cần phân xử vì kỳ, nhãn, scope hoặc evidence nguồn mơ hồ.
 
-The rules are structural and year-agnostic.  A caller may pass the report's
-years explicitly, otherwise they are inferred from the baseline evidence.
+Quy tắc dựa trên cấu trúc và không gắn năm. Caller có thể truyền năm báo cáo;
+nếu không, năm được suy ra từ evidence baseline.
 """
 
 from __future__ import annotations
@@ -72,27 +71,26 @@ def fold_text(value: Any) -> str:
 
 
 def normalize_label(value: Any) -> str:
-    """Normalize a statement label consistently for baseline/current comparison.
+    """Chuẩn hóa nhãn báo cáo nhất quán cho so sánh baseline/current.
 
-    Numbered/lettered bullet prefixes and statement form-code suffixes are
-    presentation structure, not label identity.  Baselines produced from OCR
-    frequently preserve ``C NỢ PHẢI TRẢ 300 310 330`` while the canonical parser
-    keeps only ``NỢ PHẢI TRẢ``.  Period markers are intentionally handled
-    elsewhere, so this function only removes structural label noise.
+    Tiền tố bullet số/chữ và hậu tố mã biểu mẫu là cấu trúc trình bày, không
+    phải identity của nhãn. Baseline OCR thường giữ ``C NỢ PHẢI TRẢ 300 310 330``
+    trong khi parser canonical chỉ giữ ``NỢ PHẢI TRẢ``. Marker kỳ được xử lý ở
+    nơi khác, nên hàm này chỉ bỏ nhiễu cấu trúc của nhãn.
     """
     label = fold_text(value)
     if re.search(r"[a-z]", label):
         label = re.sub(r"^(?:\d+(?:\.\d+)*\s+)+", "", label).strip()
-        # Form sections such as ``A. Tài sản`` / ``C. Nợ phải trả`` and roman
-        # section markers are not semantic row identity.
+        # Section mẫu như ``A. Tài sản`` / ``C. Nợ phải trả`` và marker La Mã
+        # không phải identity dòng semantic.
         label = re.sub(r"^(?:[a-z]|[ivxlcdm]{1,4})\s+(?=[a-z])", "", label).strip()
-        # Explicit form-code/note markers are unambiguous structural suffixes.
+        # Marker mã biểu mẫu/thuyết minh rõ là hậu tố cấu trúc.
         label = re.sub(r"\s+(?:ma so|ma tham chieu|thuyet minh)\b.*$", "", label).strip()
-        # Many OCR baselines detach one or more numeric form codes from the
-        # label.  Strip only a trailing numeric run after a textual label.
+        # Nhiều baseline OCR tách một hoặc nhiều mã số khỏi nhãn. Chỉ bỏ chuỗi
+        # số ở cuối sau nhãn text.
         label = re.sub(r"\s+(?:\d+[a-z]?)(?:\s+\d+[a-z]?)*$", "", label).strip()
-        # Note references often survive as ``261 13 b`` / ``8 c`` after
-        # punctuation is folded away.  They are not part of the statement row.
+        # Tham chiếu thuyết minh thường còn dạng ``261 13 b`` / ``8 c`` sau khi
+        # bỏ dấu câu. Chúng không thuộc dòng báo cáo.
         label = re.sub(r"\s+\d+(?:\s+\d+)?\s+[a-z]$", "", label).strip()
         label = re.sub(r"\s+(?:chuyen sang trang sau|continued|tiep theo)\b.*$", "", label).strip()
     return label
@@ -133,19 +131,18 @@ def infer_year_pair(
     *,
     source_text: str | None = None,
 ) -> tuple[int | None, int | None]:
-    """Infer reporting years from statement-period evidence, not audit metadata.
+    """Suy ra năm báo cáo từ evidence kỳ, không từ metadata kiểm toán.
 
-    The old implementation scanned every `raw_text`/`value_raw` field and then
-    selected the numerically largest year.  A publication date such as 2026 could
-    therefore override a statement whose reporting periods were 2025/2024.  This
-    implementation only scores observation period fields, skips administrative
-    rows, and uses the source filename only as a low-priority fallback.
+    Cách cũ quét mọi field `raw_text`/`value_raw` rồi chọn năm lớn nhất. Vì vậy,
+    ngày phát hành như 2026 có thể lấn át báo cáo có kỳ 2025/2024. Cách hiện tại
+    chỉ chấm field kỳ của observation, bỏ dòng hành chính và chỉ dùng tên file
+    làm fallback ưu tiên thấp.
     """
 
-    # Current-run canonical artifacts and newly built baselines carry the
-    # document resolver's decision.  Reuse it before scanning labels or the
-    # filename; otherwise the evaluator can apply a different policy than the
-    # runtime (notably for a March year-end whose filename says the prior year).
+    # Artifact canonical của lần chạy hiện tại và baseline mới có quyết định của
+    # resolver tài liệu. Dùng lại trước khi quét nhãn/tên file; nếu không evaluator
+    # có thể áp dụng policy khác runtime (nhất là báo cáo chốt năm tháng 3 nhưng
+    # tên file mang năm trước).
     def explicit_period_pair(obj: dict[str, Any]) -> tuple[int | None, int | None] | None:
         containers = [
             obj.get("period_context"),
@@ -187,8 +184,7 @@ def infer_year_pair(
                 if resolved.get("current_year") is not None:
                     return resolved.get("current_year"), resolved.get("previous_year")
             except (ImportError, ValueError):
-                # Keep the structural baseline fallback below available for
-                # callers that do not have a complete source document.
+                # Giữ fallback baseline cấu trúc cho caller không có tài liệu nguồn đầy đủ.
                 pass
 
     years: Counter[int] = Counter()
@@ -212,8 +208,8 @@ def infer_year_pair(
         text = str(value or "")
         if not text:
             return
-        # Only count years attached to a reporting-period/date marker.  This
-        # avoids treating a free-text publication/audit date as a report year.
+        # Chỉ đếm năm gắn với marker kỳ/ngày báo cáo. Cách này tránh xem ngày
+        # phát hành/kiểm toán trong văn bản tự do là năm báo cáo.
         marker = re.search(
             r"(?i)(?:năm|nam|31\s*[./-]\s*12\s*[./-]|01\s*[./-]\s*01\s*[./-]|"
             r"ngày\s+\d{1,2}\s+tháng\s+\d{1,2}\s+năm|20\d{2}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,2})",
@@ -247,19 +243,17 @@ def infer_year_pair(
     elif isinstance(document, dict) and isinstance(document.get("rows"), list):
         visit_statement(document)
 
-    # The source filename is a document-level reporting-year anchor.  Prefer it
-    # when present, but derive the comparative year from statement evidence so a
-    # filename-only report still follows the normal current/prior convention.
+    # Tên file là anchor năm ở cấp tài liệu. Ưu tiên khi có, nhưng suy ra năm so
+    # sánh từ evidence báo cáo để tài liệu chỉ có tên file vẫn theo quy ước hiện tại/trước đây.
     filename_years: list[int] = []
     if isinstance(document, dict):
         source_file = str(document.get("source_file") or "")
         filename_years = [int(match) for match in re.findall(r"(?<!\d)(20\d{2})(?!\d)", source_file)]
     if filename_years:
         current_year = max(filename_years)
-        # Legal/template references can contain much older years (for example
-        # a circular issued in 2014).  A comparative financial period should be
-        # close to the document year; otherwise fall back to the normal prior
-        # year instead of treating a legal reference as the comparison period.
+        # Tham chiếu pháp lý/mẫu có thể chứa năm rất cũ (ví dụ thông tư năm 2014).
+        # Kỳ so sánh nên gần năm tài liệu; nếu không, dùng năm trước thông thường
+        # thay vì xem năm trong tham chiếu pháp lý là kỳ so sánh.
         prior_candidates = [
             year for year in statement_years
             if current_year - 2 <= year < current_year
@@ -274,20 +268,19 @@ def infer_year_pair(
 
 
 def period_role(value: Any, current_year: int | None = None, previous_year: int | None = None) -> str:
-    """Normalize a period marker to current, previous, quarter, or unknown."""
+    """Chuẩn hóa marker kỳ thành current, previous, quarter hoặc unknown."""
 
     role = fold_text(value)
     if role in UNKNOWN_PERIODS:
         return "unknown"
-    # A quarterly statement can expose both the quarter window and a cumulative
-    # year-to-date window.  The latter is not interchangeable with the primary
-    # current/prior pair used by the canonical schema, even when its period key
-    # was flattened to `current`/`prior` by an upstream parser.
+    # Báo cáo quý có thể lộ cả cửa sổ quý và cửa sổ lũy kế từ đầu năm. Cửa sổ
+    # lũy kế không thể thay cho cặp hiện tại/trước đây chính của schema canonical,
+    # dù parser trước đó đã làm phẳng period key thành `current`/`prior`.
     if any(cue in role for cue in NON_PRIMARY_WINDOW_CUES):
         return "quarter"
     years = [int(item) for item in re.findall(r"\b(20\d{2})\b", role)]
-    # 01/01/current_year is the opening balance and therefore the prior
-    # comparative period.  Check the date before the generic year test.
+    # 01/01/current_year là số đầu kỳ và do đó là kỳ so sánh trước đây.
+    # Kiểm tra ngày trước test năm chung.
     if re.search(r"\b01\s+01\b", role):
         return "previous"
     if re.search(r"\b31\s+12\b|\b12\s+31\b", role):
@@ -310,7 +303,7 @@ def observation_period(
     current_year: int | None = None,
     previous_year: int | None = None,
 ) -> str:
-    """Resolve period_key first, then raw evidence when key is unknown."""
+    """Giải quyết period_key trước, rồi dùng evidence thô khi key chưa biết."""
 
     candidates = (
         observation.get("period_key"),
@@ -344,7 +337,7 @@ def period_evidence_conflict(
     current_year: int | None = None,
     previous_year: int | None = None,
 ) -> bool:
-    """Return whether explicit key and raw period evidence disagree."""
+    """Trả về việc key rõ và evidence kỳ thô có mâu thuẫn không."""
 
     key_role = period_role(observation.get("period_key"), current_year, previous_year)
     if key_role not in {"current", "previous"}:
@@ -391,7 +384,7 @@ def source_period_hint(
     *,
     lookback: int = 90,
 ) -> str | None:
-    """Infer a row's section year from the nearest explicit source heading."""
+    """Suy ra năm section của dòng từ heading nguồn rõ gần nhất."""
 
     if not source_lines or source_line <= 0 or source_line > len(source_lines):
         return None
@@ -414,13 +407,12 @@ def extract_inline_period_values(
     previous_year: int | None,
     leading_value: Any = None,
 ) -> list[tuple[str, int | float]]:
-    """Recover a compact current/prior pair from one inline source row.
+    """Khôi phục cặp hiện tại/trước đây compact từ một dòng nguồn inline.
 
-    Example: ``67.231.128 triệu đồng (Năm 2024: 61.748.921)``.  The persisted
-    baseline can contain only one observation for this row and occasionally
-    assigns the leading value to the parenthesized year.  Recovery is limited
-    to explicit year/value syntax and therefore does not guess from arbitrary
-    numbers in a label.
+    Ví dụ: ``67.231.128 triệu đồng (Năm 2024: 61.748.921)``. Baseline đã lưu
+    có thể chỉ chứa một observation cho dòng này và đôi khi gán giá trị đầu vào
+    năm trong ngoặc. Khôi phục chỉ dùng cú pháp năm/giá trị rõ, không đoán từ
+    số tùy ý trong nhãn.
     """
 
     text = str(raw_text or "")
@@ -431,8 +423,8 @@ def extract_inline_period_values(
 
     def parse_inline_number(token: Any) -> int | float | None:
         text = str(token or "").strip()
-        # Vietnamese statement rows use dots/commas as thousands separators;
-        # a single three-digit group (``1.934``) is still 1,934, not 1.934.
+        # Dòng báo cáo tiếng Việt dùng dấu chấm/phẩy làm phân cách hàng nghìn;
+        # một nhóm ba chữ số (``1.934``) vẫn là 1,934, không phải 1.934.
         if re.fullmatch(r"\(?-?\d{1,3}(?:[.,]\d{3})+\)?", text):
             negative = text.startswith("(") or text.startswith("-")
             digits = re.sub(r"[^0-9]", "", text)
@@ -471,8 +463,8 @@ def extract_inline_period_values(
             (m.start() for m in re.finditer(r"(?i)\b(?:năm|nam)\s*20\d{2}\s*:", text)),
             len(text),
         )]
-        # Use only the first numeric value after the row's first colon.  This
-        # avoids treating a form code in the label as the current observation.
+        # Chỉ dùng giá trị số đầu tiên sau dấu hai chấm đầu của dòng. Cách này
+        # tránh xem mã biểu mẫu trong nhãn là observation hiện tại.
         lead_match = re.search(rf":\s*({value_token})", before)
         if lead_match:
             lead = parse_inline_number(leading_value)
@@ -480,8 +472,8 @@ def extract_inline_period_values(
                 lead = parse_inline_number(lead_match.group(1))
             if lead is not None:
                 pairs.insert(0, ("current", lead))
-    # A date/year pair is authoritative; do not let an erroneous baseline code
-    # observation (for example value ``112`` from ``Mã số: 112``) survive.
+    # Cặp ngày/năm là evidence chính thức; không để observation mã sai trong
+    # baseline (ví dụ giá trị ``112`` từ ``Mã số: 112``) tồn tại.
     unique: list[tuple[str, int | float]] = []
     for item in pairs:
         if item not in unique:
@@ -546,7 +538,7 @@ def assess_observation(
 
 
 def evidence_key(row: dict[str, Any], decision: ObservationDecision) -> tuple[str, str, int | float]:
-    return (normalize_label(row.get("label")), decision.period, decision.value)  # type: ignore[arg-type]
+    return (normalize_label(row.get("label")), decision.period, decision.value)  # type: ignore[arg-type]  # chỉ thị bỏ qua kiểm tra kiểu cho đối số
 
 
 def iter_observations(statement: dict[str, Any]) -> Iterable[tuple[dict[str, Any], dict[str, Any]]]:

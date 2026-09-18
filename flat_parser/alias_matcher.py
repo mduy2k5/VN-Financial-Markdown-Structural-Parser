@@ -62,10 +62,10 @@ def _nearest_semantic_ancestor_texts(
     prior_selected: list[tuple[int, str, str]],
 ):
     """
-    Return semantic ancestor evidence ordered nearest-first.
+    Trả về bằng chứng ancestor semantic theo thứ tự gần trước.
 
-    Tree indentation is preferred. If tree ancestry is weak, use recently
-    selected canonical anchors as a fallback, but with lower weight.
+    Ưu tiên cây thụt lề. Nếu quan hệ ancestor trong cây yếu, dùng các anchor
+    canonical đã chọn gần đây làm fallback với trọng số thấp hơn.
     """
     tree = ancestors(nodes, node.node_index)
     tree_texts = [normalize_label(x.label_text or x.text) for x in tree]
@@ -79,6 +79,67 @@ def _nearest_semantic_ancestor_texts(
     return tree_texts, prior
 
 
+def _source_context_score(spec, catalog: SemanticCatalog, source_context: dict | None):
+    """Chấm điểm candidate alias dựa trên bằng chứng hierarchy của nguồn.
+
+    Điểm được giữ thận trọng: chỉ dùng nhãn context chuẩn hóa khớp chính xác.
+    Nhờ đó, dòng chung bị tách như ``Nguyên giá`` có thể được giải quyết dưới
+    nhóm tài sản cố định trước đó mà không biến một match chuỗi lỏng thành
+    định danh semantic.
+    """
+
+    if not isinstance(source_context, dict):
+        return 0.0, []
+
+    path = [normalize_label(x) for x in source_context.get("path") or []]
+    # ``path`` chứa dòng hiện tại ở phần tử cuối. Chỉ ancestor mới là bằng
+    # chứng parent hợp lệ.
+    ancestor_labels = [x for x in path[:-1] if x]
+    parent_label = normalize_label(source_context.get("parent_label") or "")
+    semantic_anchor = normalize_label(source_context.get("semantic_anchor") or "")
+
+    candidate_contexts = {
+        normalize_label(x)
+        for x in (spec.parent_context or [])
+        if normalize_label(x)
+    }
+    parent_chain = []
+    current = catalog.nodes.get(spec.parent_id) if spec.parent_id else None
+    seen = set()
+    while current and current.node_id not in seen:
+        seen.add(current.node_id)
+        normalized = normalize_label(current.canonical_name)
+        if normalized:
+            parent_chain.append(normalized)
+        current = catalog.nodes.get(current.parent_id) if current.parent_id else None
+    candidate_contexts.update(parent_chain)
+
+    score = 0.0
+    evidence = []
+    if semantic_anchor and semantic_anchor in candidate_contexts:
+        score = max(score, 0.72)
+        evidence.append("source_context_semantic_anchor")
+    if parent_label and parent_label in candidate_contexts:
+        score = max(score, 0.56)
+        evidence.append("source_context_parent_label")
+    if any(label in candidate_contexts for label in ancestor_labels):
+        score = max(score, 0.40)
+        evidence.append("source_context_ancestor_path")
+
+    maturity = source_context.get("maturity")
+    normalized_candidate = normalize_label(
+        " ".join([spec.canonical_name] + list(spec.exact or []) + list(spec.aliases or []))
+    )
+    if maturity == "short_term" and "ngan han" in normalized_candidate:
+        score = max(score, 0.28)
+        evidence.append("source_context_short_term")
+    elif maturity == "long_term" and "dai han" in normalized_candidate:
+        score = max(score, 0.28)
+        evidence.append("source_context_long_term")
+
+    return score, evidence
+
+
 def match_candidates(
     node: StructuralNode,
     nodes: list[StructuralNode],
@@ -87,10 +148,22 @@ def match_candidates(
     *,
     allow_fuzzy: bool = False,
     detected_sector: str | None = None,
+    source_context: dict | None = None,
 ):
     text = node.label_text or ""
     if not text:
         return []
+
+    # ``Trong đó: X`` được tách thành lhs=``Trong đó`` và rhs=``X``. Với
+    # record cấu trúc, rhs là nhãn tài chính thật, không phải thuộc tính giá trị.
+    # Thử rhs như nhãn thay thế nhưng vẫn giữ text nguồn ban đầu cho provenance.
+    label_options = [text]
+    if (
+        fold(node.lhs or "") in {"trong do", "bao gom", "including"}
+        and node.rhs
+        and not node.values
+    ):
+        label_options.insert(0, node.rhs.strip())
 
     candidates = []
     tree_texts, prior = _nearest_semantic_ancestor_texts(
@@ -98,13 +171,19 @@ def match_candidates(
     )
 
     for spec in catalog.nodes.values():
-        base = _base_match(text, spec, allow_fuzzy)
+        base = None
+        matched_source_text = text
+        for label_option in label_options:
+            base = _base_match(label_option, spec, allow_fuzzy)
+            if base:
+                matched_source_text = label_option
+                break
         if not base:
             continue
 
-        # v0.4.14 targeted sector guards for newly enriched generic labels.
-        # This avoids changing legacy matching behavior for the rest of the catalog.
-        normalized_source = normalize_label(text)
+        # v0.4.14: guard theo sector cho các nhãn chung mới được bổ sung.
+        # Cách này không làm thay đổi hành vi mapping cũ của catalog còn lại.
+        normalized_source = normalize_label(matched_source_text)
         sector_guard = {
             "vay ngan han": "enterprise",
             "vay dai han": "enterprise",
@@ -121,10 +200,19 @@ def match_candidates(
         context_score = 0.0
         evidence = []
 
+        source_score, source_evidence = _source_context_score(
+            spec,
+            catalog,
+            source_context,
+        )
+        if source_score:
+            context_score = max(context_score, source_score)
+            evidence.extend(source_evidence)
+
         parent_context = [normalize_label(x) for x in spec.parent_context if x]
         ancestor_ids = catalog.ancestor_ids(spec.node_id)
 
-        # Nearest tree ancestor is strongest semantic evidence.
+        # Ancestor gần nhất trong cây là bằng chứng semantic mạnh nhất.
         for distance, tree_text in enumerate(tree_texts):
             if not tree_text:
                 continue
@@ -135,9 +223,9 @@ def match_candidates(
                 evidence.append(f"nearest_tree_parent_context:d{distance}")
                 break
 
-        # Recent canonical direct parent is next strongest.  Weight by
-        # source-line distance, not only by recency rank: damaged Markdown
-        # indentation can make several historical parents visible at once.
+        # Parent canonical trực tiếp gần đây là bằng chứng mạnh tiếp theo.
+        # Tính trọng số theo khoảng cách dòng nguồn, không chỉ theo thứ hạng
+        # gần đây: thụt lề Markdown hỏng có thể làm lộ nhiều parent cũ cùng lúc.
         for rank, (line_no, prior_id, prior_label) in enumerate(prior):
             if spec.parent_id and prior_id == spec.parent_id:
                 delta = max(0, node.line_no - line_no)
@@ -163,9 +251,9 @@ def match_candidates(
                 evidence.append(f"recent_direct_parent:{prior_id}:d{delta}")
                 break
 
-        # Table rows are often flat, so the previous semantic row may be a
-        # sibling rather than an explicit tree parent.  A shared canonical
-        # parent is useful weak context (e.g. ASSET.OTHER.* vs LIABILITY.*).
+        # Dòng bảng thường bị làm phẳng, nên dòng semantic trước đó có thể là
+        # sibling thay vì parent rõ ràng trong cây. Parent canonical chung vẫn
+        # là context yếu hữu ích (ví dụ ASSET.OTHER.* so với LIABILITY.*).
         if spec.parent_id:
             for rank, (line_no, prior_id, prior_label) in enumerate(prior[:16]):
                 prior_spec = catalog.nodes.get(prior_id)
@@ -183,7 +271,7 @@ def match_candidates(
                     evidence.append(f"recent_sibling_parent:{spec.parent_id}:d{delta}")
                     break
 
-        # More distant canonical ancestor is weaker.
+        # Ancestor canonical xa hơn có trọng số yếu hơn.
         for rank, (line_no, prior_id, prior_label) in enumerate(prior):
             if prior_id in ancestor_ids:
                 context_score = max(context_score, 0.07)
@@ -192,21 +280,37 @@ def match_candidates(
 
         structural = spec.structural or {}
         if structural.get("same_label_as_parent_required"):
-            # IMPORTANT: repeated positional siblings must NOT be mistaken for
-            # parent/child pairs.  Require the ACTUAL nearest tree parent to
-            # carry the same label.  This preserves true structures such as:
+            # QUAN TRỌNG: không được nhầm các sibling lặp lại theo vị trí thành
+            # cặp parent/child. Phải yêu cầu parent gần nhất THỰC TẾ trong cây
+            # có cùng nhãn. Điều này giữ được cấu trúc thật như:
             #   Cho vay khách hàng
             #       Cho vay khách hàng -> .GROSS
-            # while keeping two adjacent same-label rows in the same node so
-            # the consolidator can merge current/previous columns.
+            # đồng thời giữ hai dòng cùng nhãn liền nhau trong một node để
+            # consolidator có thể gộp cột hiện tại/trước đây.
             actual_parent_same_label = bool(
                 tree_texts
                 and tree_texts[0]
                 and tree_texts[0] == normalize_label(text)
             )
+            recent_same_label_semantic_parent = any(
+                spec.parent_id
+                and prior_id == spec.parent_id
+                and prior_label == normalize_label(matched_source_text)
+                and max(0, node.line_no - line_no) <= 12
+                for line_no, prior_id, prior_label in prior
+            )
             if actual_parent_same_label:
                 context_score += 0.30
                 evidence.append("same_label_actual_tree_parent")
+            elif recent_same_label_semantic_parent:
+                # Bảng theo mẫu bị làm phẳng thường chèn dòng số/mã biểu mẫu
+                # giữa parent và child lặp nhãn. Khi đó parent thụt lề thực tế
+                # là dòng mã, nên kiểm tra chỉ dùng cây nghiêm ngặt sẽ loại
+                # child hợp lệ (ví dụ Hàng tồn kho -> Hàng tồn kho trước dự phòng).
+                # Parent semantic gần đây có cùng nhãn là dạng thứ hai an toàn
+                # của cùng bằng chứng cấu trúc.
+                context_score = max(context_score, 0.52)
+                evidence.append("same_label_recent_semantic_parent")
             else:
                 context_score -= 0.34
                 evidence.append("missing_same_label_actual_tree_parent")

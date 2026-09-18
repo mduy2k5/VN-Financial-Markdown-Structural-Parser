@@ -78,7 +78,7 @@ def select_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
 
 
 def selection_reason(document: dict[str, Any], selected: list[dict[str, Any]]) -> str:
-    """Describe why rows were selected without naming a report or ticker."""
+    """Mô tả lý do chọn dòng mà không nêu tên report hay mã cổ phiếu."""
 
     rows = document.get("rows") or []
     buckets = sorted({bucket(row) for row in selected})

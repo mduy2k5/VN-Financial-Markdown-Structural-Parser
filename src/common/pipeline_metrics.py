@@ -31,7 +31,7 @@ def _scope_text(text: str, scope: dict) -> str:
 def detect_sector_from_scope(scope_text: str, rows, schema_path=SCHEMA, aliases_path=ALIASES):
     low = scope_text.casefold()
 
-    # Explicit statutory form beats semantic guessing.
+    # Mã biểu mẫu theo quy định được ưu tiên hơn suy đoán semantic.
     if re.search(r"(?i)B\s*0?2\s*[-–]?\s*CTCK", scope_text) or "công ty chứng khoán" in low or "cong ty chung khoan" in low:
         return "securities", "form_or_text"
     insurance_hints = [
@@ -66,17 +66,17 @@ def detect_sector_from_scope(scope_text: str, rows, schema_path=SCHEMA, aliases_
     if es >= 2 and es > bs:
         return "enterprise", "semantic_anchors"
 
-    # Last fallback: score normalized rows against each catalog.
+    # Fallback cuối: chấm điểm dòng đã chuẩn hóa với từng catalog.
     sec = auto_sector(rows, schema_path, aliases_path)
     return sec, "row_catalog"
 
 
 def _is_source_observation_node(node: dict) -> bool:
-    """Identify additive source-evidence nodes without relying on report names.
+    """Nhận diện node evidence nguồn bổ sung mà không dựa vào tên báo cáo.
 
-    Source observations are intentionally retained in canonical output for
-    traceability.  They are not independent semantic rows, though, so they
-    must not inflate the denominator of period coverage or source completeness.
+    Observation nguồn được cố ý giữ trong output canonical để truy vết. Tuy
+    nhiên, chúng không phải dòng semantic độc lập nên không được làm tăng mẫu
+    số của coverage kỳ hay độ đầy đủ nguồn.
     """
 
     return (
@@ -202,8 +202,10 @@ def build_cashflow_metrics(canonical: dict, rows, ext: dict, sector: str, sector
     else:
         status = "ok"
 
-    # Source-coverage gate: 100% of a tiny fragment is not a complete cash-flow statement.
-    # Use semantic core anchors rather than requiring form codes/notes, because LLM Markdown can omit both.
+    # Gate coverage nguồn: 100% của một mảnh rất ngắn không phải báo cáo lưu
+    # chuyển tiền tệ đầy đủ.
+    # Dùng anchor semantic cốt lõi thay vì bắt buộc mã biểu mẫu/thuyết minh vì
+    # Markdown do LLM tạo có thể thiếu cả hai.
     valued_ids = {n.get("node_id") for n in coverage_valued}
     if sector == "enterprise":
         core = {

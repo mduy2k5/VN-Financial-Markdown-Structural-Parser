@@ -53,20 +53,19 @@ def clean_value(s: Any) -> Optional[str]:
 
 
 def _period_role_and_priority(label: str, current_year: int, previous_year: int):
-    """Return (role, priority). Higher priority wins.
+    """Trả về ``(role, priority)``. Priority cao hơn được ưu tiên.
 
-    For annual reports, explicit annual/current labels have priority 20.
-    For quarterly B03a layouts, cumulative values have priority 30 over quarter values.
+    Với báo cáo năm, nhãn năm/hiện tại rõ có priority 20. Với bố cục B03a quý,
+    giá trị lũy kế có priority 30, cao hơn giá trị quý.
     """
     f = strip_md(label).casefold()
     f = re.sub(r"\([^)]*\)", " ", f)
     f = re.sub(r"\s+", " ", f).strip()
     cumulative = any(x in f for x in ("lũy kế", "luỹ kế", "luy ke", "từ đầu năm", "tu dau nam"))
     if cumulative:
-        # A comparative cumulative label normally still contains the generic
-        # phrase "cuối quý" (for example, "Luỹ kế ... đến cuối quý trước").
-        # Resolve the explicit comparative cue first so it cannot be mistaken
-        # for the current cumulative column merely because of that phrase.
+        # Nhãn lũy kế so sánh thường vẫn chứa cụm chung "cuối quý" (ví dụ
+        # "Luỹ kế ... đến cuối quý trước"). Giải quyết cue so sánh rõ trước để
+        # không nhầm thành cột lũy kế hiện tại chỉ vì có cụm từ này.
         if str(previous_year) in f or "năm trước" in f or "ky truoc" in f or "kỳ trước" in f or "quý trước" in f:
             return "previous", 30
         if str(current_year) in f or "năm nay" in f or "ky nay" in f or "kỳ này" in f or "cuối quý" in f:
@@ -83,7 +82,7 @@ def _period_role_and_priority(label: str, current_year: int, previous_year: int)
 
 
 def parse_period_line(text: str, current_year: int, previous_year: int):
-    """Parse period attributes such as:
+    """Đọc thuộc tính kỳ như:
       Năm nay: 1.000
       Năm trước (Trình bày lại): 900
       Năm 2025 (Triệu đồng): 1.000
@@ -118,7 +117,7 @@ def _candidate_score(lines: list[str], i: int, current_year: int, previous_year:
     hlow = head.casefold()
     score = 30
 
-    # Favor the requested report year and reject a prior-year note/table heading.
+    # Ưu tiên năm báo cáo được yêu cầu và loại heading thuyết minh/bảng của năm trước.
     if str(current_year) in hlow:
         score += 50
     if str(previous_year) in hlow and str(current_year) not in hlow:
@@ -133,7 +132,7 @@ def _candidate_score(lines: list[str], i: int, current_year: int, previous_year:
             period_lines += 1
     score += min(period_lines, 24) * 6
 
-    # Inline rows such as "...: 100 (Năm nay), 90 (Năm trước)".
+    # Dòng inline như "...: 100 (Năm nay), 90 (Năm trước)".
     score += min(len(re.findall(r"(?i)\(Năm\s+(?:nay|trước)\)", chunk)), 10) * 4
 
     for anchor in [
@@ -166,12 +165,11 @@ def _heading_candidates(lines: list[str], current_year: int, previous_year: int)
 
 
 def _scope_end_for_candidate(lines: list[str], start: int, max_span: int = 560) -> int:
-    """Return the structural end of one income candidate.
+    """Trả về điểm kết thúc cấu trúc của một candidate B02.
 
-    This is intentionally independent from candidate scoring.  A TOC entry often
-    looks like a strong income heading but is followed immediately by the next
-    primary statement.  Measuring the candidate span prevents such entries from
-    winning merely because they occur earlier in the document.
+    Hàm cố ý độc lập với việc chấm điểm candidate. Một entry mục lục thường
+    giống heading B02 mạnh nhưng ngay sau đó là báo cáo chính kế tiếp. Đo span
+    candidate giúp entry đó không thắng chỉ vì nằm sớm hơn trong tài liệu.
     """
     end = min(len(lines), start + max_span)
     for j in range(start + 1, min(len(lines), start + max_span)):
@@ -184,20 +182,20 @@ def _scope_end_for_candidate(lines: list[str], start: int, max_span: int = 560) 
 
 
 def _find_notes_start(lines: list[str]) -> int | None:
-    """Return the first strong start of the notes section.
+    """Trả về điểm bắt đầu mạnh đầu tiên của section Notes.
 
-    Candidate ranking must not allow a long numeric note (revenue breakdown,
-    related parties, deferred tax, segment information, etc.) to beat the
-    primary income statement merely because the note contains more rows.
+    Xếp hạng candidate không được để thuyết minh dài nhiều số (phân tích doanh
+    thu, bên liên quan, thuế hoãn lại, thông tin segment...) thắng báo cáo chính
+    chỉ vì thuyết minh có nhiều dòng hơn.
     """
     for i, line in enumerate(lines):
         t = strip_md(line).casefold()
-        # The heading is stronger than incidental prose mentioning notes.
+        # Heading có trọng số cao hơn văn xuôi chỉ nhắc đến Notes.
         if re.search(r"(?i)^\s*(?:thuyết minh|thuyet minh)\s+(?:báo cáo|bao cao)\s+tài chính", strip_md(line)):
             return i
         if re.search(r"(?i)\bB\s*0?9\s*[-–/]?\s*DN(?:/HN)?\b", strip_md(line)):
-            # The form code can occur in metadata; require nearby notes wording
-            # when possible.
+            # Mã biểu mẫu có thể nằm trong metadata; khi có thể phải yêu cầu
+            # wording Notes ở gần.
             nearby = " ".join(strip_md(x).casefold() for x in lines[max(0, i-4):i+5])
             if "thuyết minh" in nearby or "thuyet minh" in nearby:
                 return max(0, i-4)
@@ -210,7 +208,7 @@ def _candidate_viability(lines: list[str], cand: dict, current_year: int, previo
     span = max(0, end - start)
     chunk = lines[start:end]
 
-    # Evidence that this is a real statement body rather than a TOC/index entry.
+    # Evidence cho thấy đây là thân báo cáo thật thay vì entry mục lục/index.
     numeric_rows = 0
     period_rows = 0
     table_rows = 0
@@ -223,8 +221,8 @@ def _candidate_viability(lines: list[str], cand: dict, current_year: int, previo
         if re.search(r"\d[\d.,]{2,}", t):
             numeric_rows += 1
 
-    # Strong primary-statement evidence. Notes can have hundreds of numbers but
-    # normally do not contain this compact set of statutory statement anchors.
+    # Evidence mạnh của báo cáo chính. Notes có thể có hàng trăm số nhưng thường
+    # không có tập anchor báo cáo theo luật định gọn như vậy.
     low_chunk = "\n".join(chunk).casefold()
     statement_anchor_hits = sum(1 for a in (
         "doanh thu thuần", "giá vốn hàng bán", "lợi nhuận gộp",
@@ -235,27 +233,26 @@ def _candidate_viability(lines: list[str], cand: dict, current_year: int, previo
     ) if a in low_chunk)
 
     adjusted = cand["score"]
-    # The primary regression guard: TOC candidates typically terminate in 1-3 lines.
+    # Cổng hồi quy chính: candidate mục lục thường kết thúc sau 1-3 dòng.
     if span < 8:
         adjusted -= 1000
     elif span < 15:
         adjusted -= 250
 
-    # Once the statutory notes section has started, a later income-like heading
-    # is overwhelmingly likely to be a disclosure/note rather than the primary
-    # statement. This is a regression guard for reports with note sections that
-    # repeat income-like headings.
+    # Khi section Notes theo luật định đã bắt đầu, heading giống B02 về sau gần
+    # như chắc chắn là disclosure/note thay vì báo cáo chính. Đây là cổng hồi
+    # quy cho report có Notes lặp lại heading giống B02.
     if notes_start is not None and start >= notes_start:
         adjusted -= 1400
 
     adjusted += statement_anchor_hits * 35
 
-    # Very long scopes are usually notes/disclosures. Do not ban them outright,
-    # but stop raw numeric density from dominating a compact primary statement.
+    # Scope rất dài thường là Notes/disclosure. Không cấm tuyệt đối, nhưng không
+    # để mật độ số raw lấn át một báo cáo chính compact.
     if span > 320:
         adjusted -= min(500, (span - 320) * 2)
 
-    # Reward actual statement evidence without making it ticker-specific.
+    # Thưởng evidence báo cáo thật mà không gắn với mã cổ phiếu.
     adjusted += min(period_rows, 12) * 3
     adjusted += min(table_rows, 8) * 2
     adjusted += min(numeric_rows, 20)
@@ -294,12 +291,12 @@ def choose_income_scope(text: str, current_year: int | None = None, previous_yea
     viable = [c for c in cands if c["span"] >= 8 and c["adjusted_score"] > -500]
     pool = viable or cands
 
-    # Choose by structural evidence first.  Earlier position is only a tie-breaker;
-    # it must never override a later candidate with a real statement body.
+    # Chọn theo evidence cấu trúc trước. Vị trí sớm chỉ là tie-breaker; không bao
+    # giờ được lấn át candidate muộn hơn có thân báo cáo thật.
     best = max(pool, key=lambda c: (c["adjusted_score"], c["span"], -c["i"]))
 
-    # If best is a continuation, prefer a nearby viable primary heading so both
-    # pages are captured in one scope.
+    # Nếu candidate tốt nhất là trang tiếp nối, ưu tiên heading báo cáo chính khả
+    # dụng ở gần để scope lấy được cả hai trang.
     if "tiếp theo" in best["head"].casefold():
         prev = [
             c for c in viable

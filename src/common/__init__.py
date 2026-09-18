@@ -1,4 +1,4 @@
-"""Common utilities for financial statements extraction."""
+"""Tiện ích dùng chung để trích xuất báo cáo tài chính."""
 
 from .period_resolver import period_role_for_date
 from .value_semantics import (

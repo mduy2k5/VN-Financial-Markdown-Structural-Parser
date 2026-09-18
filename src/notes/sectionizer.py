@@ -43,7 +43,7 @@ def normalize_note_id(raw: Optional[str]) -> Optional[str]:
         if m:
             norm.append(str(int(m.group(1)))+(m.group(2) or ''))
         else:
-            # preserve suffixes such as 2a / 21b
+    # Giữ các hậu tố như 2a / 21b.
             m2=re.fullmatch(r'(\d+)([A-Za-z]+)',p)
             if m2: norm.append(str(int(m2.group(1)))+m2.group(2).lower())
             else: norm.append(p.upper())
@@ -53,7 +53,7 @@ def normalize_note_id(raw: Optional[str]) -> Optional[str]:
 def _page_map(lines:list[str])->dict[int,int]:
     page=None; out={}
     for i,raw in enumerate(lines,start=1):
-        # Support both metadata `page: 15` and visible `# Page 15`.
+    # Hỗ trợ cả metadata `page: 15` và dòng hiển thị `# Page 15`.
         pm=PAGE_RE.match(raw)
         if pm: page=int(pm.group(1))
         else:
@@ -64,10 +64,10 @@ def _page_map(lines:list[str])->dict[int,int]:
 
 
 def _candidate_from_line(raw:str):
-    """Return (id,title,level,kind) for semantic note headings.
+    """Trả về ``(id, title, level, kind)`` cho heading thuyết minh semantic.
 
-    Accept Markdown heading, bold heading and plain numbered heading. Bullet rows are
-    intentionally excluded so data lines like `* Số cuối năm:` cannot open sections.
+    Chấp nhận heading Markdown, heading in đậm và heading đánh số dạng plain.
+    Cố ý loại bullet để dòng dữ liệu như `* Số cuối năm:` không mở section.
     """
     if BULLET_PREFIX_RE.match(raw): return None
     indent = len(raw) - len(raw.lstrip(' '))
@@ -82,7 +82,7 @@ def _candidate_from_line(raw:str):
     if nm:
         title=nm.group('title').strip(' .:-')
         if not title: return None
-        # Reject long prose sentences accidentally starting with a number.
+    # Loại câu văn dài vô tình bắt đầu bằng một chữ số.
         if len(title)>220 and level==0: return None
         stripped = raw.strip()
         if level:
@@ -115,9 +115,9 @@ def sectionize_notes(text:str,scope:NotesScope)->list[NoteSection]:
     for candidate in candidates:
         line_no,nid,title,level,kind,style,indent,stripped=candidate
         if kind == 'numbered':
-            # A full-line bold numbered title is the strongest non-heading form
-            # used by the source corpus (for example `**8.1. Theo ...**`). Keep it
-            # even when its title is title case rather than uppercase.
+    # Tiêu đề đánh số in đậm toàn dòng là dạng không phải heading mạnh nhất
+    # trong nguồn (ví dụ `**8.1. Theo ...**`). Giữ lại cả khi tiêu đề viết
+    # kiểu title case thay vì toàn chữ hoa.
             if style == 'full_bold':
                 filtered.append(candidate)
                 continue
@@ -133,11 +133,10 @@ def sectionize_notes(text:str,scope:NotesScope)->list[NoteSection]:
                 continue
             if style == 'numbered_full_title_bold' and prev_id and current_id == normalize_note_id(prev_id):
                 continue
-            # A numbered, fully-bold child such as `2. **Công ty liên doanh**`
-            # commonly follows a top-level numeric note and is a disclosure list
-            # item. Real numbered Notes use a new page/heading style in this case;
-            # the exception for a Roman parent keeps forms such as `V. ...` ->
-            # `1. **Tiền...**` working.
+    # Child đánh số in đậm toàn dòng như `2. **Công ty liên doanh**` thường
+    # theo sau một thuyết minh số cấp cao và là item trong danh sách công bố.
+    # Thuyết minh đánh số thật dùng kiểu trang/heading mới; ngoại lệ cho parent
+    # La Mã vẫn cho phép dạng `V. ...` -> `1. **Tiền...**` hoạt động.
             if (
                 style == 'numbered_full_title_bold'
                 and prev_id
@@ -155,8 +154,8 @@ def sectionize_notes(text:str,scope:NotesScope)->list[NoteSection]:
         pages=sorted({page_map.get(x) for x in range(start,end+1) if page_map.get(x) is not None})
         return [NoteSection(note_id_raw=None,note_id_normalized=None,title_raw='Thuyết minh Báo cáo tài chính',title_normalized=fold_text('Thuyết minh Báo cáo tài chính'),source_start_line=start,source_end_line=end,pages=pages,metadata={'sectionizer':'whole_scope_fallback'})]
 
-    # Keep source order. A numbered candidate starts a new section; Roman headings are
-    # retained too because they represent major disclosure families.
+    # Giữ thứ tự nguồn. Candidate đánh số mở section mới; heading La Mã cũng
+    # được giữ vì chúng đại diện cho nhóm công bố lớn.
     sections=[]
     for i,(line_no,nid,title,level,kind,style,indent,stripped) in enumerate(candidates):
         next_line=candidates[i+1][0]-1 if i+1<len(candidates) else end

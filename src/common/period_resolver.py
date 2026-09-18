@@ -1,7 +1,7 @@
-"""Small shared policy for assigning explicit statement dates to periods.
+"""Chính sách dùng chung để gán ngày báo cáo rõ vào các kỳ.
 
-The document-level year resolver lives in :mod:`report_period`.  This module
-only contains the date-to-role policy used by source recovery and Notes.
+Bộ giải quyết năm ở cấp tài liệu nằm trong :mod:`report_period`. Module này chỉ
+chứa chính sách đổi ngày thành role dùng bởi khôi phục nguồn và Notes.
 """
 
 from __future__ import annotations
@@ -14,11 +14,10 @@ def period_role_for_date(
     current_year: int | None,
     previous_year: int | None,
 ) -> str | None:
-    """Map a source date to ``current`` or ``previous``.
+    """Đổi ngày nguồn thành ``current`` hoặc ``previous``.
 
-    Parser years are calendar years of statement end dates, not necessarily
-    December years. A day-one opening date is comparative evidence even when
-    it falls in the current calendar year.
+    Năm parser là năm lịch của ngày kết thúc báo cáo, không nhất thiết là năm
+    tháng 12. Ngày đầu tháng một là evidence so sánh dù nằm trong năm hiện tại.
     """
 
     if current_year is not None and year == current_year:

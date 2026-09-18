@@ -84,13 +84,13 @@ def fold(s: Any) -> str:
 
 
 def _is_cumulative_period_label(value: Any) -> bool:
-    """Identify a year-to-date period without changing the public period API."""
+    """Nhận diện kỳ lũy kế mà không thay đổi API kỳ công khai."""
     label = fold(value)
     return any(token in label for token in ("luy ke", "cumulative", "year to date", "ytd"))
 
 
 def _primary_period_priority(label: Any, current_year: int, previous_year: int):
-    """Rank primary quarter columns above cumulative columns for extraction."""
+    """Ưu tiên cột quý chính hơn cột lũy kế khi trích xuất."""
     role, priority = _period_role_and_priority(label, current_year, previous_year)
     if role and _is_cumulative_period_label(label):
         priority = min(priority, 5)
@@ -104,10 +104,10 @@ def is_non_item_header_or_noise(label: Any) -> bool:
     f = fold(s)
     if not f:
         return True
-    # Keyed serializers may prefix a structural child heading with the field
-    # name.  Normalize that wrapper before applying the semantic noise list.
+    # Serializer dạng keyed có thể thêm tên field trước heading của child cấu trúc.
+    # Chuẩn hóa wrapper đó trước khi áp dụng danh sách nhiễu semantic.
     f = re.sub(r"^(?:ghi\s*chu|dien\s*giai|chi\s*tieu)\s+(?:-\s*)?", "", f)
-    # Table headers & field prompts
+    # Header bảng và prompt field.
     if f in {
         "chi tieu", "stt", "ma so", "thuyet minh", "thuyet minh ma so",
         "ma so thuyet minh", "ma so chi tieu", "chi tieu ma so",
@@ -116,26 +116,25 @@ def is_non_item_header_or_noise(label: Any) -> bool:
         "trong do", "noi dung", "content", "ma", "tong cong",
     }:
         return True
-    # Form codes e.g. B02-DN, B03/TCTD-HN, B 02 - DN/HN, B02-CTCK
+    # Mã biểu mẫu, ví dụ B02-DN, B03/TCTD-HN, B 02 - DN/HN, B02-CTCK.
     if re.match(r"(?i)^(?:b\s*0?2|b\s*0?3|b\s*0?4|b\s*0?5|b\s*0?9)[a-z]?(?:[-–/]\s*[a-z0-9]+)*$", s):
         return True
-    # Footnote references e.g. VI.13, VI.14, V.18.2, 12.1
+    # Số thuyết minh, ví dụ VI.13, VI.14, V.18.2, 12.1.
     if re.match(r"(?i)^[vixlcdm\d]+(?:\.\d+)+$", s):
         return True
-    # Footers / disclaimers
+    # Footer và nội dung miễn trừ.
     if f.startswith("cac thuyet minh") or f.startswith("thuyet minh bao cao") or f.startswith("dien giai bao cao"):
         return True
-    # Sub-period column headings
+    # Heading của cột kỳ phụ.
     if re.match(r"^(?:quy\s+[ivxlcdm\d]+|luy ke(?:\s+tu\s+dau\s+nam)?)(?:\s|$)", f):
         return True
-    # Annual period headings e.g. "Nam 2025", "Nam ket thuc ngay 31 thang 12 nam 2025"
+    # Heading kỳ năm, ví dụ "Nam 2025", "Nam ket thuc ngay 31 thang 12 nam 2025".
     if re.match(r"^nam\s+(?:ket\s+thuc|bao\s+cao|tai\s+chinh|20\d{2})\b", f):
         return True
     if re.match(r"^(?:nam nay|nam truoc|ky nay|ky truoc)(?:\s*[:\-].*)?$", f):
         return True
-    # Administrative lines frequently acquire a numeric payload when a PDF
-    # table is flattened.  They are not observations even when they contain a
-    # date, page number, or a signatory's name.
+    # Dòng hành chính thường nhận nhầm payload số khi PDF bị làm phẳng.
+    # Chúng không phải observation dù có ngày, số trang hoặc tên người ký.
     if re.match(r"^(?:trang|page)\s*:?\s*\d+(?:\s*[-/]\s*\d+)?$", f):
         return True
     if re.match(r"^(?:ngay|date)\s*:?\s*\d{1,2}\b", f):
@@ -150,18 +149,16 @@ def is_non_item_header_or_noise(label: Any) -> bool:
         "dien giai bao cao", "thanh pho ", "bang ket qua ",
         "bao cao ket qua", "cong ty co phan",
     )):
-        # A plain-text fallback may prepend the statement heading to the
-        # first real row label.  Keep that row when accounting vocabulary is
-        # present; filter only a standalone administrative heading.
+        # Fallback plain text có thể thêm heading statement vào trước label row
+        # đầu. Giữ row khi có từ vựng kế toán; chỉ lọc heading hành chính đứng riêng.
         if not (
             f.startswith("bao cao ket qua")
             and any(token in f for token in ("doanh thu", "chi phi", "loi nhuan", "thu nhap"))
         ):
             return True
 
-    # Role suffixes and page-transfer annotations are frequently flattened
-    # after a numeric column.  They are structural text, even when a value
-    # token was attached to the same line.
+    # Hậu tố vai trò và ghi chú chuyển trang thường bị làm phẳng sau cột số.
+    # Đây là text cấu trúc dù cùng dòng có token giá trị.
     if re.search(r"\b(?:tong giam doc|pho tong giam doc|ke toan truong|nguoi lap bieu|giam doc tai chinh|chuc vu)\s*$", f):
         return True
     if f in {"lai tren co phieu", "phan bo cho", "da dieu chinh lai", "dieu chinh lai"}:
@@ -169,8 +166,8 @@ def is_non_item_header_or_noise(label: Any) -> bool:
     if f.startswith("mang ") and "trang" in f:
         return True
 
-    # A short all-word footer is normally a signatory/person name.  Keep
-    # labels with accounting vocabulary such as "Doanh thu" or "Chi phí".
+    # Footer ngắn chỉ gồm chữ thường là tên người ký. Giữ label có từ kế toán
+    # như "Doanh thu" hoặc "Chi phí".
     if re.fullmatch(r"[a-z]+(?: [a-z]+){1,7}", f):
         accounting_markers = (
             "doanh thu", "chi phi", "loi nhuan", "thue", "tai san",
@@ -197,7 +194,7 @@ def _bullet_info(line: str):
 
 def _strip_leading_index(label: str):
     label = strip_md(label)
-    # Code | label tables serialized as bullets.
+    # Bảng code | label được serialize thành bullet.
     mp = re.match(r"^(\d{1,3}|[IVXLC]+)\s*\|\s*(.+)$", label, re.I)
     if mp:
         lab = re.sub(r"^\d+[.)]\s*", "", mp.group(2)).strip()
@@ -231,6 +228,13 @@ def _row(indicator: str, current=None, previous=None, code=None, note=None, unit
 
 
 def extract_pipe_table(lines, start, end, current_year=None, previous_year=None):
+    """Đọc các row trong bảng Markdown có dấu ``|``.
+
+    Đầu vào là danh sách dòng và khoảng ``start:end`` của scope B02, cùng hai
+    năm để nhận diện cột. Hàm tìm header kỳ, đọc label và hai giá trị, rồi tạo
+    row có provenance dòng nguồn. Đầu ra là list dict row; header, separator và
+    row không có số bị bỏ qua.
+    """
     out = []
     header_period_order = None
     for i in range(start, end):
@@ -294,7 +298,7 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
                 break
         raw.append(line)
 
-        # Keyed row layout: Mã số -> Chỉ tiêu -> values.
+    # Bố cục dòng có khóa: Mã số -> Chỉ tiêu -> giá trị.
         mm = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", txt)
         if mm:
             code = strip_md(mm.group(1)); j += 1; continue
@@ -326,7 +330,7 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
                 child_label = txt
         j += 1
 
-    # Parent itself may be a keyed field rather than semantic label.
+        # Parent có thể là field keyed thay vì semantic label.
     mparent_code = re.match(r"(?i)^Mã\s*số\s*:\s*(.+)$", label)
     mparent_stt = re.match(r"(?i)^STT\s*:\s*(.+)$", label)
     mparent_label = re.match(r"(?i)^(?:CHỈ\s*TIÊU|Chỉ\s*tiêu|Diễn\s*giải)\s*:\s*(.+)$", label)
@@ -345,6 +349,13 @@ def _parse_descendants(lines, i, end, current_year, previous_year):
 
 
 def extract_period_children(lines, start, end, current_year=None, previous_year=None):
+    """Đọc cây bullet khi giá trị kỳ nằm trong các dòng con.
+
+    Đầu vào là các dòng trong scope và cặp năm. Hàm duyệt từng bullet parent,
+    gom descendant cùng indent, nhận diện label/period/note rồi tạo row. Đầu
+    ra là list row semantic với current, previous, code, note và raw lines;
+    mã chỉ là metadata, không làm khóa map.
+    """
     out = []
     for i in range(start, end):
         bi = _bullet_info(lines[i])
@@ -367,7 +378,12 @@ def extract_period_children(lines, start, end, current_year=None, previous_year=
 
 
 def extract_positional_children(lines, start, end):
-    """label -> [optional note] -> current -> previous."""
+    """Đọc cấu trúc ``nhãn -> ghi chú tùy chọn -> hiện tại -> trước đây``.
+
+    Đầu vào là các dòng trong scope B02. Hàm dùng indent để lấy child trực tiếp,
+    phân loại số theo vị trí và trả list row. Hàm phù hợp với layout bullet có
+    thứ tự ổn định; nó không tự map row vào schema.
+    """
     out = []
     for i in range(start, end):
         bi = _bullet_info(lines[i])
@@ -388,7 +404,7 @@ def extract_positional_children(lines, start, end):
             ind2, txt = bj
             if ind2 <= indent:
                 break
-            # If child is a new top-level Roman numeral section label, break early
+        # Nếu child là label section cấp cao mới bắt đầu bằng số La Mã, dừng sớm.
             if clean_value(txt) is None and not (NOTE_LIKE_RE.match(txt) and len(txt) <= 12):
                 if re.match(r"(?i)^[IVXLCDM]+[.)\s]", txt):
                     break
@@ -408,7 +424,7 @@ def extract_positional_children(lines, start, end):
                                 pattern_id="SP_POSITIONAL_VALUE_CHILDREN", line_no=i+1,
                                 raw_lines=[lines[i]] + [x[2] for x in direct]))
                 continue
-                # Fallback: check if subsequent lines at the same indent are values in OCR output.
+        # Fallback: kiểm tra dòng tiếp theo cùng indent có phải giá trị OCR không.
         same_indent_vals = []
         j = i + 1
         note = None
@@ -436,10 +452,15 @@ def extract_positional_children(lines, start, end):
 
 
 def extract_inline_period_rows(lines, start, end):
-    """Rows like: **1. Thu nhập lãi:** 4.638.361 (Năm nay), 3.496.810 (Năm trước)"""
+    """Đọc row inline có label và hai payload kỳ trên cùng một dòng.
+
+    Đầu vào là dòng scope B02. Hàm nhận dạng dạng ``label: current, previous``
+    sau khi bỏ Markdown, rồi trả list row có code, giá trị và raw line. Row
+    không khớp mẫu bị bỏ qua để collector khác xử lý.
+    """
     out = []
-    # OCR/Markdown serializers use comma, semicolon or a pipe between periods.
-    # Accept optional currency/unit text after the numeric payload.
+    # Serializer OCR/Markdown dùng dấu phẩy, chấm phẩy hoặc pipe giữa các kỳ.
+    # Cho phép text tiền tệ/unit đứng sau payload số.
     pat = re.compile(
         r"^(.+?)\s*:\s*"
         r"(\(?-?[\d][\d.,]*\)?)\s*(?:đồng|vnd)?\s*\(Năm\s+nay\)"
@@ -461,7 +482,12 @@ def extract_inline_period_rows(lines, start, end):
 
 
 def extract_heading_attribute_rows(lines, start, end, current_year=None, previous_year=None):
-    """Non-bullet semantic heading followed by bullet attributes; common on continuation pages."""
+    """Đọc label heading theo sau bởi các attribute bullet.
+
+    Đầu vào là scope và cặp năm. Hàm lấy heading không bullet, đọc các dòng
+    ``Mã số``, ``Thuyết minh`` và period bên dưới, rồi trả list row. Đầu ra
+    giữ raw lines để audit và không dùng code làm identity.
+    """
     out = []
     for i in range(start, end):
         if _bullet_info(lines[i]):
@@ -505,20 +531,24 @@ def extract_heading_attribute_rows(lines, start, end, current_year=None, previou
 
 
 def _looks_like_plain_note_token(raw: str) -> bool:
-    """Generalized note reference detector. Structural position is still required."""
+    """Bộ nhận diện tổng quát cho token tham chiếu thuyết minh; vẫn phải kiểm tra vị trí cấu trúc."""
     return is_note_reference(strip_md(raw))
 
 def extract_plain_text_code_rows(lines, start, end):
-    """Fallback for OCR/plain-text enterprise tables without bullets.
+    """Fallback cho bảng OCR/văn bản thuần của doanh nghiệp không có bullet.
 
-    Supported layouts:
+    Đầu vào là các dòng trong scope B02. Hàm ghép label, code, note và payload
+    số theo vị trí hoặc marker, rồi trả row có provenance. Đây là collector
+    phục hồi cấu trúc; nó không map semantic node.
+
+    Các bố cục được hỗ trợ:
 
       label
       code
       current
       previous
 
-    and the common degraded 5-line layout:
+    và bố cục năm dòng thường gặp khi dữ liệu bị suy giảm:
 
       label
       code
@@ -526,9 +556,9 @@ def extract_plain_text_code_rows(lines, start, end):
       current
       previous
 
-    The note is consumed only when there are THREE numeric tokens after the form
-    code and the first token is a conservative note-like reference.  This avoids
-    shifting the note into the current-period value.
+    Chỉ nhận token thuyết minh khi có BA token số sau mã biểu mẫu và token đầu
+    tiên có dạng tham chiếu thuyết minh chắc chắn. Cách này tránh đẩy token
+    thuyết minh vào giá trị kỳ hiện tại.
     """
     out = []
     for i in range(start, end):
@@ -550,14 +580,14 @@ def extract_plain_text_code_rows(lines, start, end):
                 numeric_tokens.append((raw, t, v))
                 j += 1
                 continue
-            # Generalized note references such as VI.02 / V.03.3 are payload tokens
-            # only in the structural slot immediately after the form code.
+            # Số thuyết minh như VI.02 / V.03.3 chỉ là payload khi nằm đúng slot
+            # cấu trúc ngay sau mã biểu mẫu.
             if not numeric_tokens and is_note_reference(t):
                 numeric_tokens.append((raw, t, None))
                 j += 1
                 continue
 
-            # A textual row after the code means the vertical numeric payload ended.
+            # Row dạng text sau code cho biết payload số theo chiều dọc đã kết thúc.
             if not re.match(
                 r"(?i)^(?:thuyết\s*minh|tm|năm\s*nay|năm\s*trước|"
                 r"202\d|số\s*cuối\s*năm|số\s*đầu\s*năm)$",
@@ -572,7 +602,7 @@ def extract_plain_text_code_rows(lines, start, end):
         note = None
         payload = list(numeric_tokens)
 
-        # label -> code -> note -> current -> previous
+        # label -> code -> note -> current -> previous.
         if (
             len(payload) >= 3
             and _looks_like_plain_note_token(payload[0][1])
@@ -588,7 +618,7 @@ def extract_plain_text_code_rows(lines, start, end):
         previous = payload[1][2]
         value_lines = [x[0] for x in numeric_tokens]
 
-        # Build label from up to four previous non-header text lines.
+        # Ghép label từ tối đa bốn dòng text trước đó không phải header.
         parts = []
         k = i - 1
         while k >= start and len(parts) < 4:
@@ -636,7 +666,7 @@ def extract_plain_text_code_rows(lines, start, end):
 
 
 def _plain_label_before_code(lines, start, code_index):
-    """Recover the wrapped row label immediately before a detached form code."""
+    """Khôi phục nhãn dòng bị xuống dòng ngay trước mã biểu mẫu tách rời."""
 
     parts = []
     index = code_index - 1
@@ -667,7 +697,7 @@ def _plain_label_before_code(lines, start, code_index):
 
 
 def _plain_next_label_code(lines, start, index, end):
-    """Find the next wrapped semantic label followed by a form code."""
+    """Tìm nhãn semantic bị xuống dòng tiếp theo, theo sau là mã biểu mẫu."""
 
     parts = []
     while index < end and len(parts) < 5:
@@ -683,8 +713,8 @@ def _plain_next_label_code(lines, start, index, end):
             index += 1
             continue
         if clean_value(text) is not None:
-            # The caller normally starts after the value run.  A second numeric
-            # run means the block is ambiguous, so do not guess its label.
+            # Caller thường bắt đầu sau dãy giá trị. Dãy số thứ hai làm block
+            # mơ hồ, nên không đoán label.
             return None
         if FORM_CODE_RE.search(text) or is_non_item_header_or_noise(text):
             return None
@@ -694,7 +724,7 @@ def _plain_next_label_code(lines, start, index, end):
 
 
 def _interleaved_pair_layout(values, anchor):
-    """Return a two-row layout when an arithmetic anchor confirms the order."""
+    """Trả về bố cục hai dòng khi một mốc tính toán xác nhận thứ tự."""
 
     if len(values) != 4 or not anchor:
         return None
@@ -704,9 +734,9 @@ def _interleaved_pair_layout(values, anchor):
         return None
 
     candidates = [
-        # Column-major: current values for both rows, then previous values.
+    # Theo cột: toàn bộ giá trị hiện tại rồi toàn bộ giá trị trước đó.
         ((0, 2), (1, 3)),
-        # Row-major: current/previous for the first row, then the second row.
+        # Row-major: current/previous của row đầu rồi đến row thứ hai.
         ((0, 1), (2, 3)),
     ]
     best = None
@@ -745,14 +775,18 @@ def _interleaved_pair_layout(values, anchor):
 
 
 def extract_interleaved_formula_pairs(lines, start, end, base_rows):
-    """Recover adjacent rows whose values are interleaved across detached columns.
+    """Khôi phục các dòng liền kề có giá trị đan xen qua các cột tách rời.
 
-    Some OCR serializers emit one row's code and then four values for two
-    adjacent rows before emitting the next row's label/code.  This collector
-    only accepts the block when the labels describe a known statement identity
-    (net revenue = cost of sales + gross profit) and the source values satisfy
-    that identity in at least one period.  It therefore remains structural and
-    semantic, rather than report- or ticker-specific.
+    Một số bộ chuyển đổi OCR phát ra mã của một dòng, sau đó là bốn giá trị
+    của hai dòng liền kề rồi mới phát ra nhãn/mã của dòng tiếp theo. Bộ thu này
+    chỉ nhận khối khi các nhãn mô tả một quan hệ báo cáo đã biết (doanh thu
+    thuần = giá vốn + lợi nhuận gộp) và giá trị nguồn thỏa quan hệ đó ở ít nhất
+    một kỳ. Vì vậy, logic vẫn dựa trên cấu trúc và ngữ nghĩa, không phụ thuộc
+    báo cáo hay mã chứng khoán cụ thể.
+
+    Đầu vào là scope và ``base_rows`` đã thu. Đầu ra là các row bổ sung chỉ khi
+    cấu trúc cùng công thức xác nhận chúng; nếu không đủ evidence, trả list
+    rỗng.
     """
 
     anchors = [
@@ -845,14 +879,14 @@ def extract_interleaved_formula_pairs(lines, start, end, base_rows):
 
 
 def _is_short_vector_token(raw: str) -> bool:
-    """Identify a compact code/note token in a detached statement column."""
+    """Nhận diện token mã/thuyết minh ngắn trong cột báo cáo tách rời."""
 
     text = strip_md(raw).strip()
     return bool(re.fullmatch(r"(?:\d{1,3}[a-z]?|[IVXLC]+)", text, re.I))
 
 
 def _is_vector_value_token(raw: str) -> bool:
-    """Identify a numeric value while excluding short form/note tokens."""
+    """Nhận diện giá trị số và loại trừ token mã biểu mẫu/thuyết minh ngắn."""
 
     text = strip_md(raw).strip()
     if text in {"-", "–", "—"}:
@@ -864,12 +898,12 @@ def _is_vector_value_token(raw: str) -> bool:
 
 
 def _collect_vector_labels(lines, start: int, end: int):
-    """Collect ordinal and wrapped labels from a detached label block.
+    """Thu thập nhãn có thứ tự và nhãn bị xuống dòng từ một khối nhãn tách rời.
 
-    A few PDF/OCR serializers emit the label column first, then the statement
-    code/note columns, and finally the two value columns.  Labels may be
-    wrapped over several physical lines and child rows may not carry an
-    ordinal.  This collector uses those structural signals only.
+    Một số bộ chuyển đổi PDF/OCR phát ra cột nhãn trước, sau đó là cột
+    mã/thuyết minh và cuối cùng là hai cột giá trị. Nhãn có thể bị xuống dòng
+    qua nhiều dòng vật lý và dòng con có thể không có số thứ tự. Bộ thu chỉ
+    sử dụng các tín hiệu cấu trúc đó.
     """
 
     labels = []
@@ -892,10 +926,10 @@ def _collect_vector_labels(lines, start: int, end: int):
             flush()
             continue
 
-        # Wrapped OCR lines such as "hiện hành", "không kiểm soát", or
-        # "doanh nghiệp" belong to the preceding label.  Check this before
-        # the generic short-name/footer filter; otherwise the continuation is
-        # mistaken for a signatory name and the vector loses a semantic slot.
+            # Dòng OCR bị wrap như "hiện hành", "không kiểm soát" hoặc
+            # "doanh nghiệp" thuộc label trước đó. Kiểm tra trước bộ lọc
+            # tên ngắn/footer, nếu không phần tiếp nối sẽ bị hiểu là tên người
+            # ký và vector mất một semantic slot.
         if current is not None:
             current_folded = fold(current["label"])
             starts_new_index = bool(re.match(r"^(?:\d+|[IVXLC]+)[.)]\s+", text, flags=re.I))
@@ -910,8 +944,7 @@ def _collect_vector_labels(lines, start: int, end: int):
         if is_non_item_header_or_noise(text):
             continue
 
-        # Formula-only lines are wrapped qualifiers of the preceding row, not
-        # independent statement labels.
+        # Dòng chỉ có công thức là qualifier wrap của row trước, không phải label riêng.
         if current and re.fullmatch(r"\(\s*[\d\s+=*/×xX–—-]+\s*\)", text):
             current["label"] = f"{current['label']} {text}".strip()
             current["raw"].append(lines[idx])
@@ -925,9 +958,9 @@ def _collect_vector_labels(lines, start: int, end: int):
             current = {"label": label, "line": idx + 1, "raw": [lines[idx]]}
             continue
 
-        # Child labels in the detached block often omit their ordinal.  Two
-        # consecutive "Lợi nhuận..." lines are separate children; a lowercase
-        # continuation line belongs to the preceding label.
+        # Child label trong block tách rời thường bỏ số thứ tự. Hai dòng
+        # "Lợi nhuận..." liên tiếp là hai child khác nhau; dòng tiếp nối viết
+        # thường thuộc label trước.
         if child_block and current and folded.startswith(("loi nhuan sau thue", "lai co ban", "lai suy giam")):
             flush()
             current = {"label": text, "line": idx + 1, "raw": [lines[idx]]}
@@ -957,12 +990,12 @@ def _relative_error(left, right):
 
 
 def _infer_vector_gap(labels, current_values, previous_values):
-    """Find one unlabeled row in a balanced value vector using formulas.
+    """Tìm một dòng chưa có nhãn trong vector giá trị cân bằng bằng công thức.
 
-    OCR/PDF serializers can emit an extra numeric row while its label is lost.
-    Dropping the value by position would be unsafe, so a candidate is accepted
-    only when the statement's own semantic relationships identify it for both
-    periods.  No form code, ticker, or report name participates in this step.
+    Bộ chuyển đổi OCR/PDF có thể phát ra một dòng số thừa nhưng làm mất nhãn.
+    Bỏ giá trị theo vị trí sẽ không an toàn, nên chỉ nhận candidate khi các
+    quan hệ semantic của chính báo cáo xác định được dòng đó cho cả hai kỳ.
+    Bước này không dùng mã biểu mẫu, mã chứng khoán hay tên báo cáo.
     """
 
     if len(current_values) != len(previous_values) or len(current_values) <= len(labels):
@@ -1009,8 +1042,7 @@ def _infer_vector_gap(labels, current_values, previous_values):
                 error += _relative_error(values[op] + values[other_profit], values[profit_before_tax])
                 score += 1
             if other_income is not None and other_expense is not None and other_profit is not None:
-                # Statements present expense rows with either a positive
-                # magnitude or a negative signed value.
+    # Statement có thể ghi row chi phí bằng độ lớn dương hoặc giá trị âm có dấu.
                 direct = _relative_error(values[other_income] - values[other_expense], values[other_profit])
                 signed = _relative_error(values[other_income] + values[other_expense], values[other_profit])
                 error += min(direct, signed)
@@ -1037,26 +1069,28 @@ def _infer_vector_gap(labels, current_values, previous_values):
         (index for index in (op, other_income, profit_before_tax) if index is not None),
         len(labels) - 1,
     )
-    # If every candidate before the first arithmetic anchor preserves the
-    # same relationships, prefer the gap immediately before that anchor.  It
-    # is the conservative boundary between the preceding labelled block and
-    # the first subtotal; this remains semantic rather than code-based.
+        # Nếu mọi candidate trước arithmetic anchor đầu tiên đều giữ cùng quan hệ,
+        # ưu tiên khoảng trống ngay trước anchor. Đây là boundary thận trọng giữa
+        # block có label trước đó và subtotal đầu tiên, vẫn dựa semantic thay vì mã.
     candidates.sort(key=lambda item: (-item[0], item[1], abs(item[2] - anchor), item[2]))
     best = candidates[0]
-    # Require at least two independent relationships to agree.  A single
-    # coincidence must not mutate an otherwise ambiguous vector.
+        # Cần ít nhất hai quan hệ độc lập cùng xác nhận. Một trùng hợp không được
+        # thay đổi vector vốn còn mơ hồ.
     if best[0] >= 4 and best[1] <= 2e-3:
         return best[2]
     return None
 
 
 def extract_vector_column_major(lines, start, end):
-    """Recover a non-Markdown table with label/code/value vectors.
+    """Khôi phục bảng không phải Markdown gồm các vector nhãn/mã/giá trị.
 
-    The detector requires a period header, a sizeable compact metadata run,
-    and exactly enough numeric payload for the discovered label slots.  It is
-    therefore not enabled by a ticker or a report-specific exception and will
-    leave ambiguous blocks to the normal collectors.
+    Bộ nhận diện yêu cầu có header kỳ, một chuỗi metadata ngắn đủ dài và đúng
+    số lượng payload số cho các slot nhãn đã phát hiện. Vì vậy, nó không được
+    bật bằng mã chứng khoán hay ngoại lệ riêng cho báo cáo; các khối mơ hồ sẽ
+    được để cho bộ thu thông thường xử lý.
+
+    Đầu vào là scope B02. Đầu ra là dict ``rows`` và ``detected`` cùng metadata
+    vị trí vector; collector gọi hàm này trước khi thử pattern yếu hơn.
     """
 
     for header_idx in range(start, min(end, start + 40)):
@@ -1112,8 +1146,8 @@ def extract_vector_column_major(lines, start, end):
                 if _is_vector_value_token(text):
                     values.append((idx, clean_value(text)))
                     continue
-                # Once the numeric vectors have started, a semantic line is a
-                # hard boundary.  This avoids consuming the signature/footer.
+        # Khi vector số đã bắt đầu, dòng semantic là boundary cứng. Cách này
+        # tránh đọc nhầm signature/footer vào block.
                 if values:
                     break
             n = len(labels)
@@ -1156,6 +1190,13 @@ def extract_vector_column_major(lines, start, end):
     return {"rows": [], "detected": False}
 
 def extract_column_major(lines, start, end, current_year=None, previous_year=None):
+    """Đọc layout column-major có label/code tách khỏi hai khối giá trị.
+
+    Đầu vào là dòng scope và năm tùy chọn. Hàm thu label, nhận diện marker kỳ,
+    thu vector hiện tại/trước đây rồi ghép theo vị trí sau khi kiểm tra số lượng
+    tối thiểu. Đầu ra là list row; nếu cấu trúc không đủ rõ, trả list rỗng để
+    collector khác tiếp tục thử.
+    """
     labels, codes, current, previous = [], [], [], []
     mode = None
     for i in range(start, end):
@@ -1186,7 +1227,7 @@ def extract_column_major(lines, start, end, current_year=None, previous_year=Non
 
 
 def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_year=None):
-    """Handle OCR blocks led by `Mã số`, with attributes and semantic label in mixed bullet/non-bullet lines.
+    """Xử lý khối OCR bắt đầu bằng `Mã số`, với thuộc tính và nhãn semantic trộn giữa dòng có và không có bullet.
 
     Example:
       Mã số: 02
@@ -1194,6 +1235,9 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
       2025 (đồng): 360...
       2024 (đồng): 291...
       Các khoản giảm trừ doanh thu
+
+    Đầu vào là scope và cặp năm. Đầu ra là list row ghép từ block bắt đầu bằng
+    ``Mã số``; code/thuyết minh vẫn chỉ là provenance.
     """
     out = []
     code_re = re.compile(r"(?i)^Mã\s*số\s*:?\s*([0-9]{1,3}|[IVXLC]+)\s*$")
@@ -1205,7 +1249,7 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
             i += 1; continue
         code = m.group(1); cur = prev = note = None; curp = prevp = -1; candidates = []; raw = [lines[i]]
 
-        # Check if there is a leading label immediately before line i
+        # Kiểm tra có label đứng ngay trước dòng i không.
         leading_label = None
         for back_idx in (i - 1, i - 2):
             if back_idx >= start:
@@ -1219,15 +1263,14 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
         while j < min(end, i + 18):
             tj = strip_md(lines[j])
             if code_re.match(tj): break
-            # If line j is a label followed immediately by another Mã số, break so it belongs to next code
+            # Nếu dòng j là label và ngay sau là Mã số khác, dừng để row thuộc code tiếp theo.
             if j + 1 < end and code_re.match(strip_md(lines[j+1])):
                 break
             if j + 2 < end and not strip_md(lines[j+1]) and code_re.match(strip_md(lines[j+2])):
                 break
             if tj:
-                # A completed keyed row must not absorb the next plain-text row label.
-                # Keep trailing-label serialization support only when this code block
-                # has not already acquired an explicit semantic label.
+            # Row keyed đã hoàn tất không được nuốt label plain text tiếp theo.
+            # Chỉ hỗ trợ label ở cuối khi block code chưa có semantic label rõ ràng.
                 original = lines[j]
                 is_top_level_plain = (
                     len(original) == len(original.lstrip(" \t"))
@@ -1260,7 +1303,7 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
                 if md:
                     candidates.append(strip_md(md.group(1))); j += 1; continue
                 if not is_non_item_header_or_noise(tj) and clean_value(tj) is None:
-                    # Ignore page metadata / separators / document metadata fields.
+        # Bỏ qua metadata trang, dấu phân cách và field metadata của tài liệu.
                     if (not tj.startswith('#')
                         and not re.match(r"(?i)^(page|metadata|content|category|created_at|updated_at|file_name|search_folder|s3_key|status|symbol|year|period)\s*:?", tj)
                         and not HEADING_RE.search(tj)
@@ -1268,7 +1311,7 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
                         candidates.append(tj)
             j += 1
         if cur is not None or prev is not None:
-            # Last semantic-looking candidate is usually the row label in this serialization.
+            # Candidate cuối có vẻ semantic thường là row label trong kiểu serialize này.
             label = ''
             for cand in reversed(candidates):
                 c = strip_md(cand)
@@ -1283,11 +1326,14 @@ def extract_code_led_mixed_rows(lines, start, end, current_year=None, previous_y
 
 
 def extract_year_section_rows(lines, start, end, current_year=None, previous_year=None):
-    """Handle layouts split into one complete current-year section and one previous-year section.
+    """Xử lý bố cục tách thành một phần đầy đủ của năm hiện tại và một phần của năm trước.
 
-    Example: **Năm báo cáo: 2025 (VND)** followed by rows with `Số liệu: ...`,
-    then a matching 2024 section. Rows are joined by normalized semantic label;
-    form code and note columns are retained only as provenance.
+    Ví dụ: **Năm báo cáo: 2025 (VND)** theo sau bởi các dòng có `Số liệu: ...`,
+    rồi đến phần tương ứng của năm 2024. Các dòng được nối bằng nhãn semantic
+    đã chuẩn hóa; mã biểu mẫu và cột thuyết minh chỉ được giữ làm provenance.
+
+    Đầu vào là scope cùng hai năm. Đầu ra là list row đã ghép current/previous
+    theo label semantic; section không có header năm phù hợp trả list rỗng.
     """
     headers = []
     for i in range(start, end):
@@ -1311,7 +1357,7 @@ def extract_year_section_rows(lines, start, end, current_year=None, previous_yea
             label, implicit = _strip_leading_index(raw_label)
             if not label or clean_value(label) is not None:
                 continue
-            # Ignore field bullets.
+        # Bỏ qua bullet của field.
             if re.match(r"(?i)^(mã số|thuyết minh|số liệu)\s*:", label):
                 continue
             code = implicit; note = None; value = None; raw = [lines[i]]
@@ -1321,7 +1367,7 @@ def extract_year_section_rows(lines, start, end, current_year=None, previous_yea
                 if not bj: j += 1; continue
                 ind2, txt = bj
                 if ind2 <= indent: break
-                # If we already have a value and encounter another child label, stop scanning
+            # Nếu đã có giá trị và gặp child label khác, dừng quét.
                 if value is not None and not re.match(r"(?i)^(?:mã\s*số|thuyết\s*minh|số\s*liệu)\s*:", txt):
                     break
                 raw.append(lines[j])
@@ -1353,12 +1399,17 @@ def extract_year_section_rows(lines, start, end, current_year=None, previous_yea
 
 
 def extract_label_list_column_major(lines, start, end, current_year=None, previous_year=None):
-    """Handle hierarchy/list of labels followed by separate `Năm 2025` and `Năm 2024` value lists."""
+    """Ghép danh sách label với hai danh sách giá trị theo cột kỳ.
+
+    Đầu vào là scope và cặp năm. Hàm yêu cầu hai heading kỳ độc lập, thu label
+    trước heading rồi ghép vector current/previous theo vị trí. Đầu ra là list
+    row; nếu header hoặc số lượng slot không đủ, trả list rỗng.
+    """
     cur_header = prev_header = None
     for i in range(start,end):
         t=strip_md(lines[i])
         role,_=_period_role_and_priority(t,current_year,previous_year)
-        # Require a standalone year heading, not an attribute with a value.
+        # Cần heading năm đứng riêng, không phải attribute kèm giá trị.
         if role and ":" not in t and re.match(r"(?i)^(?:năm\s+(?:nay|trước|20\d{2})|20\d{2})$", t):
             if role=="current" and cur_header is None: cur_header=i
             elif role=="previous" and prev_header is None: prev_header=i
@@ -1399,8 +1450,14 @@ def _norm_dedupe_label(s: str):
 
 
 def dedupe(rows):
+    """Khử row trùng sau khi nhiều collector cùng đọc một scope.
+
+    Đầu vào là list dict row. Hàm dùng label semantic đã chuẩn hóa và hai giá
+    trị làm khóa tạm, sau đó giữ pattern có rank cao hơn. Đầu ra là list row
+    duy nhất; việc này không map row vào schema.
+    """
     best = {}
-    # Prefer stronger patterns over generic period-child rows when same semantic/value tuple exists.
+        # Ưu tiên pattern mạnh hơn row child theo kỳ khi tuple semantic/giá trị giống nhau.
     rank = {
         "SP_INCOME_PIPE_TABLE": 7,
         "SP_INCOME_INLINE_PERIODS": 7,
@@ -1419,6 +1476,12 @@ def dedupe(rows):
 
 
 def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
+    """Điều phối toàn bộ collector B02 cho một scope.
+
+    Đầu vào là dòng source, boundary và cặp năm. Hàm chạy bảng, inline,
+    hierarchy, code-led, year-section, column-major và vector collector, rồi
+    deduplicate kết quả. Đầu ra là list row thô có nhiều pattern evidence.
+    """
     rows = []
     rows += extract_pipe_table(lines, start, end, current_year, previous_year)
     rows += extract_inline_period_rows(lines, start, end)
@@ -1432,9 +1495,9 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
     vector_layout = extract_vector_column_major(lines, start, end)
     rows += vector_layout.get("rows") or []
     if vector_layout.get("detected"):
-        # The ordinary plain-code collector is still useful for the row-wise
-        # prefix before a detached vector block.  Suppressing it after the
-        # vector boundary prevents code/note columns from becoming labels.
+        # Bộ thu mã dạng văn bản vẫn hữu ích cho phần tiền tố theo dòng
+        # trước khối vector tách rời. Tắt nó sau ranh giới vector để
+        # cột mã/thuyết minh không bị nhận nhầm thành nhãn.
         plain_end = int(vector_layout.get("label_start") or end)
         rows += extract_plain_text_code_rows(lines, start, min(end, plain_end))
     else:
@@ -1446,10 +1509,10 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
         rows,
     )
     if replaced_labels:
-        # The generic plain-code collector sees the first two numeric tokens
-        # as a normal pair and may therefore retain the wrong comparative
-        # value.  Replace only the same semantic labels confirmed by the
-        # formula-constrained collector; unrelated rows remain untouched.
+        # Bộ thu mã dạng văn bản chung có thể xem hai token số đầu tiên
+        # như một cặp thông thường và giữ nhầm giá trị so sánh. Chỉ thay
+        # các nhãn semantic đã được bộ thu có ràng buộc công thức xác nhận;
+        # các dòng không liên quan vẫn giữ nguyên.
         rows = [
             row for row in rows
             if fold(row.get("indicator", "")) not in replaced_labels
@@ -1468,6 +1531,26 @@ def extract_income_fallback(
     fallback_unit: Optional[str] = None,
     locator_result: Optional[dict] = None,
 ):
+    """Trích xuất dòng B02 từ các dạng Markdown và OCR phổ biến.
+
+    Đầu vào:
+    - ``markdown_text``: toàn bộ source Markdown;
+    - cặp năm và ``fallback_unit``: ngữ cảnh kỳ/đơn vị;
+    - ``locator_result``: candidate scope do locator tạo, nếu có.
+
+    Xử lý:
+    - chọn scope B02 và kiểm tra locator safety gate;
+    - chạy các collector bảng, bullet, inline, code-led và column-major;
+    - deduplicate row, suy luận sector/unit và ghi metadata scope.
+
+    Đầu ra là dict gồm ``rows``, boundary scope, score, unit, sector evidence
+    và locator diagnostics. Hàm chỉ trích xuất; mapper chịu trách nhiệm gán
+    row vào node schema.
+
+    Hàm hỗ trợ bảng, bullet, dòng văn bản thuần và khối dữ liệu theo cột.
+    Evidence từ bộ định vị có thể thay thế scope nền không đạt, nhưng không
+    thể bỏ qua các kiểm tra tiêu đề và độ tin cậy của cổng dùng chung.
+    """
     period = resolve_report_years(
         markdown_text,
         source_name="input",
@@ -1512,9 +1595,10 @@ def extract_income_fallback(
             score = selected.get("score", score)
     rows = _extract_rows_for_scope(lines, start, end, current_year, previous_year)
 
-    # Defensive candidate failover. If the selected heading produces no observations,
-    # try other structurally viable headings before declaring `no_structural_rows`.
-    # This protects against OCR/TOC variations without weakening statement boundaries.
+    # Chuyển candidate dự phòng để an toàn. Nếu tiêu đề được chọn không tạo
+    # observation, thử các tiêu đề còn phù hợp về cấu trúc trước khi trả về
+    # `no_structural_rows`. Cách này chịu được biến thể OCR/TOC mà không
+    # nới lỏng ranh giới báo cáo.
     if not rows:
         notes_start = _find_notes_start(lines)
         raw_cands = [c for c in _heading_candidates(lines, current_year, previous_year) if c["score"] > -1000]
@@ -1544,6 +1628,12 @@ def extract_income_fallback(
 
 
 def augment_income_rows(markdown_text: str, existing_rows=None, current_year: int | None = None, previous_year: int | None = None):
+    """Bổ sung row B02 bằng một lượt fallback rồi khử trùng lặp.
+
+    Đầu vào là text source và row đã có từ collector khác. Hàm parse thêm các
+    pattern fallback, ghép hai danh sách và trả list row deduplicated. Nó không
+    map schema và không xóa evidence khác ngoài bản ghi trùng.
+    """
     existing_rows = list(existing_rows or [])
     fallback = extract_income_fallback(markdown_text, current_year, previous_year)["rows"]
     return dedupe(existing_rows + fallback)

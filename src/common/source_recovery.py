@@ -30,17 +30,16 @@ def fold(s: Any) -> str:
 
 
 def _structural_context_key(value: Any) -> str:
-    """Normalize hierarchy context without retaining period-specific payloads."""
+    """Chuẩn hóa context hierarchy mà không giữ payload riêng theo kỳ."""
 
     if value is None:
         return ""
     parts = re.split(r"\s*>\s*", clean(value))
     normalized = []
     for part in parts:
-        # Period-section parents often carry their own value, e.g.
-        # `A. TÀI SẢN NGẮN HẠN: 32.904.606.406.685 đồng`.  The value changes
-        # between the current and comparative blocks and is not part of the
-        # structural identity used to pair them.
+        # Parent của section kỳ thường mang chính giá trị của nó, ví dụ
+        # `A. TÀI SẢN NGẮN HẠN: 32.904.606.406.685 đồng`. Giá trị thay đổi giữa
+        # block hiện tại và so sánh, không thuộc identity cấu trúc dùng để ghép.
         part = re.sub(
             r"\s*:\s*\(?-?[\d][\d., ]*\)?\s*(?:triệu|trieu|nghìn|nghin)?\s*"
             r"(?:đồng|dong|vnd|vnđ)?\s*$",
@@ -60,13 +59,13 @@ def parse_number(v: Any):
     s = clean(v).replace("−", "-")
     if not s:
         return None
-    # Source-fidelity rule: a dash is an unreported / no-occurrence marker, not a
-    # reported numeric zero. Formula validation may treat None as 0 in a separate view.
+    # Quy tắc trung thành nguồn: dấu gạch là marker chưa báo/không phát sinh,
+    # không phải số 0 được báo. Kiểm tra công thức có thể xem None là 0 ở view riêng.
     if s in {"-", "–", "—"}:
         return None
     neg = s.startswith("(") and ")" in s
     s = s.strip().strip("()")
-    # Keep only the leading numeric token; units / year annotations may follow.
+    # Chỉ giữ token số đầu; đơn vị/annotation năm có thể theo sau.
     m = re.match(r"-?\d[\d., ]*", s)
     if not m:
         return None
@@ -81,7 +80,8 @@ def parse_number(v: Any):
         elif re.fullmatch(r"-?\d+[.,]\d+", s):
             x = float(s.replace(",", "."))
         else:
-            # mixed separators: last separator is decimal only for short tail, otherwise thousands
+            # Dấu phân cách trộn: dấu cuối là thập phân nếu phần đuôi ngắn,
+            # nếu không thì là phân cách hàng nghìn.
             if "," in s and "." in s:
                 last = max(s.rfind(","), s.rfind("."))
                 tail = s[last + 1:]
@@ -172,7 +172,7 @@ def choose_financial_position_scope(text: str):
             if i < 120: score -= 80
             cand.append((score, i, end))
 
-    # Fallback when the first page heading was lost by OCR/LLM but the body clearly contains B02/FP anchors.
+    # Fallback khi heading trang đầu mất do OCR/LLM nhưng phần thân có anchor B02/FP rõ.
     if not cand:
         next_stmt = next((i for i,l in enumerate(lines) if _is_next_statement_line(l)), len(lines))
         search_end = min(next_stmt, 1400)
@@ -183,7 +183,7 @@ def choose_financial_position_scope(text: str):
                 anchors.append(i)
         if anchors:
             a = min(anchors)
-            # Walk back to the beginning of the page/content block rather than taking just the anchor row.
+            # Lùi về đầu block trang/content thay vì chỉ lấy dòng anchor.
             s0 = max(0, a - 260)
             for j in range(a, max(-1, a-320), -1):
                 if fold(lines[j]).startswith("content") or re.match(r"^#\s*Page\s+", clean(lines[j]), re.I):
@@ -197,7 +197,7 @@ def choose_financial_position_scope(text: str):
     max_score = max(x[0] for x in cand)
     eligible = [x for x in cand if x[0] >= max_score - 180]
     score, s, e = min(eligible, key=lambda x: x[1])
-    # Always extend to the first following different statement. This joins continuation pages.
+    # Luôn kéo đến báo cáo khác đầu tiên phía sau. Cách này nối được các trang tiếp nối.
     for j in range(s + 1, min(len(lines), s + 1800)):
         if _is_next_statement_line(lines[j]):
             e = j; break
@@ -206,19 +206,19 @@ def choose_financial_position_scope(text: str):
 
 _YEAR_VALUE_PATTERNS = [
     re.compile(r"(?i)^Năm\s+kết\s+thúc\s+31[./-]12[./-](20\d{2})(?:\s*\([^)]*\))*\s*:\s*(.+)$"),
-    # `31/12/2025 Triệu VND: 123`, optionally with audited annotation.
+    # `31/12/2025 Triệu VND: 123`, có thể kèm chú thích đã kiểm toán.
     re.compile(r"(?i)^(?:Tại\s+ngày\s+)?31[./-]12[./-](20\d{2})(?:\s+(?:triệu|nghìn)\s*(?:đồng|vnd|vnđ))?(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
-    # `Ngày 31 tháng 12 năm 2025 (triệu đồng): 123`
+    # `Ngày 31 tháng 12 năm 2025 (triệu đồng)`.
     re.compile(r"(?i)^Ngày\s+31\s+tháng\s+12\s+năm\s+(20\d{2})(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
     re.compile(r"(?i)^(?:Năm\s*)?(20\d{2})(?:\s+(?:triệu|nghìn)\s*(?:đồng|vnd|vnđ))?(?:\s*\([^)]*\))?\s*:\s*(.+)$"),
 ]
 
 
 def _explicit_fp_period_value(text: str, current_year: int, previous_year: int):
-    """Return (role, value) for explicit FP period children.
+    """Trả về (role, value) cho dòng con kỳ FP rõ.
 
-    Important accounting identity:
-      01/01/current_year == opening balance == previous comparative period.
+    Identity kế toán quan trọng:
+      01/01/current_year == số đầu kỳ == kỳ so sánh trước đây.
     """
     c = re.sub(r"^[*+\-]\s+", "", clean(text))
 
@@ -266,7 +266,7 @@ def _explicit_fp_period_value(text: str, current_year: int, previous_year: int):
         if y == previous_year:
             return "previous", parse_number(m.group(2))
 
-    # Some Markdown/OCR layouts omit the `Số` prefix:
+    # Một số bố cục Markdown/OCR bỏ tiền tố `Số`:
     # `Cuối năm: 123` / `Đầu năm: 100`.
     m = re.match(r"(?i)^(?:Số\s*)?Cuối\s+năm(?:\s*\([^)]*\))?\s*:\s*(.+)$", c)
     if m:
@@ -282,7 +282,7 @@ def _explicit_fp_period_value(text: str, current_year: int, previous_year: int):
 def _inline_end_begin_values(line: str):
     s = clean(line)
     cur = prev = None
-    # `578.891 triệu đồng (Cuối năm) | 1.209.509 triệu đồng (Đầu năm)`
+    # `578.891 triệu đồng (Cuối năm) | 1.209.509 triệu đồng (Đầu năm)`.
     mc = re.search(r"(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*\(\s*Cuối\s+năm\s*\)", s, re.I)
     mp = re.search(r"(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*\(\s*Đầu\s+năm\s*\)", s, re.I)
     if mc: cur = parse_number(mc.group(1))
@@ -293,15 +293,14 @@ def _inline_end_begin_values(line: str):
 def _inline_year_values(line: str, current_year: int, previous_year: int):
     s = clean(line)
     vals = {}
-    # value then explicit year/date marker: `123 triệu đồng (năm 31.12.2025)` / `123 (31.12.2025)`
+    # Giá trị rồi marker năm/ngày rõ: `123 triệu đồng (năm 31.12.2025)` / `123 (31.12.2025)`.
     p = re.compile(
         r"(?P<val>\(?-?\d[\d., ]*\)?|-)\s*(?:triệu\s*(?:đồng|VND|VNĐ)|nghìn\s*đồng|VND|VNĐ|đồng)?\s*"
         r"\(\s*(?:năm\s*)?(?:31[./-]12[./-])?(?P<year>20\d{2})\s*\)", re.I)
     for m in p.finditer(s):
         vals[int(m.group("year"))] = parse_number(m.group("val"))
-    # Financial-position OCR commonly writes `(31/12/2025)` and `(1/1/2025)`
-    # instead of a bare year.  The opening date of the current year is the
-    # previous comparative balance.
+    # OCR báo cáo tình hình tài chính thường viết `(31/12/2025)` và `(1/1/2025)`
+    # thay vì chỉ ghi năm. Ngày mở đầu năm hiện tại là số dư so sánh trước đây.
     p_date = re.compile(
         r"(?P<val>\(?-?\d[\d., ]*\)?|-)\s*"
         r"(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*"
@@ -318,11 +317,11 @@ def _inline_year_values(line: str, current_year: int, previous_year: int):
             vals[current_year] = value
         elif role == "previous":
             vals[previous_year] = value
-    # `(Năm 2024: 123 triệu đồng)` annotation after an unlabelled current value.
+    # Annotation `(Năm 2024: 123 triệu đồng)` sau giá trị hiện tại không có nhãn.
     p2 = re.compile(r"(?i)\(\s*Năm\s*(20\d{2})\s*:\s*(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu\s*(?:đồng|VND|VNĐ)|VND|VNĐ|đồng)?\s*\)")
     for m in p2.finditer(s):
         vals[int(m.group(1))] = parse_number(m.group(2))
-    # If previous was explicit in parentheses, current is usually the value immediately after the label colon.
+    # Nếu kỳ trước rõ trong ngoặc, hiện tại thường là giá trị ngay sau dấu hai chấm của nhãn.
     if previous_year in vals and current_year not in vals:
         head = s[:p2.search(s).start()] if p2.search(s) else s
         mc = re.search(r":\s*(\(?-?\d[\d., ]*\)?|-)\s*(?:triệu\s*(?:đồng|VND|VNĐ)|VND|VNĐ|đồng)?\s*$", head, re.I)
@@ -332,7 +331,7 @@ def _inline_year_values(line: str, current_year: int, previous_year: int):
 
 
 def _inline_row_label(line: str) -> str:
-    """Return the semantic label before a value, including embedded Mã số."""
+    """Trả về nhãn semantic trước giá trị, gồm cả mã số nằm trong nhãn."""
 
     code_suffix = re.search(r"\(\s*Mã\s*số\s*:.*?\)\s*:\s*", line, re.I)
     if code_suffix:
@@ -347,12 +346,11 @@ def _normalize_row_label(label: str):
 
 
 def _split_code_label(label: str):
-    """Split a real form-code prefix from a display ordinal.
+    """Tách tiền tố mã biểu mẫu thật khỏi số thứ tự hiển thị.
 
-    Single-digit/roman prefixes in Vietnamese statements are usually hierarchy markers
-    (1., II., III.) rather than statutory form codes.  We strip those from the label but do
-    not expose them as ``form_code``.  Two-or-more digit numeric prefixes (01, 100, 311...)
-    are retained as form codes.
+    Tiền tố một chữ số/La Mã trong báo cáo tiếng Việt thường là marker hierarchy
+    (1., II., III.) chứ không phải mã biểu mẫu. Bỏ chúng khỏi nhãn nhưng không
+    đưa vào ``form_code``. Tiền tố số từ hai chữ số trở lên (01, 100, 311...) được giữ.
     """
     label = clean(label)
     m = re.match(r"^([0-9]{1,4}(?:\.[0-9]+)?|[IVXLC]+)[.)-]?\s+(.+)$", label, re.I)
@@ -374,7 +372,7 @@ def _extract_trailing_form_code(label: str):
 
 
 def _extract_suffix_meta(label: str):
-    """Extract `(Mã số: ..., Thuyết minh: ...)` while preserving the human label."""
+    """Tách `(Mã số: ..., Thuyết minh: ...)` mà vẫn giữ nhãn người đọc."""
     raw = clean(label)
     code = note = None
     m = re.search(r"\(\s*Mã\s*số\s*:\s*([^,;)]+)(?:\s*,\s*Thuyết\s*minh\s*:\s*([^;)]+))?\s*\)", raw, re.I)
@@ -413,7 +411,7 @@ def _is_period_value_line(text: str) -> bool:
 
 
 def _markdown_indent_and_label(raw: str):
-    """Return approximate structural indent and cleaned bullet/heading label."""
+    """Trả về thụt lề cấu trúc gần đúng và nhãn bullet/heading đã làm sạch."""
     expanded = raw.expandtabs(4)
     leading = len(expanded) - len(expanded.lstrip(" "))
     c = clean(raw)
@@ -423,7 +421,7 @@ def _markdown_indent_and_label(raw: str):
 
 
 def _hierarchy_context(scoped: list[str]):
-    """Infer nearest textual parents from Markdown indentation without changing source labels."""
+    """Suy ra parent text gần nhất từ thụt lề Markdown mà không đổi nhãn nguồn."""
     stack: list[tuple[int, str]] = []
     out: dict[int, tuple[Optional[str], Optional[str]]] = {}
     for idx, raw in enumerate(scoped):
@@ -432,7 +430,7 @@ def _hierarchy_context(scoped: list[str]):
             continue
         if not _valid_label(label):
             continue
-        # metadata/headings are not row parents
+        # metadata/heading không phải parent của dòng.
         f = fold(label)
         if f in {"tai san", "nguon von", "no phai tra", "von chu so huu", "chi tieu", "ma so", "thuyet minh", "so cuoi nam", "so dau nam"}:
             while stack and stack[-1][0] >= indent:
@@ -449,7 +447,7 @@ def _hierarchy_context(scoped: list[str]):
 
 
 def _extract_explicit_inline_year_pair(line: str, current_year: int, previous_year: int):
-    """Parse `123 (2025), 456 (2024)` and similar forms."""
+    """Đọc dạng `123 (2025), 456 (2024)` và các dạng tương tự."""
     s = clean(line)
     vals = {}
     p = re.compile(r"(?P<val>\(?-?\d[\d., ]*\)?|-)\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ)?\s*\(\s*(?P<year>20\d{2})\s*\)", re.I)
@@ -462,7 +460,7 @@ def _looks_like_form_code_token(token: str) -> bool:
     t = clean(token)
     if not re.fullmatch(r"\d{2,4}(?:\.\d+)?", t):
         return False
-    # statutory statement row codes are generally compact and not thousands-formatted amounts
+    # Mã dòng theo mẫu thường ngắn và không có dạng số hàng nghìn.
     return "." not in t or len(t.split('.')[0]) <= 4
 
 
@@ -472,11 +470,11 @@ def _looks_like_note_token(token: str) -> bool:
 
 
 def _positional_numeric_children(scoped: list[str], s: int, current_year: int, previous_year: int, statement: str, hierarchy):
-    """Recover column-major rows where label/code/note/current/previous are emitted as sibling lines.
+    """Khôi phục dòng theo cột khi nhãn/mã/thuyết minh/hiện tại/trước đây phát ra như sibling.
 
-    This is common in OCR/LLM Markdown where a table row becomes:
-      label -> code -> note? -> current -> previous
-    and the period values themselves have no `Số cuối năm`/year prefix.
+    Dạng này thường gặp trong Markdown OCR/LLM khi dòng bảng thành:
+      nhãn -> mã -> thuyết minh? -> hiện tại -> trước đây
+    và giá trị kỳ không có tiền tố `Số cuối năm`/năm.
     """
     rows: list[RecoveredRow] = []
     for idx, raw in enumerate(scoped):
@@ -487,7 +485,7 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
             continue
         if ":" in c and re.search(r":\s*\(?-?\d", c):
             continue
-        # Reject numeric-looking labels, metadata and section-only headings.
+        # Loại nhãn có dạng số, metadata và heading chỉ chứa tên section.
         if re.fullmatch(r"\(?-?[\d., ]+\)?|-", c) or fold(c) in {"tai san", "nguon von", "no phai tra", "von chu so huu"}:
             continue
         base_label, suffix_code, suffix_note = _extract_suffix_meta(c.rstrip(':'))
@@ -504,7 +502,7 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
                 continue
             if _is_period_value_line(cc):
                 break
-            # next textual row starts => no more children
+            # Có dòng text mới => không còn child.
             if re.search(r"[A-Za-zÀ-ỹ]", cc) and not re.fullmatch(r"\(?-?[\d., ]+\)?|-", cc):
                 break
             v = parse_number(cc)
@@ -518,7 +516,7 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
         note = suffix_note
         data = list(vals)
         if code is None and data and _looks_like_form_code_token(data[0][1]):
-            # do not treat obvious large thousand-separated number as a code
+            # Không xem số lớn có phân cách hàng nghìn rõ là mã.
             if not re.search(r"[.,]\d{3}[.,]", data[0][1]) and len(re.sub(r"\D", "", data[0][1])) <= 4:
                 code = clean(data.pop(0)[1])
         if len(data) >= 3 and _looks_like_note_token(data[0][1]) and abs(float(data[0][2])) < 100:
@@ -535,10 +533,9 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
 
 def _period_header_role(text: str, current_year: int, previous_year: int):
     c = re.sub(r"^[*+\-]\s+", "", clean(text))
-    # A financial-position report may serialize period blocks as standalone
-    # date headings rather than table columns.  `01/01/current_year` is the
-    # comparative opening balance, so it must resolve to `previous`, not to
-    # the calendar year embedded in the date.
+    # Báo cáo tình hình tài chính có thể serialize block kỳ thành heading ngày
+    # độc lập thay vì cột bảng. `01/01/current_year` là số dư đầu kỳ so sánh,
+    # nên phải giải quyết thành `previous`, không phải năm lịch trong ngày.
     date_patterns = [
         r"(?i)^(?:(?:tại|tai|ngày|ngay|số\s+liệu\s+ngày|so\s+lieu\s+ngay)\s+)?"
         r"(?P<day>\d{1,2})[./-](?P<month>\d{1,2})[./-](?P<year>20\d{2})"
@@ -581,13 +578,12 @@ def _is_period_column_year_header(
     current_year: int,
     previous_year: int,
 ) -> bool:
-    """Detect year labels that describe two value columns, not two row blocks.
+    """Nhận diện nhãn năm mô tả hai cột giá trị, không phải hai block dòng.
 
-    A common continuation-page layout writes ``Tại ngày ... năm`` followed by
-    metadata and the two column labels ``2025 (VND)`` / ``2024 (VND)``.  The
-    period-section collector must not interpret those labels as the start of
-    a previous-period block; subsequent ``label: current | previous`` rows
-    already carry both observations on the same line.
+    Bố cục trang tiếp nối thường ghi ``Tại ngày ... năm`` rồi metadata và hai
+    nhãn cột ``2025 (VND)`` / ``2024 (VND)``. Bộ thu section kỳ không được xem
+    các nhãn đó là đầu block kỳ trước; các dòng ``nhãn: hiện tại | trước đây``
+    sau đó đã mang cả hai observation trên cùng dòng.
     """
 
     candidate = clean(scoped[index])
@@ -628,8 +624,8 @@ def _is_period_column_year_header(
         anchor = fold(scoped[anchor_index])
         if re.search(r"\btai ngay\b.*\bnam\s*$", anchor):
             return True
-        # Metadata may sit between the date header and the year columns, but
-        # a new data row means this is no longer a column-header sequence.
+        # Metadata có thể nằm giữa header ngày và cột năm, nhưng dòng dữ liệu mới
+        # nghĩa là đây không còn là chuỗi header cột.
         if ":" in clean(scoped[anchor_index]) and not re.match(
             r"(?i)^(?:Mã\s*số|Thuyết\s*minh|Ma\s*so|Thuyet\s*minh)\s*:",
             clean(scoped[anchor_index]),
@@ -641,18 +637,17 @@ def _is_period_column_year_header(
 
 def _inline_form_code_child_rows(scoped: list[str], s: int, current_year: int,
                                  previous_year: int, statement: str, hierarchy):
-    """Recover rows whose form code is embedded in the label.
+    """Khôi phục dòng có mã biểu mẫu nằm trong nhãn.
 
-    A frequent Markdown/OCR shape is::
+    Một dạng Markdown/OCR thường gặp là::
 
         * 1. Phải trả người bán ngắn hạn (Mã số: 311)
             * Số cuối năm: 100
             * Số đầu năm (Trình bày lại): 90
 
-    The generic parent/child walker cannot safely use indentation here because
-    the next sibling label is often at the same indentation as the first value
-    child.  This pass anchors on the inline form code and only consumes the
-    explicit period children immediately below it.
+    Bộ duyệt parent/child chung không thể dùng thụt lề an toàn ở đây vì nhãn
+    sibling kế tiếp thường cùng mức với child giá trị đầu. Lượt này neo vào mã
+    biểu mẫu inline và chỉ lấy các child kỳ rõ ngay bên dưới.
     """
     rows: list[RecoveredRow] = []
     code_label = re.compile(
@@ -682,8 +677,8 @@ def _inline_form_code_child_rows(scoped: list[str], s: int, current_year: int,
         current = previous = None
         seen_current = seen_previous = False
 
-        # Period children are adjacent in the source.  A small bounded window
-        # prevents a malformed row from borrowing values from a later row.
+        # Child kỳ nằm liền nhau trong nguồn. Cửa sổ giới hạn nhỏ ngăn dòng hỏng
+        # mượn giá trị của dòng sau.
         for j in range(idx + 1, min(len(scoped), idx + 7)):
             child = re.sub(r"^[*+\-]\s+", "", clean(scoped[j]))
             if not child:
@@ -721,8 +716,8 @@ def _inline_form_code_child_rows(scoped: list[str], s: int, current_year: int,
                 if seen_current and seen_previous:
                     break
                 continue
-            # A new textual row before an explicit period child means this
-            # anchor has no recoverable pair; do not scan through it.
+            # Có dòng text mới trước child kỳ rõ nghĩa là anchor không có cặp
+            # khôi phục được; không quét xuyên qua dòng đó.
             if re.search(r"[A-Za-zÀ-ỹ]", child) and ":" not in child:
                 break
         if current is None and previous is None:
@@ -762,6 +757,12 @@ def _cashflow_section_by_line(scoped: list[str], absolute_start_zero: int):
 
 def extract_generic_statement_rows(text: str, start_line: int, end_line: int, current_year=None, previous_year=None,
                                    statement: str = "GENERIC") -> list[RecoveredRow]:
+    """Khôi phục evidence dạng dòng từ cửa sổ nguồn báo cáo có giới hạn.
+
+    Khôi phục mang tính bổ sung. Nó hỗ trợ bố cục mà parser cấu trúc/dòng chính
+    chưa materialize, nhưng không quyết định identity semantic hay ghi đè kỳ
+    canonical khác null.
+    """
     if current_year is None or previous_year is None:
         period = resolve_report_years(
             text,
@@ -778,11 +779,10 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
     rows: list[RecoveredRow] = []
     hierarchy = _hierarchy_context(scoped)
 
-    # Continuation pages may serialize the two period columns as a single bar
-    # separated row, e.g. ``300 Nợ phải trả: 180 (đồng) | 90 (đồng)``.
-    # This is a structural two-period observation, not a Markdown table with
-    # three or more separators, so handle it before the regular pipe-table
-    # collector.
+    # Trang tiếp nối có thể serialize hai cột kỳ thành một dòng ngăn bằng bar,
+    # ví dụ ``300 Nợ phải trả: 180 (đồng) | 90 (đồng)``.
+    # Đây là observation cấu trúc hai kỳ, không phải bảng Markdown có từ ba
+    # dấu phân cách, nên xử lý trước bộ thu pipe-table thường.
     amount_token = r"\(?-?\d[\d., ]*\)?|-"
     amount_tail = r"(?:\s*(?:\([^)]*\)|triệu\s*(?:đồng|vnd|vnđ)|nghìn\s*đồng|đồng|vnd|vnđ))*"
     inline_bar_left = re.compile(
@@ -822,7 +822,7 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             hierarchy_path=path,
         ))
 
-    # Pipe tables.  Identify period columns from header when possible; otherwise last two numeric cells.
+    # Bảng pipe. Xác định cột kỳ từ header khi có thể; nếu không thì dùng hai ô số cuối.
     for idx, raw in enumerate(scoped):
         if raw.count("|") < 3:
             continue
@@ -832,16 +832,16 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         fcells = [fold(c) for c in cells]
         if any(x in {"chi tieu", "ma so", "thuyet minh", "so cuoi nam", "so dau nam"} for x in fcells):
             continue
-        # Preserve period column POSITION, including dash/null cells.
-        # Numeric-token-only extraction shifts form code/note into a period when a
-        # period cell is '-' (e.g. `23 | | - | (3.620...)`).
-        # For table-like rows, the final two columns are the two period slots.
+        # Giữ nguyên VỊ TRÍ cột kỳ, kể cả ô gạch/null.
+        # Chỉ lấy token số sẽ đẩy mã biểu mẫu/chú thích vào vị trí kỳ khi
+        # ô kỳ là '-' (ví dụ `23 | | - | (3.620...)`).
+        # Với dòng có dạng bảng, hai cột cuối là hai vị trí kỳ.
         if len(cells) < 3:
             continue
         cur_raw, prev_raw = cells[-2], cells[-1]
         value_token = re.compile(r"^\(?-?[\d][\d., ]*\)?$|^[-–—]$")
         if not (value_token.fullmatch(cur_raw) and value_token.fullmatch(prev_raw)):
-            # Fallback only for malformed/non-standard rows; do not consume code as value.
+            # Chỉ dùng fallback cho dòng lỗi/không chuẩn; không lấy mã làm giá trị.
             vals = [(i, parse_number(c)) for i, c in enumerate(cells)]
             numeric = [(i, v) for i, v in vals if v is not None]
             if len(numeric) < 1:
@@ -851,10 +851,9 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         else:
             cur, prev = parse_number(cur_raw), parse_number(prev_raw)
 
-        # Some pages keep the human label in a separate column and emit only
-        # `Mã số | Thuyết minh | current | previous` rows.  Exclude a leading
-        # form-code token from label detection so codes such as `411a` are not
-        # mistaken for display labels.
+        # Một số trang giữ nhãn người đọc ở cột riêng và chỉ phát ra dòng dạng
+        # `Mã số | Thuyết minh | hiện tại | trước đây`. Loại token mã biểu mẫu
+        # ở đầu khi tìm nhãn để các mã như `411a` không bị xem là nhãn.
         leading_code = cells[0] if cells and re.fullmatch(r"(?i)\d{1,4}[a-z]?(?:\.\d+)?", cells[0]) else None
         text_cells = [
             (i, c) for i, c in enumerate(cells[:-2])
@@ -878,15 +877,15 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                 ))
             continue
         li, label = max(text_cells, key=lambda t: len(t[1]))
-        # Avoid treating notes/page strings as the label. Form code comes only
-        # from non-period columns.
+        # Không xem chuỗi chú thích/số trang là nhãn. Mã biểu mẫu chỉ lấy từ
+        # các cột không phải cột kỳ.
         code = next((c for c in cells[:-2] if re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]+)?|[IVXLC]+", c, re.I)), None)
         parent, path = hierarchy.get(idx, (None, None))
         rows.append(RecoveredRow(label=label, current=cur, previous=prev, code=code,
                                  source_line=s + idx + 1, pattern=f"{statement}_RAW_PIPE",
                                  parent_label=parent, hierarchy_path=path))
 
-    # Inline rows with explicit period annotations.
+    # Dòng inline có chú thích kỳ rõ ràng.
     for idx, raw in enumerate(scoped):
         c = clean(raw)
         if not _valid_label(c) or ":" not in c:
@@ -905,7 +904,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                 or re.match(r"^(?:nam\s*)?20\d{2}$", flabel)
                 or flabel == "chi tiet"):
             continue
-        # Some LLM tables encode the actual parent row as `Tổng cộng: current (2025), previous (2024)`.
+        # Một số bảng do LLM tạo mã hóa dòng parent thật thành
+        # `Tổng cộng: hiện tại (2025), trước đây (2024)`.
         if flabel == "tong cong" and parent:
             label = parent
         base_label, suffix_code, suffix_note = _extract_suffix_meta(label)
@@ -918,11 +918,11 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                                  parent_label=parent, hierarchy_path=path))
 
 
-    # Continuation pages sometimes flatten a single current-period balance into
-    # `Label (253) (8(c)): 362... đồng` without a separate prior child.  Keep the
-    # bounded source observation so it can be reconciled with the semantic node;
-    # this collector is activated only for rows carrying a form/note reference,
-    # which prevents ordinary prose amounts from entering the statement.
+    # Trang tiếp nối đôi khi dồn một số dư kỳ hiện tại thành
+    # `Nhãn (253) (8(c)): 362... đồng` mà không có child kỳ trước riêng. Giữ
+    # observation nguồn có giới hạn để reconciler ghép với node semantic;
+    # collector này chỉ chạy cho dòng có mã biểu mẫu/chú thích, nhờ đó ngăn
+    # các số trong văn bản thường đi vào báo cáo.
     if statement == "FP":
         single_value = re.compile(
             r":\s*(?P<value>\(?-?[\d][\d., ]*\)?|-)\s*"
@@ -966,13 +966,13 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             ))
 
 
-    # Code-first keyed block:
+    # Block có mã đứng trước làm khóa tạm thời:
     #   * Mã số: 135
     #     * Chỉ tiêu: Các khoản phải thu khác
     #     * Năm nay: 180
     #     * Năm trước: 160
     #
-    # The semantic identity is the Chỉ tiêu child, NOT the surrounding parent.
+    # Identity semantic là child Chỉ tiêu, không phải parent bao quanh.
     for idx, raw in enumerate(scoped):
         c = re.sub(r"^[*+\-]\s+", "", clean(raw))
         mcode = re.match(r"(?i)^Mã\s*số\s*:\s*(\d{2,4}(?:\.\d+)?)\s*$", c)
@@ -1015,7 +1015,7 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                     previous = value
                 continue
 
-            # A new semantic keyed block starts.
+            # Bắt đầu một block semantic mới có mã.
             if re.match(r"(?i)^Mã\s*số\s*:", cc):
                 break
 
@@ -1036,7 +1036,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             )
 
 
-    # Inline current value followed by an explicit previous-period child. Common on continuation pages.
+    # Giá trị hiện tại inline theo sau bởi child kỳ trước rõ ràng. Dạng này
+    # thường gặp trên các trang tiếp nối.
     for idx, raw in enumerate(scoped):
         c = clean(raw)
         m = re.match(r"^(.+?):\s*(\(?-?\d[\d., ]*\)?|-)(?:\s*(?:triệu|nghìn)?\s*(?:đồng|vnd|vnđ))?\s*$", c, re.I)
@@ -1066,13 +1067,13 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                 continue
         label_raw = _normalize_row_label(label_raw)
         base_label, suffix_code, suffix_note = _extract_suffix_meta(label_raw)
-        # Code is often a sibling immediately before `Năm nay` in structural Markdown.
+        # Mã thường là sibling ngay trước `Năm nay` trong Markdown cấu trúc.
         if not suffix_code:
             for k in range(max(0, idx-3), idx):
                 mk = re.search(r"(?i)Mã\s*số\s*:?\s*(\d{2,4}(?:\.\d+)?)", clean(scoped[k]))
                 if mk:
                     suffix_code = clean(mk.group(1))
-        # also accept `(Mã số 33)` without colon
+        # Chấp nhận cả `(Mã số 33)` không có dấu hai chấm.
         mm = re.search(r"\(\s*Mã\s*số\s+(\d{2,4}(?:\.\d+)?)\s*\)\s*$", base_label, re.I)
         if mm:
             suffix_code = suffix_code or clean(mm.group(1)); base_label = clean(base_label[:mm.start()])
@@ -1082,17 +1083,18 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                                  source_line=s+idx+1, pattern=f"{statement}_RAW_CURRENT_PREVIOUS_CHILD",
                                  parent_label=parent, hierarchy_path=path))
 
-    # Parent + metadata/value children.  This handles `Số cuối năm`, `Số đầu năm`, `Tại ngày ...`, and year children.
+    # Parent + child metadata/giá trị. Xử lý `Số cuối năm`, `Số đầu năm`,
+    # `Tại ngày ...` và các child theo năm.
     for idx, raw in enumerate(scoped):
         c = clean(raw)
         if not _valid_label(c):
             continue
-        # Do not choose a value/meta child as its own parent.
+        # Không chọn child giá trị/meta làm parent của chính nó.
         if _is_period_value_line(c):
             continue
         if re.fullmatch(r"\(?-?[\d.,]+\)?|-", c):
             continue
-        # Inline label:value rows are observations themselves, not structural parents.
+        # Dòng inline nhãn:giá trị là observation, không phải parent cấu trúc.
         if re.search(r":\s*\(?-?\d[\d., ]*\)?(?:\s|$)", c):
             continue
         base_label, suffix_code, suffix_note = _extract_suffix_meta(c.rstrip(":"))
@@ -1112,7 +1114,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                 continue
             meta_cc = re.sub(r"^[*+\-]\s+", "", cc)
             child_indent = len(cr) - len(cr.lstrip(" \t"))
-            # Once a new sibling/parent label appears, stop.  Markdown bullets with equal or shallower indentation are siblings.
+            # Khi gặp nhãn sibling/parent mới thì dừng. Bullet Markdown có cùng
+            # hoặc ít thụt lề hơn là sibling.
             if j > idx + 1 and re.search(r"[A-Za-zÀ-ỹ]", cc) and not _is_period_value_line(cc):
                 if child_indent <= parent_indent + 4:
                     break
@@ -1173,14 +1176,15 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
                                      source_line=s + idx + 1, pattern=f"{statement}_RAW_CHILDREN",
                                      parent_label=parent, hierarchy_path=path))
 
-    # Inline code labels have a stable identity even when Markdown indentation
-    # causes the generic parent walker to stop at the next sibling label.
+    # Nhãn có mã inline có identity ổn định ngay cả khi thụt lề Markdown làm
+    # bộ duyệt parent chung dừng ở nhãn sibling kế tiếp.
     rows.extend(_inline_form_code_child_rows(
         scoped, s, current_year, previous_year, statement, hierarchy
     ))
 
-    # Period-section child lists. Example:
-    # `31/12/2025 ...: total` followed by nested `Sub-label: value`, then a 2024 block.
+    # Danh sách child theo section kỳ. Ví dụ:
+    # `31/12/2025 ...: tổng` theo sau bởi `Nhãn con: giá trị` lồng nhau,
+    # rồi đến block năm 2024.
     period_children: dict[tuple, RecoveredRow] = {}
     active_role = None
     active_indent = None
@@ -1203,7 +1207,7 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             and section_cc.upper() == section_cc
             and len(section_cc) <= 180
         )
-        # leave the period section when a structural sibling at the same/shallower indent appears
+        # Rời section kỳ khi xuất hiện sibling cấu trúc có cùng hoặc ít thụt lề hơn.
         if (
             indent <= active_indent
             and re.search(r"[A-Za-zÀ-ỹ]", cc)
@@ -1221,9 +1225,9 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             continue
         value = parse_number(row_match.group(2))
         code, label = _split_code_label(label)
-        # Period sections are paired by semantic label and hierarchy.  A
-        # statement code can be missing, duplicated, or belong to the Notes
-        # layer, so it is never part of this identity.
+        # Ghép các section kỳ theo nhãn semantic và hierarchy. Mã báo cáo có
+        # thể thiếu, trùng hoặc thuộc lớp Notes, nên không bao giờ là một phần
+        # của identity này.
         parent, path = hierarchy.get(idx, (None, None))
         key = (
             fold(label),
@@ -1240,7 +1244,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
             rr.previous = value
     rows.extend(period_children.values())
 
-    # Flat/column-major positional layout recovery (code/note/current/previous as separate sibling lines).
+    # Khôi phục bố cục phẳng/column-major theo vị trí
+    # (mã/chú thích/hiện tại/trước đây là các dòng sibling riêng).
     rows.extend(_positional_numeric_children(scoped, s, current_year, previous_year, statement, hierarchy))
 
     if statement == "CASHFLOW":
@@ -1248,8 +1253,8 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
         for r in rows:
             r.section = r.section or section_map.get(r.source_line)
 
-    # Deduplicate and merge complementary periods by structural context.  Code
-    # and note references remain provenance only.
+    # Khử trùng và ghép các kỳ bổ sung theo context cấu trúc. Mã và tham chiếu
+    # chú thích chỉ giữ vai trò provenance.
     merged: dict[tuple, RecoveredRow] = {}
     order = []
     for r in rows:
@@ -1276,7 +1281,10 @@ def extract_generic_statement_rows(text: str, start_line: int, end_line: int, cu
 
 
 def _split_page_blocks(text: str):
-    """Return [(page_no, content_lines, global_start_line)]. YAML page boundaries are retained only as boundaries."""
+    """Trả về ``[(page_no, content_lines, global_start_line)]``.
+
+    Ranh giới trang trong YAML chỉ được giữ lại như ranh giới.
+    """
     lines = text.splitlines()
     blocks = []
     cur_page = None
@@ -1311,14 +1319,15 @@ def _split_page_blocks(text: str):
 
 
 def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, scope_start_line: int | None = None, scope_end_line: int | None = None):
-    """Recover incomplete FP tail rows whose values start the adjacent page.
+    """Khôi phục dòng cuối B01 bị thiếu khi giá trị bắt đầu ở trang kế tiếp.
 
-    Conservative by design: same adjacent page pair, code required, values must appear
-    before a new semantic row. This is a generic structural recovery, never ticker/code specific.
+    Thiết kế bảo thủ: chỉ ghép hai trang kề nhau, bắt buộc có mã và giá trị phải
+    xuất hiện trước dòng semantic mới. Đây là khôi phục cấu trúc chung, không
+    phụ thuộc mã cổ phiếu hay mã báo cáo cụ thể.
     """
     blocks = _split_page_blocks(text)
-    # Restrict stitching to the selected primary-statement scope. This prevents
-    # similarly shaped fragments in notes/decoy tables from being recovered as B01 rows.
+    # Giới hạn ghép trong scope báo cáo chính đã chọn. Cách này ngăn các mảnh có
+    # hình dạng tương tự trong notes/bảng mồi bị khôi phục thành dòng B01.
     if scope_start_line is not None or scope_end_line is not None:
         lo = int(scope_start_line or 1)
         hi = int(scope_end_line or 10**18)
@@ -1333,11 +1342,11 @@ def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, sco
         if next_page != page + 1:
             continue
 
-        # Tail meaningful lines only; metadata has already been removed.
+        # Chỉ xét các dòng có ý nghĩa ở cuối trang; metadata đã được loại bỏ.
         tail = [(i, clean(x)) for i,x in enumerate(left[-18:]) if clean(x)]
         if not tail:
             continue
-        # Find last plausible form code near page tail.
+        # Tìm mã biểu mẫu hợp lệ cuối cùng gần cuối trang.
         code_pos = None
         code = None
         for local_i, t in reversed(tail):
@@ -1358,11 +1367,11 @@ def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, sco
         if after_code and is_note_reference(after_code[0]):
             note = after_code[0]
             after_code = after_code[1:]
-        # If values already exist on the left, it is not an incomplete tail row.
+        # Nếu bên trái đã có giá trị thì đây không phải dòng cuối bị thiếu.
         if any(parse_number(x) is not None for x in after_code):
             continue
 
-        # Reconstruct label from lines before code until heading/table/noise boundary.
+        # Dựng lại nhãn từ các dòng trước mã cho đến ranh giới heading/bảng/nhiễu.
         parts=[]
         for j in range(code_pos-1, max(-1, code_pos-7), -1):
             t=clean(left[j])
@@ -1382,7 +1391,8 @@ def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, sco
         if len(label)<4:
             continue
 
-        # Leading values on next page, allowing heading/content noise but no new semantic row.
+        # Tìm các giá trị đầu trang kế tiếp; cho phép nhiễu heading/content nhưng
+        # không cho phép dòng semantic mới.
         vals=[]
         value_lines=[]
         for j,raw in enumerate(right[:12]):
@@ -1394,12 +1404,12 @@ def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, sco
                 vals.append(v); value_lines.append(j)
                 if len(vals)>=2: break
                 continue
-            # Dash is a real observed null; retain position if encountered.
+            # Dấu gạch là null thực sự trong nguồn; giữ nguyên vị trí nếu gặp.
             if t in {"-","–","—"}:
                 vals.append(None); value_lines.append(j)
                 if len(vals)>=2: break
                 continue
-            # Stop at a new semantic row/table.
+            # Dừng khi gặp dòng/bảng semantic mới.
             if '|' in raw or re.search(r"[A-Za-zÀ-ỹ]", t):
                 break
         if len(vals)<2:
@@ -1413,6 +1423,11 @@ def _cross_page_fp_rows(text: str, current_year: int, previous_year: int, *, sco
     return recovered
 
 def extract_financial_position_source_rows(text: str, current_year=None, previous_year=None, fallback_unit: Optional[str] = None):
+    """Khôi phục dòng B01, gồm cả bố cục tách rời và vắt qua trang.
+
+    Hàm trả về evidence kèm dòng nguồn và context hierarchy để hydrator và
+    reconciler đưa ra quyết định bảo thủ ở bước sau.
+    """
     if current_year is None or previous_year is None:
         period = resolve_report_years(
             text,
@@ -1428,7 +1443,7 @@ def extract_financial_position_source_rows(text: str, current_year=None, previou
     rows = extract_generic_statement_rows(text, scope["scope_start_line"], scope["scope_end_line"], current_year, previous_year, "FP")
     rows += _cross_page_fp_rows(text, current_year, previous_year, scope_start_line=scope.get("scope_start_line"), scope_end_line=scope.get("scope_end_line"))
 
-    # Merge after cross-page recovery using structural label/context identity.
+    # Ghép sau khôi phục liên trang theo identity nhãn/context cấu trúc.
     merged = {}
     order = []
     for r in rows:
@@ -1478,13 +1493,13 @@ def _is_next_securities_statement(line: str) -> bool:
 def extract_securities_supplemental_cashflow_rows(
     text: str, current_year=None, previous_year=None
 ):
-    """Recover the customer-broker cash-flow schedule on securities reports.
+    """Khôi phục bảng dòng tiền khách hàng/môi giới trong báo cáo chứng khoán.
 
-    B03-CTCK/B03b-CTCK reports may append a separate customer/agency cash-flow
-    schedule after the statutory operating, investing and financing sections.
-    The normal cash-flow scope intentionally stops before that schedule so it
-    does not drift into B04 or the notes.  This bounded pass keeps the schedule
-    as source observations without forcing it into the enterprise/bank schema.
+    Báo cáo B03-CTCK/B03b-CTCK có thể thêm một bảng dòng tiền khách hàng/đại lý
+    riêng sau các section kinh doanh, đầu tư và tài chính theo luật định. Scope
+    dòng tiền thông thường cố ý dừng trước bảng này để không lấn sang B04 hoặc
+    notes. Lượt có giới hạn này giữ bảng dưới dạng observation nguồn, không ép
+    nó vào schema doanh nghiệp/ngân hàng.
     """
     lines = text.splitlines()
     starts = [i for i, line in enumerate(lines) if _is_securities_customer_cashflow_heading(line)]
@@ -1499,15 +1514,14 @@ def extract_securities_supplemental_cashflow_rows(
     rows = extract_generic_statement_rows(
         text, start + 1, end, current_year, previous_year, "CASHFLOW_SUPPLEMENTAL"
     )
-    # The customer/agency schedule is a separate identity domain from the
-    # statutory cash-flow sections.  Give every row a bounded section marker so
-    # form codes such as `02` cannot collide with statutory B03 rows.
+    # Lịch dòng tiền khách hàng/đại lý là miền identity riêng với các section
+    # dòng tiền theo luật định. Gắn marker section có giới hạn cho mọi dòng để
+    # mã biểu mẫu như `02` không va chạm với dòng B03 theo luật định.
     for row in rows:
         row.section = row.section or "customer_broker_flow"
-    # Continuation pages often flatten both period children onto one line:
-    # `...: Năm nay: 1; Năm trước: 2`.  Keep this as a separate bounded
-    # collector because the statutory cash-flow parser has already stopped at
-    # the supplemental heading by design.
+    # Trang tiếp nối thường dồn cả hai child kỳ trên một dòng:
+    # `...: Năm nay: 1; Năm trước: 2`. Giữ đây là collector có giới hạn riêng
+    # vì parser dòng tiền theo luật định đã dừng tại heading bổ sung theo thiết kế.
     current_token = r"\(?-?[\d., ]+\)?|-"
     current_re = re.compile(rf"(?i)Năm\s*nay\s*:\s*({current_token})")
     previous_re = re.compile(rf"(?i)Năm\s*trước(?:\s*\([^)]*\))?\s*:\s*({current_token})")

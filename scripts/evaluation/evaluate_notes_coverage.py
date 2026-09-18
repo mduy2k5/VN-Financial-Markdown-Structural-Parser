@@ -182,7 +182,8 @@ def main() -> None:
     _write_csv(out / "scope_misses.csv", misses)
     _write_csv(out / "suspicious_scope.csv", suspicious)
 
-    # Structural extraction backlog: narratives/unknowns are where v23.1 should focus.
+    # Phần tồn đọng của extraction cấu trúc: narratives/unknowns là nơi v23.1
+    # cần tập trung.
     backlog = sorted(rows, key=lambda r: (-(int(r["narrative_count"] or 0) + int(r["unknown_count"] or 0)), r["source_name"]))
     _write_csv(out / "structural_backlog.csv", backlog)
 

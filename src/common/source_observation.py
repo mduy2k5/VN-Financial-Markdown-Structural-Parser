@@ -53,7 +53,7 @@ def _number(v: Any):
 
 
 def _row_raw_text(row: Any, fallback: str) -> str:
-    """Return preserved source serialization when an extractor supplied it."""
+    """Trả về dạng serialize nguồn được giữ nếu extractor đã cung cấp."""
 
     direct = getattr(row, "raw_text", None)
     if direct:
@@ -81,9 +81,8 @@ def _source_id(
     hierarchy_path: str = "",
     occurrence: int | None = None,
 ) -> str:
-    # ``code`` remains an API-compatible argument, but deliberately does not
-    # participate in identity. Codes may be detached or may refer to a
-    # different document layer (the Notes section).
+    # ``code`` vẫn là argument tương thích API nhưng cố ý không tham gia identity.
+    # Mã có thể bị tách hoặc thuộc tầng tài liệu khác (section Notes).
     identity = structural_identity(
         statement=statement,
         label=label,
@@ -111,10 +110,10 @@ def _existing_labels(canonical: dict) -> set[str]:
 
 
 def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: str) -> dict | None:
-    """Append source-preserving observations without changing semantic nodes.
+    """Thêm observation giữ nguồn mà không đổi node semantic.
 
-    This is deliberately schema-additive: semantic nodes remain authoritative while rows that
-    cannot be represented by the current universal schema are still available losslessly.
+    Đây là thay đổi bổ sung cho schema: node semantic vẫn là nguồn chính, còn
+    dòng chưa biểu diễn được trong schema chung vẫn có thể truy cập không mất dữ liệu.
     """
     if not canonical:
         return canonical
@@ -148,9 +147,8 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
             parent_label=parent_label,
             hierarchy_path=hierarchy_path,
         )
-        # A repeated parser observation with a different code/note is still
-        # the same structural row.  Assign an occurrence rank only after this
-        # code-independent duplicate check.
+        # Observation parser lặp với mã/thuyết minh khác vẫn là cùng dòng cấu trúc.
+        # Chỉ gán occurrence rank sau khi kiểm tra trùng không phụ thuộc mã.
         duplicate_key = (base_identity, current, previous)
         if duplicate_key in seen:
             continue
@@ -173,8 +171,9 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
         if key in seen:
             continue
         seen.add(duplicate_key)
-        # Materialize even mapped rows when source label differs from canonical wording.
-        # Exact duplicates of a semantic canonical name add no evaluator/downstream value.
+        # Vẫn materialize dòng đã map khi nhãn nguồn khác cách viết canonical.
+        # Bản sao chính xác của tên semantic canonical không thêm giá trị cho
+        # evaluator/consumer phía sau.
         if _fold(label) in semantic_labels:
             continue
         node = {
@@ -193,8 +192,8 @@ def augment_from_rows(canonical: dict | None, rows: Iterable[Any], statement: st
             "sector": canonical.get("sector"),
             "method": canonical.get("method"),
             "section": section or None,
-            # Kept for compatibility with older consumers; it is metadata,
-            # never the source-observation identity.
+            # Giữ để tương thích consumer cũ; đây là metadata, không phải identity
+            # của observation nguồn.
             "form_code": statement_code or None,
             "statement_code": statement_code or None,
             "note_ref": note_ref or None,

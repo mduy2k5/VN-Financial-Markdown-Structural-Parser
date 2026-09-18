@@ -15,12 +15,11 @@ def source_context_for_node(
     prior_selected: list[tuple[int, str, str]] | None = None,
     catalog=None,
 ) -> dict:
-    """Build non-semantic source hierarchy evidence for one mapped row.
+    """Tạo bằng chứng hierarchy nguồn không semantic cho một dòng đã map.
 
-    The context is intentionally derived from structural ancestry and labels,
-    not from form codes or the canonical node id.  It lets consumers
-    distinguish source dimensions such as current/non-current liabilities
-    while preserving the existing schema parent relationship.
+    Context cố ý được suy ra từ ancestor cấu trúc và nhãn, không từ mã biểu mẫu
+    hay node id canonical. Nó giúp phân biệt các chiều nguồn như nợ ngắn/dài hạn
+    mà vẫn giữ quan hệ parent của schema hiện tại.
     """
 
     chain = list(reversed(ancestors(nodes, node.node_index)))
@@ -28,8 +27,8 @@ def source_context_for_node(
     current_label = _label(node)
     if current_label:
         labels.append(current_label)
-    # Table headers can enter the structural stream as a single plain label;
-    # they are transport metadata, not a business hierarchy level.
+    # Header bảng có thể đi vào stream cấu trúc như một nhãn plain duy nhất;
+    # đó là metadata truyền tải, không phải một cấp hierarchy nghiệp vụ.
     header_terms = ("ma so", "thuyet minh", "so cuoi nam", "so dau nam")
     labels = [
         label for label in labels
@@ -57,8 +56,8 @@ def source_context_for_node(
             maturity_source = label
             break
 
-    # The first structural label is the broad source section.  Keep the full
-    # path because generic labels may repeat under different parents.
+    # Nhãn cấu trúc đầu là section nguồn tổng quát. Giữ toàn bộ path vì nhãn
+    # chung có thể lặp dưới các parent khác nhau.
     context = {
         "path": labels,
         "parent_label": labels[-2] if len(labels) >= 2 else None,
@@ -68,11 +67,11 @@ def source_context_for_node(
         context["maturity"] = maturity
         context["maturity_source"] = maturity_source
 
-    # Some source tables put generic children (``Nguyên giá`` / ``Khấu hao``)
-    # at the same indentation as their preceding category row.  Tree ancestry
-    # alone cannot see that category, so retain the nearest previously mapped
-    # group as additional evidence.  This uses semantic matching only for
-    # provenance display; it does not alter the node identity or dedup key.
+    # Một số bảng nguồn đặt child chung (``Nguyên giá`` / ``Khấu hao``) cùng
+    # mức thụt lề với dòng nhóm trước đó. Chỉ dùng ancestor cây không thấy được
+    # nhóm này, nên giữ group đã map gần nhất làm bằng chứng bổ sung. Semantic
+    # matching ở đây chỉ phục vụ hiển thị provenance; không đổi node identity
+    # hay khóa loại trùng.
     if prior_selected and catalog is not None:
         generic_labels = {
             "nguyen gia",

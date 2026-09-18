@@ -34,7 +34,7 @@ TOTAL_LABELS = {
 
 def _clean_financial_label(text: str) -> str:
     f = fold(text or "").strip()
-    # Strip markdown/key wrappers and common numbering/formula suffixes.
+    # Bỏ wrapper Markdown/key và hậu tố số thứ tự/công thức thường gặp.
     f = re.sub(r"^(?:tieu de|ten bao cao|report title)\s*:\s*", "", f)
     f = re.sub(r"^(?:(?:[a-z]|[ivxlc]+|\d+(?:\.\d+)*)\s*[-–—.:)]\s*)+", "", f)
     f = re.sub(r"\s*\([^)]*(?:=|ma so|thuyet minh)[^)]*\)\s*$", "", f)
@@ -79,7 +79,7 @@ def detect_sector(raw_text: str, catalog) -> dict:
 
     schema_sectors = sorted({spec.sector for spec in catalog.nodes.values() if spec.sector})
     supported = detected in schema_sectors or detected in {"enterprise", "bank"} and detected in schema_sectors
-    # common does not mean the sector taxonomy itself is covered.
+    # common không có nghĩa taxonomy của sector đó đã được hỗ trợ.
     gap = detected if not supported else None
 
     return {
@@ -115,49 +115,49 @@ def _node_has_local_payload(node: StructuralNode, nodes: list[StructuralNode]) -
 
 
 NOISE_LABEL_PATTERNS = [
-    # Page / extraction metadata.
+    # Metadata trang/trích xuất.
     re.compile(r"^(?:page|trang)(?:\s*\d+)?$"),
     re.compile(r"^(?:_?id|s3_key|search_folder|category|created_at|file_name|page_ocr_at|page_ocr_status|period|status|symbol|updated_at|year|msdn)$"),
 
-    # Units and unit-only cells.
+    # Đơn vị và ô chỉ có đơn vị.
     re.compile(r"^\(?\s*(?:don vi|unit|khong ro don vi|dong|vnd|trieu dong|trieu vnd|nghin dong|ty dong)\s*\)?$"),
 
-    # People/signature/footer metadata.
+    # Metadata người ký/chữ ký/footer.
     re.compile(r"^(?:nguoi lap|ke toan truong|tong giam doc|giam doc|chu tich)\b"),
     re.compile(r"^(?:ky ten|chu ky|signed|lap ngay|ngay lap)\b"),
 
-    # Table/header vocabulary. These carry column semantics, not business fields.
+    # Từ vựng bảng/header. Chúng mang ngữ nghĩa cột, không phải field nghiệp vụ.
     re.compile(r"^(?:stt(?:\s*\d+)?|ten chi tieu|chi tiet|gia tri|thoi diem bao cao|cong thuc tinh)$"),
     re.compile(r"^(?:ma so|thuyet minh|chi tieu|so cuoi nam|so dau nam)$"),
     re.compile(r"^(?:so lieu)(?:\s*\(trinh bay lai\))?$"),
     re.compile(r"^so dau nam\s*\(trinh bay lai\)$"),
     re.compile(r"^so lieu theo thuyet minh$"),
 
-    # Pure dates / period headers, optionally with units or audit/restatement notes.
+    # Ngày thuần/header kỳ, có thể kèm đơn vị hoặc ghi chú kiểm toán/điều chỉnh.
     re.compile(r"^\(?\s*(?:tai|vao|ngay|tai ngay)?\s*\d{1,2}[./-]\d{1,2}[./-]\d{4}(?:\s+trieu\s+(?:vnd|dong))?(?:\s*\([^)]*\))?\s*\)?$"),
     re.compile(r"^(?:tai|vao|ngay|tai ngay)?\s*ngay?\s*\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}(?:\s*\([^)]*\))?$"),
     re.compile(r"^(?:tai|vao|ngay|tai ngay)\s+\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}(?:\s*\([^)]*\))?$"),
     re.compile(r"^cho nam tai chinh ket thuc ngay\b"),
     re.compile(r"^\d{2}\s*[-/]\s*\d{4}$"),
 
-    # Form identifiers / statement continuation headings.
+    # Mã biểu mẫu/tiêu đề báo cáo tiếp nối.
     re.compile(r"^mau(?:\s+so)?\s+b\s*0?[1-4]\b"),
     re.compile(r"^(?:bang can doi ke toan|bao cao tinh hinh tai chinh).*\(tiep theo\)$"),
 
-    # Legal circular text / boilerplate.
+    # Văn bản thông tư/phần mẫu pháp lý.
     re.compile(r"^\(?(?:ban hanh theo\s+)?thong tu\b"),
     re.compile(r"^\(ban hanh theo thong tu\b"),
     re.compile(r"^ban hanh theo$"),
     re.compile(r"^ngay\s+\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}\s+cua\s+(?:bo tai chinh|nhnn)\b"),
 
-    # Addresses / obvious location metadata seen in OCR/LLM front matter.
+    # Địa chỉ/metadata địa điểm thường thấy ở phần đầu OCR/LLM.
     re.compile(r"^dia chi$"),
     re.compile(r"^stt\s+chi tieu$"),
     re.compile(r"^(?:bao cao tinh hinh tai chinh|bang can doi ke toan)(?: hop nhat)?(?: tai)? ngay\b"),
     re.compile(r"^ngay\s+\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+\d{4}\s+cua\s+ngan hang nha nuoc\b"),
     re.compile(r"^(?:so\s+\d+|tang\s+\d+|mac dinh chi,|ly thuong kiet,|tran quang khai,|hau giang,|dai lo hung vuong,).*?(?:phuong|p\.|quan|ha noi|ho chi minh|thanh pho|tower|toa nha|nghia lo)"),
 
-    # Numeric/note tokens and boilerplate notes.
+    # Token số/thuyết minh và ghi chú mẫu.
     re.compile(r"^\d+(?:[.,]\d+)*(?:\([a-z]\))?$"),
     re.compile(r"^\d+\([a-z]\)$"),
     re.compile(r"^\(tham chieu\s+\d+\)$"),
@@ -185,13 +185,13 @@ SECTOR_SCHEMA_TOKENS = {
 
 
 def _looks_like_inline_serialized_row(f: str) -> bool:
-    """Detect labels that still contain code/value columns.
+    """Nhận diện nhãn còn chứa các cột mã/giá trị.
 
-    These are structural-serialization gaps (for example column-major/plain-row
-    text), not alias gaps. Recommending aliases for the whole serialized row
-    would overfit values and form codes.
+    Đây là khoảng thiếu do serialize cấu trúc (ví dụ text theo cột/theo dòng),
+    không phải thiếu alias. Thêm alias cho cả dòng đã serialize sẽ làm khớp quá
+    mức với giá trị và mã biểu mẫu.
     """
-    # Require a business-looking textual prefix plus at least two numeric cells.
+    # Yêu cầu tiền tố text giống nhãn nghiệp vụ và ít nhất hai ô số.
     nums = re.findall(r"(?<!\w)\(?\d[\d.,]{2,}\)?(?!\w)", f)
     if len(nums) < 2:
         return False
@@ -243,9 +243,8 @@ def analyze_semantic_coverage(nodes, anchor_selection, semantic_anchor_indices, 
         f = fold(node.label_text).strip()
         if f in excluded_labels or f.startswith("tai ngay "):
             continue
-        # Count business-row labels only. They must own a payload directly or
-        # through immediate structural children; period/note attributes are
-        # explicitly excluded above.
+        # Chỉ đếm nhãn dòng nghiệp vụ. Nhãn phải có payload trực tiếp hoặc qua
+        # child cấu trúc trực tiếp; thuộc tính kỳ/thuyết minh đã loại ở trên.
         if not _node_has_local_payload(node, nodes):
             continue
         candidates.append(node)
@@ -284,10 +283,10 @@ def analyze_semantic_coverage(nodes, anchor_selection, semantic_anchor_indices, 
         for label, count in sorted(normalized_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:30]
     ]
 
-    # v0.4.12.2: keep legacy actionable fields, but define a stricter
-    # true-actionable metric after removing noise, generic labels and known
-    # schema gaps. Schema gaps remain visible as their own counts; they should
-    # not be treated as alias/parser work.
+    # v0.4.12.2: giữ field actionable legacy, nhưng định nghĩa metric
+    # actionable chặt hơn sau khi bỏ nhiễu, nhãn chung và khoảng thiếu schema.
+    # Khoảng thiếu schema vẫn hiện ở bộ đếm riêng; không xem chúng là việc sửa
+    # alias/parser.
     actionable_unknown = [
         item for item in unknown
         if item.get("classification") not in {"noise", "review_generic_label"}
@@ -332,10 +331,10 @@ def analyze_semantic_coverage(nodes, anchor_selection, semantic_anchor_indices, 
 
 
 def detect_explicit_totals(lines: Iterable, scope_start: int, scope_end: int, guide) -> dict:
-    """Find explicit statement totals with nearby current/previous payload.
+    """Tìm dòng tổng báo cáo rõ và payload hiện tại/trước đây ở gần đó.
 
-    We use a small margin around the selected scope so a truncated start/end can
-    still be diagnosed instead of silently reporting a healthy canonical.
+    Dùng một biên nhỏ quanh scope đã chọn để vẫn chẩn đoán được scope bị cắt đầu
+    hoặc cuối, thay vì âm thầm báo canonical khỏe.
     """
     from .primitives import extract_periods, extract_values
 

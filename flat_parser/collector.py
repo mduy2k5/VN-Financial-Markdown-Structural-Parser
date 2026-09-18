@@ -12,6 +12,30 @@ CODE_KEYS = {"ma so", "code"}
 NOTE_KEYS = {"thuyet minh", "so lieu thuyet minh"}
 
 
+def _period_value_pairs(periods, values):
+    """Ghép các giá trị số với nhãn kỳ thực tế.
+
+    Một số dòng bị làm phẳng có token role chung (ví dụ ``năm nay``) trước hai
+    ngày rõ ràng. Đây là metadata, không phải cột giá trị thứ ba, nên khi có
+    token thừa thì ưu tiên các kỳ ngày ở cuối.
+    """
+
+    periods = list(periods or [])
+    values = list(values or [])
+    if len(periods) > len(values) and values:
+        explicit = [
+            period
+            for period in periods
+            if re.search(
+                r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b|\b20\d{2}\b",
+                period.raw_period or "",
+            )
+        ]
+        if len(explicit) >= len(values):
+            periods = explicit[-len(values):]
+    return list(zip(periods[:len(values)], values[:len(periods)]))
+
+
 def _parse_pipe_inline(node: StructuralNode, guide: UniversalGuide):
     text = node.text
     segments = [x.strip() for x in text.split("|")]
@@ -47,7 +71,7 @@ def _parse_pipe_inline(node: StructuralNode, guide: UniversalGuide):
             vals[0].role = explicit_role
             numeric_values.extend(vals)
 
-    # Typical BCTC row: label | code | note/blank | current | previous
+    # Dòng BCTC thường gặp: nhãn | mã | thuyết minh/rỗng | hiện tại | trước đây.
     if len(numeric_values) >= 3:
         first = numeric_values[0]
         if (
@@ -71,13 +95,14 @@ def _bounded_descendants(
     max_depth: int = 6,
 ):
     """
-    Traverse descendants but DO NOT cross into another semantic record.
+    Duyệt descendant nhưng KHÔNG đi qua record semantic khác.
 
-    If descendant B is itself an alias-resolved canonical anchor, B and its
-    subtree belong to B, not to A. This is the core v0.4.2 boundary rule.
+    Nếu descendant B đã là anchor canonical được alias giải quyết, B và subtree
+    của nó thuộc về B, không thuộc A. Đây là quy tắc ranh giới cốt lõi v0.4.2.
     """
     out = []
     queue = [(idx, 1) for idx in anchor.children]
+    semantic_boundary_seen = False
 
     while queue:
         idx, depth = queue.pop(0)
@@ -87,13 +112,58 @@ def _bounded_descendants(
         node = nodes[idx]
 
         if idx in semantic_anchor_indices:
-            # Semantic child boundary: do not consume it and do not enter subtree.
+            # Ranh giới child semantic: không lấy child và không đi vào subtree.
+            #
+            # Một lỗi Markdown lặp lại gắn payload của child vào parent trong
+            # cây thụt lề. Khi gặp child semantic đầu tiên, mọi sibling sau đó
+            # trong lượt duyệt giới hạn thuộc child đó (hoặc child sau), không
+            # thuộc parent. Vẫn giữ payload trước child vì đó thường là dòng
+            # tổng của chính parent.
+            semantic_boundary_seen = True
             continue
 
-        # Mixed plain/bullet reports often contain a valid but unmapped row
-        # container between a section total and its detail rows.  Treat those
-        # structural record containers as boundaries too; otherwise the
-        # section total absorbs every descendant value and looks duplicated.
+        if semantic_boundary_seen:
+            # Không để liên kết sibling hỏng đưa payload của child quay lại qua
+            # wrapper thuyết minh/giá trị sau ranh giới.
+            continue
+
+        # Dòng có nhãn và giá trị nhưng chưa phải anchor semantic vẫn là record
+        # nguồn thật. Không gộp nó vào tổng nhóm trước chỉ vì cây Markdown gắn
+        # cả hai dòng vào cùng parent. Loại nhãn chỉ có ngày vì chúng thường là
+        # cột giá trị tách rời; giữ chúng cho caller audit mơ hồ thay vì âm thầm bỏ.
+        record_label = (node.label_text or "").strip()
+        record_boundary = (
+            node.parent_index == anchor.node_index
+            and bool(record_label)
+            and bool(node.values)
+            and bool(node.periods)
+            and node.pattern_id in {
+                "SP_MULTI_PERIOD_INLINE",
+                "SP_PIPE_DELIMITED_INLINE_ROW",
+                "SP_MARKDOWN_TABLE_ROW",
+                "SP_CODE_NOTE_PERIOD_INLINE_ROW",
+                "SP_LABEL_VALUE_INLINE",
+            }
+            and fold(record_label) not in {
+                "tong", "tong cong", "total", "tong so",
+            }
+            and not fold(record_label).startswith((
+                "so cuoi nam",
+                "so dau nam",
+                "ngay ",
+                "nam nay",
+                "nam truoc",
+            ))
+            and not re.search(r"\b\d{1,2}/\d{1,2}/\d{4}\b|\b\d{4}\b", record_label)
+        )
+        if record_boundary:
+            semantic_boundary_seen = True
+            continue
+
+        # Báo cáo trộn plain/bullet thường có một container dòng hợp lệ nhưng
+        # chưa map giữa tổng section và dòng chi tiết. Cũng xem container cấu
+        # trúc đó là ranh giới; nếu không tổng section sẽ nhận mọi giá trị con
+        # và trông như bị lặp.
         keyed_wrapper = fold(node.lhs or "") in {
             "ten chi tieu",
             "ten khoan muc",
@@ -129,15 +199,15 @@ def _sequential_local_attributes(
     max_nodes: int = 8,
 ):
     """
-    Fallback for Markdown serialization like:
+    Fallback cho dạng serialize Markdown như:
 
         **TỔNG TÀI SẢN**
         * Số cuối năm: ...
         * Số đầu năm: ...
 
-    The plain/bold label is not a bullet parent, so indentation tree has no
-    relationship. Scan only the immediately following local nodes and stop
-    at the next semantic anchor or unrelated business node.
+    Nhãn plain/in đậm không phải parent bullet nên cây thụt lề không có quan hệ.
+    Chỉ quét các node cục bộ ngay sau và dừng ở anchor semantic kế tiếp hoặc
+    node nghiệp vụ không liên quan.
     """
     period_values = []
     note = None
@@ -151,7 +221,7 @@ def _sequential_local_attributes(
     for i in range(start, end):
         n = nodes[i]
 
-        # Page break / large structural jump is a hard stop.
+        # Ngắt trang/nhảy cấu trúc lớn là ranh giới cứng.
         if n.line_no - anchor.line_no > 8:
             break
 
@@ -165,10 +235,10 @@ def _sequential_local_attributes(
                 unit = unit or n.unit or n.inherited_unit
                 continue
 
-        # Generic date-bearing local attribute, e.g.
+        # Thuộc tính cục bộ có ngày, ví dụ:
         #   Số liệu ngày 31/12/2025 (VND): 86...
-        # It need not be classified as SP_PERIOD_VALUE_ATTRIBUTE as long as
-        # it contains exactly one reporting period and one value.
+        # Không cần phân loại thành SP_PERIOD_VALUE_ATTRIBUTE nếu có đúng một
+        # kỳ báo cáo và một giá trị.
         if n.values and len(n.values) == 1:
             ps = extract_periods(n.lhs or n.text or "", n.line_no, guide)
             if len(ps) == 1:
@@ -195,7 +265,7 @@ def _sequential_local_attributes(
                 code = code or (n.rhs.strip() if n.rhs else None)
                 continue
 
-        # Wrapper serialization:
+        # Dạng serialize wrapper:
         #   C - NỢ PHẢI TRẢ
         #   * Chỉ tiêu: 300
         #       * Số cuối năm: ...
@@ -213,9 +283,9 @@ def _sequential_local_attributes(
             if period_values:
                 continue
 
-        # Display formulas such as "(270=100+200)" / "(440 = 300 + 400)"
-        # are structural metadata, not financial payload and should not break
-        # the local record.
+        # Công thức hiển thị như "(270=100+200)" / "(440 = 300 + 400)" là
+        # metadata cấu trúc, không phải payload tài chính và không nên kết thúc
+        # record cục bộ.
         formula_text = (n.text or "").strip().strip("()")
         if re.fullmatch(r"\d{2,3}\s*=\s*\d{2,3}(?:\s*[+\-]\s*\d{2,3})+", formula_text):
             continue
@@ -225,15 +295,14 @@ def _sequential_local_attributes(
             unit = unit or n.unit or n.inherited_unit
             continue
 
-        # Any other non-attribute node ends the local record.
+        # Node không phải thuộc tính khác sẽ kết thúc record cục bộ.
         break
 
-    # Plain sequential row packet. Interpret from the tail because financial
-    # values are the last two atoms, while the leading atoms are usually
-    # form-code and optional note reference. Examples:
-    #   label / 100 / current / previous
-    #   label / 110 / 5 / current / previous
-    # The code/note are metadata only and never mapping keys.
+    # Gói dòng tuần tự plain. Đọc từ đuôi vì giá trị tài chính là hai atom cuối,
+    # còn atom đầu thường là mã biểu mẫu và tham chiếu thuyết minh tùy chọn. Ví dụ:
+    #   nhãn / 100 / hiện tại / trước đây
+    #   nhãn / 110 / 5 / hiện tại / trước đây
+    # Mã/thuyết minh chỉ là metadata và không bao giờ là khóa mapping.
     positional_values = []
     if not period_values and len(positional_atoms) >= 2:
         atoms = list(positional_atoms)
@@ -254,8 +323,8 @@ def _sequential_local_attributes(
         else:
             positional_values = atoms[:2]
 
-    # Preserve positional-column order from a nearby explicit header.
-    # Some OCR output serializes "Số đầu năm" before "Số cuối năm".
+    # Giữ thứ tự cột theo vị trí từ header rõ gần đó.
+    # Một số output OCR serialize "Số đầu năm" trước "Số cuối năm".
     if not period_values and len(positional_values) == 2:
         recent_periods = []
         for prev in nodes[max(0, anchor.node_index - 140):anchor.node_index]:
@@ -289,31 +358,30 @@ def _recover_detached_total_payload(
     selected,
 ):
     """
-    Recover payload when a financial total label is detached from its values.
+    Khôi phục payload khi nhãn tổng tài chính bị tách khỏi giá trị.
 
-    Supported general structural forms:
+    Các dạng cấu trúc chung được hỗ trợ:
 
-    1) Heading + standalone multi-period payload
-       TOTAL L+E
+    1) Heading + payload nhiều kỳ tách rời
+       TỔNG NỢ + VỐN
        1,192... (2025), 978... (2024)
 
-    2) Heading + generic keyed values
-       TOTAL ASSETS
-       Số liệu: current
-       Số liệu (Trình bày lại): previous
+    2) Heading + giá trị có key chung
+       TỔNG TÀI SẢN
+       Số liệu: hiện tại
+       Số liệu (Trình bày lại): trước đây
 
-    3) Heading + following unlabeled Markdown table block
-       TOTAL ASSETS
-       | ...period headers... |
-       | detail ... |
-       | TOTAL VALUE CURRENT | TOTAL VALUE PREVIOUS |
+    3) Heading + block bảng Markdown không có nhãn theo sau
+       TỔNG TÀI SẢN
+       | ...header kỳ... |
+       | chi tiết ... |
+       | GIÁ TRỊ TỔNG HIỆN TẠI | GIÁ TRỊ TỔNG TRƯỚC ĐÂY |
 
-       When the total heading precedes a detached table block, the total is the
-       terminal row of that block, not necessarily the nearest row. This is
-       common in OCR/LLM serialization where labels are emitted before the
-       value matrix.
+       Khi tiêu đề tổng đứng trước một block bảng tách rời, tổng là dòng cuối
+       của block, không nhất thiết là dòng gần nhất. Dạng này thường gặp khi
+       OCR/LLM serialize nhãn trước ma trận giá trị.
 
-    Returns (period_values, positional_values, unit, evidence) or None.
+    Trả về (period_values, positional_values, unit, evidence) hoặc None.
     """
     if selected.node_id not in DETACHED_TOTAL_NODE_IDS:
         return None
@@ -323,7 +391,7 @@ def _recover_detached_total_payload(
     if not lookahead:
         return None
 
-    # Ignore separators/page-number noise while preserving locality.
+    # Bỏ dấu phân cách/nhiễu số trang nhưng vẫn giữ phạm vi cục bộ.
     def is_noise(n: StructuralNode):
         f = fold(n.text or "")
         if f in {"---", "—", "-", ""}:
@@ -339,7 +407,7 @@ def _recover_detached_total_payload(
         nearby.append(n)
 
     # ---------------------------------------------------------------
-    # Form 1: direct standalone multi-period payload.
+    # Dạng 1: payload nhiều kỳ độc lập trực tiếp.
     # ---------------------------------------------------------------
     for n in nearby[:5]:
         if is_noise(n):
@@ -355,7 +423,7 @@ def _recover_detached_total_payload(
                 n.unit or n.inherited_unit,
                 "detached_total_multi_period",
             )
-        # A strong unrelated semantic-looking label ends this direct form.
+        # Nhãn có vẻ semantic nhưng không liên quan sẽ kết thúc dạng trực tiếp.
         if n.label_text and n.pattern_id not in {
             "SP_VALUE_ONLY_POSITIONAL",
             "SP_LABEL_VALUE_INLINE",
@@ -363,9 +431,9 @@ def _recover_detached_total_payload(
             break
 
     # ---------------------------------------------------------------
-    # Form 2: two generic keyed values immediately after the total.
-    # We intentionally keep them positional. The resolver maps first/second
-    # value using the statement's current/previous context.
+    # Dạng 2: hai giá trị có khóa chung ngay sau dòng tổng.
+    # Cố ý giữ theo vị trí. Resolver sẽ map giá trị đầu/thứ hai theo context
+    # hiện tại/trước đây của báo cáo.
     # ---------------------------------------------------------------
     keyed = []
     keyed_unit = None
@@ -391,19 +459,18 @@ def _recover_detached_total_payload(
             break
 
     # ---------------------------------------------------------------
-    # Form 3: detached table block.
-    # The first table row must be physically close to the total heading.
-    # Once a table block starts, use its terminal row carrying two period
-    # values. This avoids the unsafe "nearest row" behavior.
+    # Dạng 3: block bảng tách rời.
+    # Dòng bảng đầu phải nằm gần về vật lý với tiêu đề tổng. Khi block bắt đầu,
+    # dùng dòng cuối có hai giá trị kỳ; cách này tránh hành vi "dòng gần nhất"
+    # không an toàn.
     # ---------------------------------------------------------------
     table_rows = []
     started = False
 
-    # IMPORTANT: line-distance is only a gate for the START of the detached
-    # table. Once the table begins, consume the entire contiguous table block.
-    # Do not reuse the generic 40-line nearby window here: long balance-sheet
-    # tables can easily exceed 40 source lines, and truncating them makes the
-    # penultimate detail row look like the terminal total row (BWE family).
+    # QUAN TRỌNG: khoảng cách dòng chỉ là cổng cho ĐIỂM BẮT ĐẦU của bảng tách rời.
+    # Khi bảng bắt đầu, lấy toàn bộ block liên tục. Không dùng lại cửa sổ gần
+    # 40 dòng chung: bảng cân đối dài dễ vượt 40 dòng, cắt ngắn sẽ làm dòng
+    # chi tiết áp chót trông như dòng tổng cuối (nhóm BWE).
     table_scan = nodes[start:min(len(nodes), start + 240)]
     for n in table_scan:
         if not started:
@@ -415,7 +482,7 @@ def _recover_detached_total_payload(
                 started = True
                 table_rows.append(n)
                 continue
-            # Allow no arbitrary prose before a detached table.
+            # Không cho phép văn xuôi tùy ý trước bảng tách rời.
             break
         else:
             if n.pattern_id == "SP_MARKDOWN_TABLE_ROW":
@@ -445,6 +512,11 @@ def collect_observation(
     *,
     semantic_anchor_indices: set[int] | None = None,
 ):
+    """Thu thập payload giá trị gắn với một anchor semantic.
+
+    Bộ thu dừng ở anchor child semantic kế tiếp. Ranh giới này ngăn dòng parent
+    nhận các giá trị thuộc child lồng nhau hoặc dòng nguồn kế tiếp.
+    """
     semantic_anchor_indices = semantic_anchor_indices or set()
 
     values = []
@@ -454,7 +526,7 @@ def collect_observation(
     unit = anchor.unit or anchor.inherited_unit
     evidence = [f"anchor_pattern:{anchor.pattern_id}"]
 
-    # Self-contained structures.
+    # Cấu trúc tự chứa.
     if anchor.pattern_id == "SP_MARKDOWN_TABLE_ROW":
         if anchor.periods and len(anchor.periods) == len(anchor.values):
             period_values = list(zip(anchor.periods, anchor.values))
@@ -470,12 +542,12 @@ def collect_observation(
 
     elif anchor.pattern_id == "SP_MULTI_PERIOD_INLINE":
         if len(anchor.periods) >= 2 and len(anchor.values) >= 2:
-            period_values = list(zip(anchor.periods, anchor.values))
+            period_values = _period_value_pairs(anchor.periods, anchor.values)
         evidence.append("multi_period_inline")
 
     elif anchor.pattern_id == "SP_CODE_NOTE_PERIOD_INLINE_ROW":
-        # Values were already stripped of code/note metadata by document.py.
-        # Resolver assigns first/second payload to current/previous statement context.
+        # document.py đã bỏ metadata mã/thuyết minh khỏi giá trị.
+        # Resolver gán payload đầu/thứ hai theo context hiện tại/trước đây.
         values = list(anchor.values)
         code = code or anchor.code
         note = note or anchor.note
@@ -488,7 +560,7 @@ def collect_observation(
             values = []
         evidence.append("inline_value")
 
-    # Prefer an explicit direct summary child over deeper details.
+    # Ưu tiên child tổng trực tiếp rõ ràng hơn chi tiết sâu hơn.
     local_summary_found = False
     for child_idx in anchor.children:
         child = nodes[child_idx]
@@ -508,7 +580,7 @@ def collect_observation(
     if local_summary_found:
         evidence.append("direct_generic_summary_child")
 
-    # For container/child structures, traverse only within this semantic record.
+    # Với cấu trúc container/child, chỉ duyệt trong record semantic này.
     bounded = _bounded_descendants(
         anchor,
         nodes,
@@ -539,12 +611,11 @@ def collect_observation(
         if d.pattern_id == "SP_PERIOD_CONTAINER":
             continue
 
-        # Repeated generic total children are positional period columns:
+        # Child tổng chung lặp lại là các cột kỳ theo vị trí:
         #   TỔNG TÀI SẢN
         #       Tổng: current
         #       Tổng: previous
-        # This is common when the LLM drops the date labels but preserves row
-        # order from the statement header.
+        # Dạng này thường gặp khi LLM bỏ nhãn ngày nhưng giữ thứ tự dòng từ header.
         if (
             d.parent_index == anchor.node_index
             and d.pattern_id == "SP_LABEL_VALUE_INLINE"
@@ -556,12 +627,12 @@ def collect_observation(
             unit = unit or d.unit or d.inherited_unit
             continue
 
-        # Generic direct-child period payload. Some OCR/LLM serializers wrap a
-        # total as:
+        # Payload kỳ ở child trực tiếp dạng chung. Một số serializer OCR/LLM bọc
+        # tổng như sau:
         #   TỔNG NGUỒN VỐN
         #       Tổng cộng: value (2025); value (2024)
-        # The child is not a canonical semantic anchor, but it still carries
-        # the parent record's period values.
+        # Child không phải anchor semantic canonical nhưng vẫn mang giá trị kỳ
+        # của record parent.
         if (
             d.parent_index == anchor.node_index
             and d.periods
@@ -572,9 +643,9 @@ def collect_observation(
             unit = unit or d.unit or d.inherited_unit
             continue
 
-        # Generic direct-child numeric payload. This covers values serialized as
-        # bullets with a unit annotation such as "12.410... (Không rõ đơn vị)".
-        # Semantic child anchors are excluded by the bounded-descendant walk.
+        # Payload số ở child trực tiếp dạng chung. Bao quát giá trị serialize
+        # thành bullet kèm annotation đơn vị như "12.410... (Không rõ đơn vị)".
+        # Anchor child semantic đã bị loại trong lượt duyệt giới hạn.
         if (
             d.parent_index == anchor.node_index
             and d.values
@@ -586,20 +657,20 @@ def collect_observation(
             unit = unit or d.unit or d.inherited_unit
             continue
 
-        # direct child under inherited period, but only if it is not a semantic anchor
+        # Child trực tiếp dưới kỳ kế thừa, nhưng chỉ khi không phải anchor semantic.
         if d.pattern_id == "SP_LABEL_VALUE_INLINE" and d.inherited_period and d.values:
             if d.parent_index == anchor.node_index:
                 for v in d.values:
                     period_values.append((d.inherited_period, v))
             continue
 
-        # A1/BAB serialization: repeated keyed children are positional columns.
-        # Example:
+        # Serialize A1/BAB: child có khóa lặp lại là cột theo vị trí.
+        # Ví dụ:
         #   Tiền gửi tại NHNN
         #       5.2: 1.219.788
         #       5.2: 798.225
-        # Here 5.2 is a note/reference key, while the two values correspond to
-        # current/previous column context.
+        # Ở đây 5.2 là khóa thuyết minh/tham chiếu, còn hai giá trị tương ứng với
+        # context cột hiện tại/trước đây.
         if (
             d.pattern_id == "SP_LABEL_VALUE_INLINE"
             and d.parent_index == anchor.node_index
@@ -617,8 +688,8 @@ def collect_observation(
         if unit is None and (d.unit or d.inherited_unit):
             unit = d.unit or d.inherited_unit
 
-    # Sequential fallback for plain/non-parent labels whose attributes are
-    # serialized as immediately following bullets.
+    # Fallback tuần tự cho nhãn plain/không phải parent có thuộc tính serialize
+    # thành bullet ngay sau đó.
     if not period_values and not values:
         seq_periods, seq_note, seq_code, seq_unit, seq_values = _sequential_local_attributes(
             anchor,
@@ -635,10 +706,9 @@ def collect_observation(
             unit = unit or seq_unit
             evidence.append("sequential_local_attribute_fallback")
 
-    # Explicit financial totals may have their value payload detached from the
-    # semantic label. Run this after normal collection so it only acts as a
-    # targeted total-level recovery. A recovered payload overrides formula/code
-    # artifacts accidentally tokenized from the total label itself.
+    # Tổng tài chính rõ có thể bị tách payload khỏi nhãn semantic. Chạy sau bộ
+    # thu thường để đây chỉ là khôi phục có mục tiêu ở cấp tổng. Payload khôi
+    # phục ghi đè artifact công thức/mã vô tình bị tokenize từ chính nhãn tổng.
     detached = _recover_detached_total_payload(anchor, nodes, selected)
     if detached and not period_values:
         detached_period_values, detached_values, detached_unit, detached_evidence = detached
