@@ -13,9 +13,11 @@ Parser nhận báo cáo tài chính tiếng Việt đã được chuẩn hóa �
 Markdown giữ lại heading, bảng, bullet, nhãn chỉ tiêu, kỳ báo cáo, giá trị và
 phần thuyết minh để parser dựng lại cấu trúc B01/B02/B03 và Notes.
 
-Việc thu thập tài liệu gốc và chuyển đổi sang Markdown là bước upstream; parser
-tập trung vào đọc cấu trúc, nhận diện ngữ nghĩa, map schema và tạo output có
-cấu trúc.
+Markdown được tạo ở bước upstream bằng LLM từ tài liệu báo cáo tài chính gốc.
+Do quá trình sinh nội dung không hoàn toàn ổn định, Markdown có thể bị mất
+cột, mất hàng, sai thứ tự, thiếu kỳ báo cáo hoặc làm biến dạng quan hệ cha-con.
+Parser tập trung vào đọc cấu trúc, nhận diện ngữ nghĩa, map schema, kiểm tra
+bằng chứng và giữ lại các dòng chưa map khi dữ liệu đầu vào chưa đủ chắc chắn.
 
 ## Thông tin về example
 
