@@ -7,13 +7,6 @@
 - **B03**: báo cáo lưu chuyển tiền tệ;
 - **Notes**: phần thuyết minh.
 
-## Bản đồ code theo phase
-
-Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
-[`docs/codebase-phase-map-vi.md`](docs/codebase-phase-map-vi.md). Tài liệu này
-phân biệt critical path production với các script ground truth, evaluation,
-maintenance và visualization; không thay đổi layout import của code.
-
 ## Thông tin về example
 
 Repository công bố một example synthetic để minh họa parser và làm regression
@@ -359,10 +352,14 @@ trong public repository.
 
 ## Tài liệu production
 
-- [Bản đồ code theo phase](docs/codebase-phase-map-vi.md)
 - [Chính sách dữ liệu](docs/data-publication-policy-vi.md)
 
 ## Đọc code
+
+Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
+[`Bản đồ code theo phase`](docs/codebase-phase-map-vi.md). Tài liệu này phân
+biệt critical path production với các script ground truth, evaluation,
+maintenance và visualization; không thay đổi layout import của code.
 
 Để theo dõi một file từ đầu đến output, đọc theo thứ tự:
 
