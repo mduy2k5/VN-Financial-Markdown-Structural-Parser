@@ -8,6 +8,7 @@ ground_truth/
 # and are intentionally omitted from the public repository.
 scripts/
 tests/quality/test_main_statement_baseline_repair.py
+pytest.ini
 REGRESSION_LOCAL.json
 LOCAL_SMOKE.json
 *.smoke.json
