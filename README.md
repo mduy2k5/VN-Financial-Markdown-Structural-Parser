@@ -60,7 +60,7 @@ các chỉ tiêu có đủ giá trị ở hai kỳ trong bộ đánh giá; đây
 | Chỉ số nhận diện trung bình | khoảng 96,7% |
 | Row-block canary so với baseline | 0 khác biệt giá trị node |
 | Runtime | 0 lỗi |
-| Regression suite | **144 passed** |
+| Regression suite | **141 passed** |
 
 Các file còn trạng thái review được giữ nguyên để kiểm tra source evidence,
 quan hệ cha-con, kỳ báo cáo hoặc công thức. Parser không tự điền khi Markdown
@@ -74,9 +74,8 @@ Yêu cầu Python 3.10 trở lên.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 # Runtime không có dependency ngoài Python standard library.
-python -m pip install -r .\requirements.txt
-# Cài thêm pytest nếu phát triển hoặc chạy test.
-python -m pip install -r .\requirements-dev.txt
+# Chỉ cần cài pytest nếu muốn chạy test:
+python -m pip install pytest
 ```
 
 Chạy toàn bộ Markdown và bật Notes:
@@ -411,7 +410,6 @@ Flatten/
 │   └── audit/                   # Canonical, comparison và row-block evidence
 ├── VERSION.txt                  # Phiên bản release
 ├── requirements.txt             # Dependency runtime
-└── requirements-dev.txt         # Dependency phát triển/test
 ```
 
 `md_reports/`, `ground_truth/` và `output/` chỉ dùng ở local và được Git bỏ

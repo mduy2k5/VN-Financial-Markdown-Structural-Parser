@@ -1,5 +1,3 @@
-# Runtime dependency policy
+# Runtime dependencies
 #
-# The production parser uses Python's standard library only. Keep this file as
-# the stable runtime installation target; test-only packages live in
-# requirements-dev.txt.
+# None. The production parser uses Python's standard library only.
