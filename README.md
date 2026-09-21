@@ -417,7 +417,6 @@ Flatten/
 ├── output/                      # Output chạy cục bộ
 │   ├── reports/                 # Production JSON
 │   └── audit/                   # Canonical, comparison và row-block evidence
-├── VERSION.txt                  # Phiên bản release
 ├── requirements.txt             # Dependency runtime
 ```
 
@@ -458,13 +457,13 @@ artifact.
 
 ## Phiên bản
 
-Phiên bản release hiện tại nằm trong `VERSION.txt`; package structural parser
-dùng version riêng trong `flat_parser/version.py`:
+Package structural parser dùng version trong
+[`flat_parser/version.py`](flat_parser/version.py):
 
 ```text
-release: v23.2.0-source-first-recovery
 parser package: 0.6.0
 ```
 
-Repository lưu code, schema, guide, test và script đánh giá. Dữ liệu nguồn,
-ground truth và output cục bộ không thuộc release artifact.
+Thông tin release metadata bổ sung được giữ ở máy local và không nằm trong
+public release artifact. Repository lưu code, schema, guide và test; dữ liệu
+nguồn, ground truth và output cục bộ không thuộc release artifact.

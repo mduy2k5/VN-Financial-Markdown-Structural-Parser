@@ -1,2 +1,0 @@
-v23.2.0-source-first-recovery
-Source-first production recovery with versioned schema/alias overlays, conservative row-block scanning, and organized diagnostics.
