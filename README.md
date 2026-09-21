@@ -7,6 +7,21 @@
 - **B03**: báo cáo lưu chuyển tiền tệ;
 - **Notes**: phần thuyết minh.
 
+## Nguồn dữ liệu đầu vào
+
+Markdown là lớp dữ liệu trung gian mà parser nhận vào, không phải nguồn gốc
+ban đầu của báo cáo. Bộ đánh giá nội bộ gồm 57 file trong `md_reports/`, chủ
+yếu là BCTC hợp nhất đã kiểm toán của các doanh nghiệp niêm yết, kỳ báo cáo
+2025. Tên file, phần metadata và nội dung tài liệu cho thấy mỗi file Markdown
+được gắn với tài liệu PDF BCTC tương ứng trong kho dữ liệu nội bộ; một số tài
+liệu cũng ghi lại nơi doanh nghiệp công bố báo cáo trên website chính thức.
+
+Quy trình lấy PDF, OCR hoặc chuyển đổi PDF/HTML thành Markdown là upstream và
+không nằm trong parser này. Parser chỉ đọc Markdown đã có, dựng lại phạm vi
+B01/B02/B03/Notes, cây cha-con, kỳ báo cáo và giá trị; nó không tải trực tiếp
+PDF hay website trong lúc chạy. `md_reports/` và 57 file thật chỉ tồn tại ở
+checkout nội bộ, không được công bố trong repository.
+
 ## Thông tin về example
 
 Repository công bố một example synthetic để minh họa parser và làm regression
