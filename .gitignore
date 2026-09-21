@@ -10,8 +10,6 @@ scripts/
 tests/
 docs/reports/
 flat_parser/coverage_reporter.py
-flat_parser/guide_compiler.py
-resources/guides/A*/
 tests/quality/test_main_statement_baseline_repair.py
 pytest.ini
 VERSION.txt

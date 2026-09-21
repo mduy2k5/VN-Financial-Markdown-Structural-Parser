@@ -1,0 +1,257 @@
+{
+  "version": "1.0",
+  "dataset": "ACB_BCTC_2025_hop_nhat_kiem_toan.md",
+  "scope_note": "Bộ pattern được xây dựng riêng từ ACB. Không merge pattern/count/coverage từ ABB hoặc BAB.",
+  "sample_definition": "Một sample là bullet structural node trong phần Content có khả năng mang label, attribute, period hoặc value. Ba bullet chỉ là số trang được loại là document noise, không tính vào mẫu.",
+  "patterns": [
+    {
+      "id": "P010",
+      "name": "qualifier_container",
+      "priority": 140,
+      "description": "Container qualifier không chứa value, điển hình 'Trong đó:'.",
+      "detect": {
+        "required": [
+          "bullet",
+          "normalized_text_matches_qualifier_lexicon",
+          "no_financial_value"
+        ],
+        "examples": [
+          "Trong đó:"
+        ]
+      },
+      "extract": {
+        "qualifier": "Bỏ dấu ':' cuối, giữ nguyên text còn lại.",
+        "children": "Dựng theo indentation subtree."
+      },
+      "semantic_fields": [
+        "qualifier",
+        "children"
+      ],
+      "validation": [
+        "qualifier_not_empty"
+      ]
+    },
+    {
+      "id": "P002",
+      "name": "period_container",
+      "priority": 135,
+      "description": "Node chỉ biểu diễn kỳ; các child bên dưới mang label/value. Đây là dạng quan trọng trong thuyết minh ACB.",
+      "detect": {
+        "required": [
+          "bullet",
+          "whole_text_is_period_token"
+        ],
+        "observed_forms": [
+          "31.12.2025",
+          "31.12.2024",
+          "Năm 2025",
+          "Năm 2024"
+        ]
+      },
+      "extract": {
+        "period": "Giữ raw period; có thể normalize semantic period ở bước sau.",
+        "children": "Áp period context cho descendants trong subtree cho tới khi thoát node."
+      },
+      "semantic_fields": [
+        "values.period",
+        "children"
+      ],
+      "validation": [
+        "period_recognized",
+        "must_not_be_treated_as_numeric_value"
+      ]
+    },
+    {
+      "id": "P005",
+      "name": "label_multi_period_inline",
+      "priority": 130,
+      "description": "Một dòng có label và từ hai cặp value-period explicit trở lên; separator có thể là dấu phẩy hoặc '|'.",
+      "detect": {
+        "required": [
+          "bullet",
+          "period_marker_count>=2",
+          "value_count>=2"
+        ],
+        "observed_separators": [
+          ",",
+          "|"
+        ]
+      },
+      "extract": {
+        "label": "Phần text trước value-period region đầu tiên; bỏ item number đầu dòng nếu parser muốn lưu riêng.",
+        "values": "Ghép mỗi raw value với period marker explicit trong cùng clause, quét trái sang phải.",
+        "unit": "Lấy unit sát value; nếu unit chỉ xuất hiện một lần nhưng cú pháp chứng minh dùng chung, propagate trong cùng node.",
+        "note": "Trích note parenthetical nếu có marker 'Thuyết minh <id>'."
+      },
+      "semantic_fields": [
+        "label",
+        "note",
+        "values.raw_value",
+        "values.period",
+        "values.unit"
+      ],
+      "validation": [
+        "each_value_has_explicit_period",
+        "raw_value_preserved"
+      ],
+      "examples": [
+        "Tiền gửi của khách hàng: 585.180.175 triệu đồng (năm 31.12.2025), 537.304.578 triệu đồng (năm 31.12.2024)",
+        "01. Thu nhập lãi ...: 56.890.567 (Năm 2025) | 50.231.051 (Năm 2024)"
+      ]
+    },
+    {
+      "id": "P007",
+      "name": "named_attribute",
+      "priority": 120,
+      "description": "Structural key:value với key thuộc lexicon đã quan sát; không mặc định coi rhs là financial value.",
+      "detect": {
+        "required": [
+          "bullet",
+          "lhs_matches_named_attribute_lexicon"
+        ],
+        "observed_keys": [
+          "Thuyết minh",
+          "Tên công ty",
+          "Giấy phép hoạt động",
+          "Lĩnh vực kinh doanh",
+          "Tỷ lệ sở hữu và quyền biểu quyết",
+          "Tình hình quá hạn",
+          "Tiêu chí",
+          "Phân loại",
+          "Ghi nhận",
+          "Đo lường",
+          "Chấm dứt ghi nhận"
+        ]
+      },
+      "extract": {
+        "attribute_key": "Normalize whitespace, giữ raw key riêng.",
+        "attribute_value": "Giữ nguyên rhs.",
+        "note": "Chỉ 'Thuyết minh' map trực tiếp vào canonical note."
+      },
+      "semantic_fields": [
+        "note",
+        "children"
+      ],
+      "validation": [
+        "attribute_key_recognized"
+      ]
+    },
+    {
+      "id": "P003",
+      "name": "period_value_attribute",
+      "priority": 110,
+      "description": "Dòng bắt đầu bằng period explicit, sau ':' là value.",
+      "detect": {
+        "required": [
+          "bullet",
+          "starts_with_period_token",
+          "has_colon"
+        ],
+        "observed_forms": [
+          "Tại ngày 31.12.2025: 8.624.548 triệu VND",
+          "31.12.2025: 83.036 triệu VND",
+          "Năm 2025: 58.755.829 triệu đồng"
+        ]
+      },
+      "extract": {
+        "period": "lhs trước ':'.",
+        "raw_value": "Value token đầu tiên của rhs, giữ dấu ngoặc/dấu chấm/dấu '-'.",
+        "unit": "Unit explicit sau value nếu có.",
+        "role": "Có thể resolve current/previous sau khi biết document reporting period."
+      },
+      "semantic_fields": [
+        "values.raw_value",
+        "values.period",
+        "values.unit",
+        "values.role"
+      ],
+      "validation": [
+        "period_recognized",
+        "raw_value_preserved"
+      ]
+    },
+    {
+      "id": "P004",
+      "name": "label_value_inline",
+      "priority": 70,
+      "description": "Generic label:value hoặc attribute:value line có ít nhất một numeric token nhưng không thuộc các pattern cụ thể hơn.",
+      "detect": {
+        "required": [
+          "bullet",
+          "has_colon",
+          "rhs_or_line_has_numeric_token"
+        ],
+        "exclude": [
+          "P002",
+          "P003",
+          "P005",
+          "P007",
+          "P010"
+        ]
+      },
+      "extract": {
+        "label": "lhs trước ':' sau khi bỏ Markdown emphasis.",
+        "raw_value": "Không được giả định mọi numeric token là financial value; ưu tiên token ở rhs và giữ raw.",
+        "period": "Chỉ lấy period khi explicit trong cùng node hoặc period-container ancestor.",
+        "unit": "Lấy unit explicit sát value.",
+        "note": "Cho phép recognizer 'Thuyết minh <id>' nằm trong label/parenthetical."
+      },
+      "semantic_fields": [
+        "label",
+        "note",
+        "values.raw_value",
+        "values.period",
+        "values.unit"
+      ],
+      "validation": [
+        "label_not_empty",
+        "do_not_invent_period"
+      ],
+      "ambiguities": [
+        "Pattern này bao gồm cả tỷ lệ, số lượng cổ phiếu, thời hạn và các structured prose values; downstream parser phải dùng section/schema context nếu chỉ muốn financial statements."
+      ]
+    },
+    {
+      "id": "P001",
+      "name": "label_or_container",
+      "priority": 20,
+      "description": "Fallback structural bullet có text nhưng không thỏa pattern value/period/attribute cụ thể.",
+      "detect": {
+        "required": [
+          "bullet",
+          "non_empty_text"
+        ],
+        "exclude": [
+          "P002",
+          "P003",
+          "P004",
+          "P005",
+          "P007",
+          "P010"
+        ]
+      },
+      "extract": {
+        "label": "Bỏ bullet marker và Markdown emphasis; giữ raw text.",
+        "note": "Nếu label chứa parenthetical 'Thuyết minh <id>', recognizer field có thể tách note.",
+        "children": "Dựng theo indentation."
+      },
+      "semantic_fields": [
+        "label",
+        "note",
+        "children"
+      ],
+      "validation": [
+        "label_not_empty"
+      ]
+    }
+  ],
+  "selection_order": [
+    "P010",
+    "P002",
+    "P005",
+    "P007",
+    "P003",
+    "P004",
+    "P001"
+  ]
+}
