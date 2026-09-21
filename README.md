@@ -7,10 +7,6 @@
 - **B03**: báo cáo lưu chuyển tiền tệ;
 - **Notes**: phần thuyết minh.
 
-Dữ liệu báo cáo đầu vào chỉ đến từ Markdown nguồn. Runtime không đọc output,
-ground truth hoặc kết quả của lần chạy trước. Logic parser cũng không chọn theo
-tên file, ticker hay giá trị đã biết.
-
 ## Bản đồ code theo phase
 
 Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
