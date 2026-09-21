@@ -20,10 +20,15 @@ maintenance và visualization; không thay đổi layout import của code.
 
 ## Thông tin về example
 
-Example synthetic dùng để regression và bộ input/output kiểm tra chỉ tồn tại
-trong checkout nội bộ; không nằm trong public production release. Dữ liệu này
-hoàn toàn mô phỏng, có `synthetic_sample: true` và `Synthetic Data License 1.0`,
-không đại diện cho doanh nghiệp hoặc báo cáo tài chính thật.
+Repository công bố một example synthetic để minh họa parser và làm regression
+fixture:
+
+- **Input:** [`examples/synthetic/synthetic_high_coverage_statement.md`](examples/synthetic/synthetic_high_coverage_statement.md)
+- **Output:** [`examples/synthetic/output/`](examples/synthetic/output/)
+- **Báo cáo chi tiết:** [`evaluation_report_vi.md`](examples/synthetic/output/evaluation_report_vi.md)
+- **Tính chất dữ liệu:** hoàn toàn mô phỏng, có `synthetic_sample: true` và
+  `Synthetic Data License 1.0`; không đại diện cho doanh nghiệp hoặc báo cáo
+  tài chính thật.
 
 Bộ 57 file báo cáo thật vẫn là dữ liệu nội bộ, không nằm trong repository công
 khai. Vì vậy kết quả bên dưới tách riêng kết quả kiểm tra nội bộ và kết quả của
@@ -343,10 +348,11 @@ Output production không chứa raw IR, mapping score hoặc bảng so sánh. D�
 chứa canonical JSON, comparison, Notes rows, metrics, summary và
 `error_taxonomy`.
 
-Viewer, evaluation, ground-truth, test, example và các báo cáo điều tra là
-workflow nội bộ. Checkout nội bộ có thể giữ các file này để review và tái tạo
-kết quả. Public production release chỉ chứa parser, runtime resources, schema,
-compiled guide và tài liệu vận hành cốt lõi.
+Viewer, evaluation, ground-truth, test và các báo cáo điều tra là workflow nội
+bộ. Checkout nội bộ có thể giữ các file này để review và tái tạo kết quả.
+Example synthetic ở `examples/` là fixture public đã được tách khỏi dữ liệu
+thật. Public production release chứa parser, runtime resources, schema,
+compiled guide, example synthetic và tài liệu vận hành cốt lõi.
 
 ## Ground truth và đối chiếu nội bộ
 
@@ -387,6 +393,8 @@ Flatten/
 │   ├── README.md                # Chỉ mục tài liệu
 │   ├── codebase-phase-map-vi.md # Luồng production theo phase
 │   └── data-publication-policy-vi.md # Chính sách dữ liệu public
+├── examples/                    # Input/output synthetic để minh họa và regression
+│   └── synthetic/
 ├── src/
 │   ├── b01_financial_position/  # Adapter, cây và recovery B01
 │   ├── b02_income/              # Extractor, mapper, validator B02

@@ -1,0 +1,44 @@
+{
+  "contract": {
+    "name": "vn_financial_report_batch",
+    "version": "2.0.0"
+  },
+  "report_contract": {
+    "name": "vn_financial_report_output",
+    "version": "2.0.0"
+  },
+  "generated_at": "2026-09-21T06:41:42.142896+00:00",
+  "input": {
+    "name": "synthetic_high_coverage_statement.md",
+    "policy": "markdown_source_only"
+  },
+  "options": {
+    "current_year": null,
+    "previous_year": null,
+    "sector": "auto",
+    "notes_enabled": true,
+    "schema_profile": "schema_v1_7",
+    "row_scan_mode": "off"
+  },
+  "report_count": 1,
+  "error_count": 0,
+  "reports": [
+    {
+      "report_id": "r_b2b4b67ea02e0ba9",
+      "source": {
+        "name": "synthetic_high_coverage_statement.md",
+        "sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb"
+      },
+      "path": "reports/synthetic_high_coverage_statement__b2b4b67ea02e0ba9.json",
+      "current_year": 2026,
+      "previous_year": 2025,
+      "status": "ok",
+      "statements": {
+        "financial_position": "ok",
+        "income_statement": "ok",
+        "cash_flow": "ok"
+      },
+      "notes_status": "parsed"
+    }
+  ]
+}

@@ -8,7 +8,6 @@ ground_truth/
 # and are intentionally omitted from the public repository.
 scripts/
 tests/
-examples/
 docs/reports/
 flat_parser/coverage_reporter.py
 flat_parser/guide_compiler.py
@@ -37,6 +36,12 @@ resources/review_decisions*.json
 resources/v046_real_validation.json
 resources/guides/*/coverage_report.json
 income_schema/example_rows.json
+
+# Synthetic example artifacts are safe to publish with the example input.
+!examples/
+!examples/synthetic/
+!examples/synthetic/output/
+!examples/synthetic/output/**
 
 # Python and editor artifacts
 __pycache__/
