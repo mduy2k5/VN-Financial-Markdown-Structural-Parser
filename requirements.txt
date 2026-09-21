@@ -1,1 +1,5 @@
-pytest>=8.0
+# Runtime dependency policy
+#
+# The production parser uses Python's standard library only. Keep this file as
+# the stable runtime installation target; test-only packages live in
+# requirements-dev.txt.

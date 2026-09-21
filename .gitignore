@@ -1,4 +1,5 @@
-# Local generated outputs and source datasets
+# Local generated outputs and source datasets. Do not unignore these paths
+# for a public release without completing docs/data-publication-policy-vi.md.
 output/
 reconciliation_review_v2/
 ground_truth/

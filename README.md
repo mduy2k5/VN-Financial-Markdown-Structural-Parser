@@ -11,6 +11,35 @@ Dữ liệu báo cáo đầu vào chỉ đến từ Markdown nguồn. Runtime kh
 ground truth hoặc kết quả của lần chạy trước. Logic parser cũng không chọn theo
 tên file, ticker hay giá trị đã biết.
 
+## Chính sách công bố dữ liệu input/output
+
+`md_reports/`, `ground_truth/` và `output/` là dữ liệu local, được Git bỏ qua
+mặc định. Không được hiểu rằng báo cáo tài chính đã xuất hiện công khai trên
+website của doanh nghiệp, cơ quan quản lý hoặc nền tảng dữ liệu thì đương
+nhiên được phép sao chép toàn văn, OCR lại, tái phân phối hoặc cấp phép lại
+trên GitHub.
+
+Bộ dữ liệu local hiện tại chưa đủ điều kiện để công bố nguyên trạng: 57 file
+Markdown còn `_id`, `s3_key` nội bộ và các trường metadata nguồn; việc quét
+local cũng phát hiện nội dung liên quan đến email, điện thoại, địa chỉ, chữ ký
+và thông tin nhận dạng. Output `row_scan_assist_final` gồm report và audit có
+source name, hash, source line/label, raw text hoặc provenance; vì vậy output
+phái sinh cũng không mặc nhiên an toàn để public.
+
+Chỉ đưa input/output lên repository công khai khi đã hoàn thành đủ các bước:
+
+1. xác định nguồn gốc từng file và có quyền hoặc license cho phép tái phân phối;
+2. ghi source URL, ngày truy cập, attribution, license/permission vào manifest;
+3. loại `_id`, đường dẫn lưu trữ nội bộ, secret, dữ liệu cá nhân không cần thiết
+   và các trường raw/provenance không cần cho mục đích demo;
+4. kiểm tra output sau redaction, rồi mới unignore và commit artifact.
+
+Trong release hiện tại, repository chỉ công bố code, schema, test, tài liệu và
+kết quả tổng hợp đã được kiểm tra. Input Markdown đầy đủ và output production
+đầy đủ vẫn nằm local cho đến khi có clearance về quyền sử dụng và privacy.
+Chi tiết và các nguồn pháp lý được ghi tại
+[`docs/data-publication-policy-vi.md`](docs/data-publication-policy-vi.md).
+
 ## Kết quả kiểm tra
 
 Batch `schema_v1_7` trên 57 file Markdown ngày 21/09/2026 cho chỉ số nhận diện
@@ -24,7 +53,7 @@ các chỉ tiêu có đủ giá trị ở hai kỳ trong bộ đánh giá; đây
 | Chỉ số nhận diện trung bình | khoảng 96,7% |
 | Row-block canary so với baseline | 0 khác biệt giá trị node |
 | Runtime | 0 lỗi |
-| Regression suite | **142 passed** |
+| Regression suite | **144 passed** |
 
 Các file còn trạng thái review được giữ nguyên để kiểm tra source evidence,
 quan hệ cha-con, kỳ báo cáo hoặc công thức. Parser không tự điền khi Markdown
@@ -37,7 +66,10 @@ Yêu cầu Python 3.10 trở lên.
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+# Runtime không có dependency ngoài Python standard library.
 python -m pip install -r .\requirements.txt
+# Cài thêm pytest nếu phát triển hoặc chạy test.
+python -m pip install -r .\requirements-dev.txt
 ```
 
 Chạy toàn bộ Markdown và bật Notes:
@@ -382,6 +414,7 @@ Flatten/
 │   └── run_notes.py             # Chạy Notes riêng
 ├── docs/
 │   ├── README.md                # Chỉ mục tài liệu
+│   ├── data-publication-policy-vi.md # Chính sách dữ liệu public
 │   └── reports/                 # Báo cáo đọc code, evidence và lỗi
 ├── src/
 │   ├── b01_financial_position/  # Adapter, cây và recovery B01
@@ -391,6 +424,7 @@ Flatten/
 │   │   └── row_block_scanner.py # Index vùng chỉ tiêu tùy chọn
 │   └── notes/                   # Scanner, parser, link và export Notes
 ├── flat_parser/                 # Structural parser và locator dùng chung
+│   └── version.py               # Version của package parser
 ├── resources/
 │   ├── schemas/                 # Schema, alias và production contract
 │   └── guides/                  # Structural guide
@@ -401,8 +435,9 @@ Flatten/
 ├── output/                      # Output chạy cục bộ
 │   ├── reports/                 # Production JSON
 │   └── audit/                   # Canonical, comparison và row-block evidence
-├── VERSION.txt                  # Phiên bản parser
-└── requirements.txt             # Gói phục vụ test
+├── VERSION.txt                  # Phiên bản release
+├── requirements.txt             # Dependency runtime
+└── requirements-dev.txt         # Dependency phát triển/test
 ```
 
 `md_reports/`, `ground_truth/` và `output/` chỉ dùng ở local và được Git bỏ
@@ -442,10 +477,12 @@ artifact.
 
 ## Phiên bản
 
-Phiên bản hiện tại nằm trong `VERSION.txt`:
+Phiên bản release hiện tại nằm trong `VERSION.txt`; package structural parser
+dùng version riêng trong `flat_parser/version.py`:
 
 ```text
-v23.1.0-structural-notes-extraction
+release: v23.2.0-source-first-recovery
+parser package: 0.6.0
 ```
 
 Repository lưu code, schema, guide, test và script đánh giá. Dữ liệu nguồn,

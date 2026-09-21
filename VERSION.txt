@@ -1,2 +1,2 @@
-v23.1.0-structural-notes-extraction
-Structural Notes extraction for Markdown multi-row tables and bullet/plain OCR key-value layouts; row-level output preserved.
+v23.2.0-source-first-recovery
+Source-first production recovery with versioned schema/alias overlays, conservative row-block scanning, and organized diagnostics.
