@@ -61,7 +61,8 @@ Resource được nạp theo schema profile:
 - `resources/schemas/overlays/*.json`: bundle versioned, ví dụ `schema_v1_7`;
 - `resources/guides/compiled/structural_guide.json`: guide cho structural
   parser;
-- `resources/guides/A*_*/`: pattern nguồn trước khi compile guide.
+- `resources/guides/A*_*/`: pattern nguồn trước khi compile guide, chỉ giữ ở
+  checkout nội bộ; production chỉ nạp guide đã compile.
 
 > Cờ rollback quan trọng nằm ở `app/pipeline.py`:
 >
@@ -305,9 +306,13 @@ Thư mục `scripts/evaluation/`:
 - `resources/schemas/`: schema/alias mà mapper và catalog nạp;
 - `resources/schemas/overlays/`: bản thay đổi versioned, có thể rollback bằng
   `--schema-profile`;
-- `resources/guides/`: guide pattern cho structural parser.
+- `resources/guides/compiled/`: guide đã compile cho structural parser;
+- `resources/guides/A*_*/`: source pattern local-only, không thuộc production
+  release.
 
 ### Test
+
+Toàn bộ test là workflow local-only, không phát hành trong production release:
 
 - `tests/b01/`: dựng cây, scope, identity, hierarchy, schema B01;
 - `tests/b02/`: semantics, mapper và quy tắc B02;

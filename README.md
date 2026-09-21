@@ -20,15 +20,10 @@ maintenance và visualization; không thay đổi layout import của code.
 
 ## Thông tin về example
 
-Repository có một example synthetic để minh họa parser và làm regression
-fixture:
-
-- **Input:** [`examples/synthetic/synthetic_high_coverage_statement.md`](examples/synthetic/synthetic_high_coverage_statement.md)
-- **Output:** [`examples/synthetic/output/`](examples/synthetic/output/)
-- **Báo cáo chi tiết:** [`evaluation_report_vi.md`](examples/synthetic/output/evaluation_report_vi.md)
-- **Tính chất dữ liệu:** hoàn toàn mô phỏng, có `synthetic_sample: true` và
-  `Synthetic Data License 1.0`; không đại diện cho doanh nghiệp hoặc báo cáo
-  tài chính thật.
+Example synthetic dùng để regression và bộ input/output kiểm tra chỉ tồn tại
+trong checkout nội bộ; không nằm trong public production release. Dữ liệu này
+hoàn toàn mô phỏng, có `synthetic_sample: true` và `Synthetic Data License 1.0`,
+không đại diện cho doanh nghiệp hoặc báo cáo tài chính thật.
 
 Bộ 57 file báo cáo thật vẫn là dữ liệu nội bộ, không nằm trong repository công
 khai. Vì vậy kết quả bên dưới tách riêng kết quả kiểm tra nội bộ và kết quả của
@@ -81,8 +76,6 @@ Yêu cầu Python 3.10 trở lên.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 # Runtime không có dependency ngoài Python standard library.
-# Chỉ cần cài pytest nếu muốn chạy test:
-python -m pip install pytest
 ```
 
 Chạy toàn bộ Markdown và bật Notes:
@@ -350,10 +343,10 @@ Output production không chứa raw IR, mapping score hoặc bảng so sánh. D�
 chứa canonical JSON, comparison, Notes rows, metrics, summary và
 `error_taxonomy`.
 
-Viewer và các công cụ evaluation/ground-truth là workflow nội bộ. Thư mục
-`scripts/` không nằm trong public repository; checkout nội bộ có thể giữ các
-công cụ này để review và tái tạo báo cáo. Public release chỉ chứa parser,
-schema, test runtime và tài liệu.
+Viewer, evaluation, ground-truth, test, example và các báo cáo điều tra là
+workflow nội bộ. Checkout nội bộ có thể giữ các file này để review và tái tạo
+kết quả. Public production release chỉ chứa parser, runtime resources, schema,
+compiled guide và tài liệu vận hành cốt lõi.
 
 ## Ground truth và đối chiếu nội bộ
 
@@ -362,12 +355,10 @@ chưa được human-review không phải gold standard. Các tool tạo ground 
 review queue và so sánh output được giữ ở checkout nội bộ, không phát hành
 trong public repository.
 
-## Tài liệu điều tra
+## Tài liệu production
 
-- [Báo cáo đọc code](docs/reports/CODE_READING_REPORT_VI.md)
-- [Báo cáo ảnh hưởng của Markdown](docs/reports/MARKDOWN_IMPACT_REPORT_VI.md)
-- [Báo cáo bằng chứng VCB, BSI, VIB](docs/reports/PARSER_EVIDENCE_VCB_BSI_VIB_VI.md)
-- [Báo cáo lỗi còn tồn đọng](docs/reports/PARSER_REMAINING_ISSUES_REPORT_VI.md)
+- [Bản đồ code theo phase](docs/codebase-phase-map-vi.md)
+- [Chính sách dữ liệu](docs/data-publication-policy-vi.md)
 
 ## Đọc code
 
@@ -394,10 +385,8 @@ Flatten/
 │   └── run_notes.py             # Chạy Notes riêng
 ├── docs/
 │   ├── README.md                # Chỉ mục tài liệu
-│   ├── data-publication-policy-vi.md # Chính sách dữ liệu public
-│   └── reports/                 # Báo cáo đọc code, evidence và lỗi
-├── examples/                    # Input/output synthetic để minh họa và regression
-│   └── synthetic/
+│   ├── codebase-phase-map-vi.md # Luồng production theo phase
+│   └── data-publication-policy-vi.md # Chính sách dữ liệu public
 ├── src/
 │   ├── b01_financial_position/  # Adapter, cây và recovery B01
 │   ├── b02_income/              # Extractor, mapper, validator B02
@@ -409,9 +398,7 @@ Flatten/
 │   └── version.py               # Version của package parser
 ├── resources/
 │   ├── schemas/                 # Schema, alias và production contract
-│   └── guides/                  # Structural guide
-├── scripts/                     # Local-only; không có trong public release
-├── tests/                       # B01, B02, B03, Notes, integration, quality
+│   └── guides/compiled/         # Structural guide đã compile cho runtime
 ├── md_reports/                  # Markdown input cục bộ
 ├── ground_truth/                # Baseline và review queue cục bộ
 ├── output/                      # Output chạy cục bộ
@@ -426,12 +413,14 @@ qua. Runtime đọc `md_reports/` và ghi `output/`.
 ## Kiểm thử và review
 
 ```powershell
-python -m pytest -q
-python -m compileall -q .
+python -m compileall -q app src flat_parser
 git diff --check
 ```
 
-Khi thêm rule mới:
+Bộ test, `pytest.ini` và các artifact đánh giá được giữ ở checkout nội bộ,
+không thuộc public production release.
+
+Khi phát triển rule mới trong checkout nội bộ:
 
 1. viết test cho layout hoặc lỗi mới;
 2. dùng cấu trúc và semantic context, không dùng tên file;
