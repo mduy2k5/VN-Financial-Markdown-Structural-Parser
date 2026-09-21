@@ -23,9 +23,9 @@ maintenance và visualization; không thay đổi layout import của code.
 Repository công bố một example synthetic để minh họa parser và làm regression
 fixture:
 
-- **Input:** [`examples/synthetic/synthetic_high_coverage_statement.md`](examples/synthetic/synthetic_high_coverage_statement.md)
-- **Output:** [`examples/synthetic/output/`](examples/synthetic/output/)
-- **Báo cáo chi tiết:** [`evaluation_report_vi.md`](examples/synthetic/output/evaluation_report_vi.md)
+- **Input:** [`examples/synthetic_high_coverage_statement.md`](examples/synthetic_high_coverage_statement.md)
+- **Output:** [`examples/output/`](examples/output/)
+- **Báo cáo chi tiết:** [`evaluation_report_vi.md`](examples/output/evaluation_report_vi.md)
 - **Tính chất dữ liệu:** hoàn toàn mô phỏng, có `synthetic_sample: true` và
   `Synthetic Data License 1.0`; không đại diện cho doanh nghiệp hoặc báo cáo
   tài chính thật.
@@ -394,7 +394,8 @@ Flatten/
 │   ├── codebase-phase-map-vi.md # Luồng production theo phase
 │   └── data-publication-policy-vi.md # Chính sách dữ liệu public
 ├── examples/                    # Input/output synthetic để minh họa và regression
-│   └── synthetic/
+│   ├── synthetic_high_coverage_statement.md
+│   └── output/
 ├── src/
 │   ├── b01_financial_position/  # Adapter, cây và recovery B01
 │   ├── b02_income/              # Extractor, mapper, validator B02
