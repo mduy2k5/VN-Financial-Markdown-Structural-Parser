@@ -2,6 +2,7 @@ from pathlib import Path
 
 from flat_parser.schema_loader import load_alias_document, load_schema_document
 from src.b01_financial_position.extractor import FinancialPositionSourceParser
+from src.b02_income.mapper import IncomeMapper, adapt_row
 from src.b03_cashflow.extractor import extract_cashflow_fallback
 from src.b03_cashflow.mapper import CashFlowMapper, adapt_cashflow_row
 
@@ -111,3 +112,42 @@ def test_bsi_cashflow_extractor_keeps_101_1_and_103_1_same_label_rows_separate()
         preserve_decimal_branch_rows=False,
     )
     assert not any(row.get("code") == "103.1" for row in legacy["rows"])
+
+
+def test_alias_v18_overlays_materialize_and_keep_baseline_reversible():
+    fp = load_alias_document(OVERLAYS / "financial_position_aliases_v1_8_0.json")
+    income = load_alias_document(OVERLAYS / "income_statement_aliases_v1_3_4.json")
+    cashflow = load_alias_document(OVERLAYS / "cash_flow_aliases_v1_3_0.json")
+
+    assert fp["alias_schema_version"] == "1.8.0"
+    assert income["alias_schema_version"] == "1.3.4"
+    assert cashflow["alias_schema_version"] == "1.3.0"
+    assert "Tiền gửi tại TCTD khác" in fp["nodes"]["ASSET.INTERBANK.DEPOSITS"]["match"]["aliases"]
+    assert "Tài sản dài hạn khác" in fp["nodes"]["ASSET.OTHER.PREPAID_EXPENSE.LONG_TERM"]["match"]["parent_context"]
+    assert "Lợi nhuận gộp về bán và dịch vụ cung cấp" in income["nodes"]["INCOME.ENTERPRISE.GROSS_PROFIT"]["exact"]
+    assert "Chi phí lãi và các khoản chi phí tương tự đã trả" in cashflow["CASHFLOW.BANK.DIRECT.INTEREST_PAID"]
+
+    baseline_income = load_alias_document(ROOT / "resources/schemas/income_statement_aliases.json")
+    baseline_cashflow = load_alias_document(ROOT / "resources/schemas/cash_flow_aliases.json")
+    assert "Lợi nhuận gộp về bán và dịch vụ cung cấp" not in baseline_income["nodes"]["INCOME.ENTERPRISE.GROSS_PROFIT"]["exact"]
+    assert "Chi phí lãi và các khoản chi phí tương tự đã trả" not in baseline_cashflow.get("CASHFLOW.BANK.DIRECT.INTEREST_PAID", [])
+
+
+def test_income_alias_overlay_maps_short_enterprise_labels_as_exact_aliases():
+    mapper = IncomeMapper(
+        schema_path=ROOT / "resources/schemas/income_statement_schema.json",
+        aliases_path=OVERLAYS / "income_statement_aliases_v1_3_4.json",
+        sector="enterprise",
+    )
+    rows = mapper.map_rows([
+        adapt_row({"indicator": "Cổ đông của Công ty mẹ", "current": "10", "previous": "9"}),
+        adapt_row({"indicator": "Cổ đông không kiểm soát", "current": "2", "previous": "1"}),
+        adapt_row({"indicator": "Phần lãi (lỗ) trong công ty liên kết", "current": "3", "previous": "2"}),
+    ])
+
+    assert [row.node_id for row in rows] == [
+        "INCOME.ENTERPRISE.PROFIT_ATTRIBUTABLE_PARENT",
+        "INCOME.ENTERPRISE.PROFIT_ATTRIBUTABLE_NCI",
+        "INCOME.ENTERPRISE.SHARE_OF_PROFIT_ASSOCIATES",
+    ]
+    assert all(row.mapping_method == "exact_alias" for row in rows)

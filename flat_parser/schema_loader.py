@@ -40,8 +40,33 @@ def _unique_extend(current: list[Any], additions: list[Any]) -> list[Any]:
     return result
 
 
-def _apply_entry_patch(entry: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+def _apply_entry_patch(entry: Any, patch: Any) -> Any:
     """Apply ordinary fields plus ``*_add``/``*_remove`` list operations."""
+
+    # B03 alias catalogs use a direct ``node_id -> list[str]`` shape, while
+    # B01/B02 entries are dictionaries.  Keep list updates compact in an
+    # overlay instead of forcing every alias overlay to repeat the full list.
+    if isinstance(entry, list):
+        if isinstance(patch, list):
+            return _unique_extend(entry, patch)
+        if not isinstance(patch, dict):
+            raise ValueError("Alias list update requires a list or an operation object")
+        result = copy.deepcopy(entry)
+        for key, value in patch.items():
+            if key in {"add", "_add"}:
+                if not isinstance(value, list):
+                    raise ValueError(f"Alias list addition requires a list: {key}")
+                result = _unique_extend(result, value)
+            elif key in {"remove", "_remove"}:
+                if not isinstance(value, list):
+                    raise ValueError(f"Alias list removal requires a list: {key}")
+                result = [item for item in result if item not in value]
+            else:
+                raise ValueError(f"Unknown alias list operation: {key}")
+        return result
+
+    if not isinstance(entry, dict) or not isinstance(patch, dict):
+        raise ValueError("Alias entry update requires matching object shapes")
 
     result = copy.deepcopy(entry)
     for key, value in patch.items():
@@ -57,6 +82,10 @@ def _apply_entry_patch(entry: dict[str, Any], patch: dict[str, Any]) -> dict[str
             if not isinstance(current, list) or not isinstance(value, list):
                 raise ValueError(f"Overlay list removal requires lists: {key}")
             result[field] = [item for item in current if item not in value]
+        elif isinstance(value, dict) and isinstance(result.get(key), dict):
+            # Apply list operations recursively, e.g.
+            # ``{"match": {"parent_context_add": [...]}}``.
+            result[key] = _apply_entry_patch(result[key], value)
         else:
             result[key] = _deep_merge(result[key], value) if key in result else copy.deepcopy(value)
     return result

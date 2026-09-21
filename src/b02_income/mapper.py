@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from flat_parser.schema_loader import load_alias_document, load_schema_document
+
 def _find_root(start: Path) -> Path:
     cur = start.resolve()
     for _ in range(5):
@@ -503,8 +505,8 @@ class IncomeMapper:
         lý lọc node theo sector và index canonical name/alias. Đầu ra là mapper
         sẵn sàng cho ``map_row`` và ``canonical``; chưa đọc source report.
         """
-        self.schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
-        self.aliases = json.loads(Path(aliases_path).read_text(encoding="utf-8"))
+        self.schema = load_schema_document(schema_path)
+        self.aliases = load_alias_document(aliases_path)
         self.sector = sector
         self.regex_fallback = regex_fallback
         self.regex_min_score = regex_min_score

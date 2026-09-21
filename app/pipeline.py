@@ -91,6 +91,8 @@ CF_ALIASES = ROOT / "resources" / "schemas" / "cash_flow_aliases.json"
 SCHEMA_OVERLAYS = ROOT / "resources" / "schemas" / "overlays"
 SCHEMA_PROFILES = {
     "baseline": {
+        "income_statement_schema": SCHEMA,
+        "income_statement_aliases": ALIASES,
         "financial_position_schema": ROOT / "resources" / "schemas" / "financial_position_schema.json",
         "financial_position_aliases": ROOT / "resources" / "schemas" / "financial_position_aliases.json",
         "cash_flow_schema": CF_SCHEMA,
@@ -98,10 +100,12 @@ SCHEMA_PROFILES = {
         "preserve_decimal_branch_rows": False,
     },
     "schema_v1_7": {
+        "income_statement_schema": SCHEMA,
+        "income_statement_aliases": SCHEMA_OVERLAYS / "income_statement_aliases_v1_3_4.json",
         "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_7_0.json",
-        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_7_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_8_0.json",
         "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_2_0.json",
-        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_2_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_3_0.json",
         "preserve_decimal_branch_rows": True,
     },
 }
@@ -381,7 +385,16 @@ def select_md_files(input_path: Path):
     return chosen
 
 
-def run_income(md_path: Path, current_year: int | None = None, previous_year: int | None = None, forced_sector="auto", fallback_unit: Optional[str] = None):
+def run_income(
+    md_path: Path,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+    forced_sector="auto",
+    fallback_unit: Optional[str] = None,
+    *,
+    schema_path: Path | str | None = None,
+    aliases_path: Path | str | None = None,
+):
     """Chạy extractor và mapper B02 cho một file Markdown.
 
     Đầu vào:
@@ -403,6 +416,8 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
     row, còn source recovery chỉ thêm evidence và không thay giá trị đã map.
     """
     text = md_path.read_text(encoding="utf-8", errors="ignore")
+    schema_path = schema_path or SCHEMA
+    aliases_path = aliases_path or ALIASES
     period = resolve_report_years(
         text,
         source_name=md_path.name,
@@ -411,7 +426,7 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
     )
     current_year = period["current_year"]
     previous_year = period["previous_year"]
-    locator = statement_locator(str(SCHEMA), str(ALIASES))
+    locator = statement_locator(str(schema_path), str(aliases_path))
     locator_result = (
         locator.locate(text, profile="income_statement")
         if locator is not None
@@ -481,7 +496,7 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
         attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": "unknown"}
 
-    mapper = IncomeMapper(schema_path=SCHEMA, aliases_path=ALIASES, sector=sector, regex_fallback=True,
+    mapper = IncomeMapper(schema_path=schema_path, aliases_path=aliases_path, sector=sector, regex_fallback=True,
                           regex_min_score=0.93, regex_gap=0.08)
     mapped = mapper.map_rows(rows)
     # `SP_INCOME_CODE_LED_MIXED` là pattern phục hồi. Với layout đã được
@@ -683,6 +698,8 @@ def process_one(
     financial_position_aliases_path: Optional[Path] = None,
     cashflow_schema_path: Optional[Path] = None,
     cashflow_aliases_path: Optional[Path] = None,
+    income_schema_path: Optional[Path] = None,
+    income_aliases_path: Optional[Path] = None,
     preserve_decimal_branch_rows: bool = True,
 ):
     """Parse một report và trả về kết quả statement cùng production JSON.
@@ -716,7 +733,15 @@ def process_one(
         audit_dir.mkdir(parents=True, exist_ok=True)
         remove_report_artifacts(audit_dir, base)
 
-    inc = run_income(md_path, current_year, previous_year, sector, fallback_unit=doc_unit)
+    inc = run_income(
+        md_path,
+        current_year,
+        previous_year,
+        sector,
+        fallback_unit=doc_unit,
+        schema_path=income_schema_path,
+        aliases_path=income_aliases_path,
+    )
     cf = run_cashflow(
         md_path,
         current_year,
@@ -1103,8 +1128,12 @@ def main():
                 "source_reports": len(md_files),
                 "same_label_recovery": args.same_label_recovery,
                 "schema_profile": args.schema_profile,
+                "income_statement_schema": str(schema_profile["income_statement_schema"]),
+                "income_statement_aliases": str(schema_profile["income_statement_aliases"]),
                 "financial_position_schema": str(schema_profile["financial_position_schema"]),
+                "financial_position_aliases": str(schema_profile["financial_position_aliases"]),
                 "cash_flow_schema": str(schema_profile["cash_flow_schema"]),
+                "cash_flow_aliases": str(schema_profile["cash_flow_aliases"]),
                 "preserve_decimal_branch_rows": schema_profile["preserve_decimal_branch_rows"],
             },
         )
@@ -1128,6 +1157,8 @@ def main():
                 fp_parser=fp_parser,
                 enable_notes=args.notes,
                 year_resolution=year_resolution,
+                income_schema_path=schema_profile["income_statement_schema"],
+                income_aliases_path=schema_profile["income_statement_aliases"],
                 cashflow_schema_path=schema_profile["cash_flow_schema"],
                 cashflow_aliases_path=schema_profile["cash_flow_aliases"],
                 preserve_decimal_branch_rows=schema_profile["preserve_decimal_branch_rows"],

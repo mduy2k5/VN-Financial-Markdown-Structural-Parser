@@ -17,24 +17,30 @@ Runtime chỉ đọc Markdown nguồn. Runtime không đọc output, ground trut
 
 | Hạng mục | Kết quả | Ghi chú |
 |---|---:|---|
-| Schema profile | `schema_v1_7` | Overlay versioned cho BSI B01/B03; baseline vẫn có thể rollback. |
+| Schema profile | `schema_v1_7` | Schema overlay cho BSI B01/B03 và alias overlay versioned cho cả B01/B02/B03; baseline vẫn có thể rollback. |
 | Discovery | 57/57 | Pipeline nhận đủ file Markdown trong input. |
 | Runtime | 0 lỗi | Batch chạy xong 57/57 file, không có runtime error. |
 | Report-level status | 6 `ok`; 51 `review_required` | Lấy từ manifest; `review_required` là cổng review, không đồng nghĩa parser đọc sai. |
-| B01 statement status | 13 `ok`; 44 `review_required` | Còn conflict hoặc thiếu source evidence ở một số file. |
-| B02 statement status | 37 `ok`; 20 `review_required` | Coverage phụ thuộc cấu trúc và phạm vi kỳ trong source. |
-| B03 statement status | 20 `ok`; 37 `review_required` | Cần tách review chất lượng khỏi trường hợp source thiếu cấu trúc. |
+| B01 statement status | 32 `ok`; 25 `review_required` | Các file còn lại chủ yếu thiếu quan hệ cha–con hoặc có conflict trong source evidence. |
+| B02 statement status | 57 `ok` | Alias overlay chỉ chuẩn hóa nhãn; không làm thay đổi giá trị semantic trước/sau. |
+| B03 statement status | 56 `ok`; 1 `no_structural_rows` | `no_structural_rows` là file nguồn không có block B03 đủ cấu trúc, không phải runtime failure. |
 | Audit fingerprint B01 | 32 `ok`; 25 `review_required` | Đây là audit gate riêng, không phải report-level status trong manifest. |
-| Audit coverage B03 | 55 `ok`; 1 `partial_source_coverage`; 1 `no_structural_rows` | Hai trạng thái cuối phản ánh source coverage, không phải runtime failure. |
+| Audit coverage B03 | 56 `ok`; 1 `no_structural_rows` | Alias coverage đã loại được trạng thái `partial_source_coverage`; file còn lại thiếu block cấu trúc trong source. |
 | Formula checks | 8 file; 11 cảnh báo | Không tăng do schema overlay trong focused comparison; cần triage riêng. |
 | Notes | 57/57 chạy khi bật `--notes` | Notes không ghi đè B01, B02 hoặc B03. |
-| Regression suite | **134 passed** | Kết quả của `python -m pytest -q`. |
+| Regression suite | **136 passed** | Kết quả của `python -m pytest -q`. |
 
-Các số liệu trên là kết quả batch schema_v1_7 ngày 21/09/2026. Chúng mô tả
+Các số liệu trên là kết quả batch schema_v1_7 ngày 21/09/2026 sau khi bổ sung alias
+overlay. Chúng mô tả
 một lần chạy, không phải cam kết accuracy cho mọi nguồn mới. Nguyên nhân chính
 của các trường hợp còn review_required là Markdown đầu vào làm mất ngữ cảnh
 hàng/cột, kỳ báo cáo và quan hệ cha–con; dữ liệu nguồn thiếu hoặc schema chưa
 bao phủ biến thể mới là các nguyên nhân thứ cấp.
+
+Alias mới được kiểm soát theo nguyên tắc: chỉ thêm biến thể nhãn có nghĩa rõ,
+có bằng chứng lặp lại trong batch và không làm mất ngữ cảnh cấu trúc. Các nhãn
+vẫn phụ thuộc quan hệ cha–con, số thứ tự biểu mẫu hoặc cột Markdown bị mất
+không được ép thành alias global.
 
 Báo cáo chi tiết:
 
@@ -208,7 +214,15 @@ Schema bổ sung cho BSI được triển khai dưới dạng overlay versioned,
 
 - B01: các node con của `ASSET.OTHER.NON_CURRENT`;
 - B03 securities: `103` và `103.1` cho tiền cuối năm;
-- công thức kiểm tra tiền cuối năm của profile securities.
+- công thức kiểm tra tiền cuối năm của profile securities;
+- B01 alias overlay `financial_position_aliases_v1_8_0.json`;
+- B02 alias overlay `income_statement_aliases_v1_3_4.json`;
+- B03 alias overlay `cash_flow_aliases_v1_3_0.json`.
+
+Schema loader materialize overlay tại runtime. B02 dùng cùng loader với B01/B03;
+B03 hỗ trợ cập nhật danh sách alias mà không phải copy lại catalog baseline.
+Vì vậy mọi alias mới đều có thể truy vết về file base và không sửa trực tiếp
+catalog production cũ.
 
 Toàn bộ overlay nằm trong `resources/schemas/overlays/`. Để rollback về
 baseline:
@@ -219,7 +233,13 @@ python -m app.pipeline <input> --output <output> --schema-profile baseline
 
 Mỗi audit run ghi `schema_profile` và đường dẫn schema đã dùng trong
 `audit/run_metadata.json`; output của baseline và overlay nên được ghi vào hai
-thư mục khác nhau để so sánh và khôi phục an toàn.
+thư mục khác nhau để so sánh và khôi phục an toàn. Lệnh kiểm chứng batch dùng
+cho thay đổi alias:
+
+```powershell
+python -m app.pipeline md_reports --output output/validation_alias_v18_batch_r2 --audit --no-notes --schema-profile schema_v1_7
+python -m pytest -q
+```
 
 ### Bước 6 — Chạy Notes
 
