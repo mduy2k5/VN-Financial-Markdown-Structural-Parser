@@ -30,6 +30,12 @@ resources/v046_real_validation.json
 resources/guides/*/coverage_report.json
 income_schema/example_rows.json
 
+# Synthetic example artifacts are safe to publish with the example input.
+!examples/
+!examples/synthetic/
+!examples/synthetic/output/
+!examples/synthetic/output/**
+
 # Python and editor artifacts
 __pycache__/
 *.py[cod]
