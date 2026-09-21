@@ -7,75 +7,29 @@
 - **B03**: báo cáo lưu chuyển tiền tệ;
 - **Notes**: phần thuyết minh.
 
-## Nguồn dữ liệu đầu vào
+## Dữ liệu đầu vào
 
-Markdown là lớp dữ liệu trung gian mà parser nhận vào, không phải nguồn gốc
-ban đầu của báo cáo. Bộ đánh giá nội bộ gồm 57 file trong `md_reports/`, chủ
-yếu là BCTC hợp nhất đã kiểm toán của các doanh nghiệp niêm yết, kỳ báo cáo
-2025. Tên file, phần metadata và nội dung tài liệu cho thấy mỗi file Markdown
-được gắn với tài liệu PDF BCTC tương ứng trong kho dữ liệu nội bộ; một số tài
-liệu cũng ghi lại nơi doanh nghiệp công bố báo cáo trên website chính thức.
+Parser nhận báo cáo tài chính tiếng Việt đã được chuẩn hóa ở dạng Markdown.
+Markdown giữ lại heading, bảng, bullet, nhãn chỉ tiêu, kỳ báo cáo, giá trị và
+phần thuyết minh để parser dựng lại cấu trúc B01/B02/B03 và Notes.
 
-Quy trình lấy PDF, OCR hoặc chuyển đổi PDF/HTML thành Markdown là upstream và
-không nằm trong parser này. Parser chỉ đọc Markdown đã có, dựng lại phạm vi
-B01/B02/B03/Notes, cây cha-con, kỳ báo cáo và giá trị; nó không tải trực tiếp
-PDF hay website trong lúc chạy. `md_reports/` và 57 file thật chỉ tồn tại ở
-checkout nội bộ, không được công bố trong repository.
+Việc thu thập tài liệu gốc và chuyển đổi sang Markdown là bước upstream; parser
+tập trung vào đọc cấu trúc, nhận diện ngữ nghĩa, map schema và tạo output có
+cấu trúc.
 
 ## Thông tin về example
 
-Repository công bố một example synthetic để minh họa parser và làm regression
-fixture:
+Repository công bố một example synthetic để minh họa parser:
 
 - **Input:** [`examples/synthetic_high_coverage_statement.md`](examples/synthetic_high_coverage_statement.md)
 - **Output:** [`examples/output/`](examples/output/)
-- **Báo cáo chi tiết:** [`evaluation_report_vi.md`](examples/output/evaluation_report_vi.md)
+- **Kết quả mẫu:** [`evaluation_report_vi.md`](examples/output/evaluation_report_vi.md)
 - **Tính chất dữ liệu:** hoàn toàn mô phỏng, có `synthetic_sample: true` và
   `Synthetic Data License 1.0`; không đại diện cho doanh nghiệp hoặc báo cáo
   tài chính thật.
 
-Bộ 57 file báo cáo thật vẫn là dữ liệu nội bộ, không nằm trong repository công
-khai. Vì vậy kết quả bên dưới tách riêng kết quả kiểm tra nội bộ và kết quả của
-example synthetic.
-
-## Kết quả kiểm tra
-
-### Bộ 57 file nội bộ
-
-Batch `schema_v1_7` trên 57 file Markdown ngày 21/09/2026 cho chỉ số nhận diện
-trung bình khoảng **96,7%**. Chỉ số này là `coverage_avg`: tỷ lệ trung bình
-các chỉ tiêu có đủ giá trị ở hai kỳ trong bộ đánh giá; đây không phải accuracy
-được xác nhận thủ công cho mọi loại nguồn.
-
-| Hạng mục | Kết quả |
-|---|---:|
-| File được nhận | 57/57 |
-| Chỉ số nhận diện trung bình | khoảng 96,7% |
-| Row-block canary so với baseline | 0 khác biệt giá trị node |
-| Runtime | 0 lỗi |
-| Regression suite | **141 passed** |
-
-Các file còn trạng thái review được giữ nguyên để kiểm tra source evidence,
-quan hệ cha-con, kỳ báo cáo hoặc công thức. Parser không tự điền khi Markdown
-không đủ bằng chứng.
-
-### Example synthetic
-
-Example chạy thành công qua pipeline đầy đủ với B01, B02, B03 và Notes:
-
-| Hạng mục | Kết quả |
-|---|---:|
-| Input | 1 file synthetic |
-| B01 | `ok`; 60 observations; coverage hai kỳ 100%/100% |
-| B02 | 18/18 dòng map; coverage hai kỳ 100%/100%; công thức 7/7 pass |
-| B03 | 20/20 dòng map; coverage hai kỳ 100%/100%; công thức 2/2 pass |
-| Notes | `parsed`; 31 sections; 17 links; confidence 0,97 |
-| Quality gate | `ok`; `eligible_for_use=true` cho fixture synthetic |
-| Lỗi và xung đột kỳ | 0 |
-
-Kết quả example chỉ chứng minh pipeline hoạt động đúng trên fixture mô phỏng;
-không phải xác nhận pháp lý, kế toán hoặc chất lượng của dữ liệu doanh nghiệp
-thật.
+Example synthetic là file minh họa có thể dùng để chạy thử parser mà không cần
+chuẩn bị dữ liệu doanh nghiệp thật.
 
 ## Bắt đầu nhanh
 
@@ -87,10 +41,10 @@ python -m venv .venv
 # Runtime không có dependency ngoài Python standard library.
 ```
 
-Chạy toàn bộ Markdown và bật Notes:
+Chạy parser với một thư mục Markdown và bật Notes:
 
 ```powershell
-python .\app\pipeline.py .\md_reports `
+python .\app\pipeline.py .\input `
   --output .\output\current `
   --notes
 ```
@@ -102,24 +56,18 @@ Các lệnh thường dùng:
 
 ```powershell
 # Chỉ chạy B01, B02 và B03
-python .\app\pipeline.py .\md_reports `
+python .\app\pipeline.py .\input `
   --output .\output\current `
   --no-notes
 
-# Ghi thêm artifact phục vụ điều tra
-python .\app\pipeline.py .\md_reports `
-  --output .\output\current `
-  --notes `
-  --audit
-
 # Ép cặp năm cho một lần chạy
-python .\app\pipeline.py .\md_reports `
+python .\app\pipeline.py .\input `
   --output .\output\current `
   --current-year 2025 `
   --previous-year 2024
 
 # Override sector cho B02
-python .\app\pipeline.py .\md_reports `
+python .\app\pipeline.py .\input `
   --output .\output\current `
   --sector bank `
   --notes
@@ -128,7 +76,7 @@ python .\app\pipeline.py .\md_reports `
 Chạy Notes riêng:
 
 ```powershell
-python .\app\run_notes.py .\md_reports `
+python .\app\run_notes.py .\input `
   --output .\output\notes_current `
   --write-ir
 ```
@@ -137,7 +85,6 @@ python .\app\run_notes.py .\md_reports `
 
 ```text
 Markdown nguồn
-  -> chọn file và tạo source hash
   -> suy luận cặp kỳ báo cáo và đơn vị
   -> chọn scope riêng cho B01, B02, B03
   -> row-block pre-scan tùy chọn
@@ -147,18 +94,17 @@ Markdown nguồn
   -> xử lý từng statement
        B01: dựng structural tree -> map -> recovery -> validate
        B02: đọc row -> map semantic -> validate
-            assist hợp lệ thì đọc window; lệch kết quả thì đọc lại toàn scope
+            assist hợp lệ thì đọc window; không đạt gate thì dùng toàn scope
        B03: đọc section -> map direct/indirect -> validate
             scanner chỉ bổ sung evidence, không tự map theo mã
-  -> ghép source recovery và reconciliation
   -> Notes đọc bổ sung, không ghi đè statement chính
   -> chuẩn hóa production contract
-  -> ghi report JSON, manifest và audit artifact
+  -> ghi JSON report và manifest
 ```
 
-`app/pipeline.py::main()` điều phối batch. `process_one()` đọc source một lần,
-chạy B02, B03, B01, sau đó mới chạy Notes và tạo production report. Các parser
-giữ scope riêng; audit không trở thành input cho lần chạy sau.
+`app/pipeline.py::main()` điều phối batch. `process_one()` suy luận kỳ/unit,
+chạy B02, B03, B01, sau đó chạy Notes và tạo production report. Mỗi parser giữ
+scope riêng để tránh trộn dữ liệu giữa các báo cáo.
 
 ### B01: Financial Position
 
@@ -182,9 +128,8 @@ khi đủ dữ liệu. Các sector được hỗ trợ là `bank`, `enterprise`,
 và `insurance`.
 
 `form_code` chỉ phục vụ truy vết. Nó không quyết định identity của row.
-Khi `--row-scan-mode assist` đạt gate, các collector đọc từng row window;
-collector cần toàn scope vẫn đọc toàn scope. Kết quả window được so với đường
-đọc đầy đủ; nếu khác, B02 dùng lại đường đầy đủ.
+Khi `--row-scan-mode assist` đạt gate, collector có thể xử lý từng row window;
+collector cần toàn scope hoặc trường hợp không đạt gate sẽ dùng toàn scope.
 
 ### B03: Cash Flow
 
@@ -203,46 +148,30 @@ Notes là lớp bổ sung, không ghi đè B01, B02 hoặc B03. Pipeline Notes:
 3. phân loại bảng, bullet, OCR và movement block;
 4. đọc label, hierarchy, unit và period;
 5. link với primary statement và giữ provenance;
-6. xuất row-level CSV hoặc JSON để review.
+6. xuất row-level CSV hoặc JSON.
 
 Bullet được đọc như cây: thụt đầu dòng tạo parent và child, metadata gắn với
 node gần nhất. Parser chỉ ghép các cụm cột khi section, cấu trúc và số slot
 phù hợp.
 
-## Các rào chắn dữ liệu
+## Cơ chế xử lý chính
 
 ### Same-label recovery
 
 Khi nhãn cha và nhãn con giống nhau, parser kết hợp `hierarchy_path`, parent,
 occurrence và alias giao nhau thay vì dùng nhãn đơn độc. Tính năng này bật mặc
-định. Chạy baseline để so sánh hoặc rollback:
-
-```powershell
-python -m app.pipeline .\md_reports `
-  --output .\output\baseline `
-  --no-same-label-recovery
-```
+định.
 
 Trạng thái được ghi trong `debug.stats.same_label_recovery`,
-`parser.same_label_recovery` và `audit/run_metadata.json` khi bật audit.
+`parser.same_label_recovery`.
 
 ### Schema profile
 
-`schema_v1_7` là overlay có version trên schema baseline. Overlay hiện bao gồm
+`schema_v1_7` là overlay có version trên schema mặc định. Overlay hiện bao gồm
 các bổ sung BSI cho B01/B03 và alias có version cho B01/B02/B03. Các file overlay
 nằm trong `resources/schemas/overlays/` và được materialize khi runtime chạy.
 
-Rollback về baseline:
-
-```powershell
-python -m app.pipeline .\md_reports `
-  --output .\output\baseline `
-  --schema-profile baseline
-```
-
-Mỗi audit run ghi profile và đường dẫn schema trong
-`audit/run_metadata.json`. Nên ghi output baseline và overlay vào hai thư mục
-khác nhau khi so sánh.
+Runtime chọn profile bằng tùy chọn `--schema-profile`.
 
 ### Fast row-block scan
 
@@ -253,36 +182,12 @@ nhất trước khi tính `coverage`, nên metric không vượt quá 100%.
 
 | Mode | Hành vi |
 |---|---|
-| `off` | Không chạy scanner; mặc định và là đường baseline. |
-| `shadow` | Ghi boundary và coverage vào audit, không đổi kết quả map. |
+| `off` | Không chạy scanner. |
+| `shadow` | Ghi boundary và coverage, không đổi kết quả map. |
 | `assist` | Chỉ cho B02 dùng row window khi đạt gate coverage và không có mã mơ hồ; nếu không đạt, dùng collector toàn scope. |
 
 B01 vẫn dùng structural tree làm nguồn quyết định. B03 chỉ giữ block làm
 evidence, không map theo mã đơn độc.
-
-Batch canary 57 file cho thấy canonical values không thay đổi so với baseline.
-`assist` chỉ được chấp nhận sau khi kết quả window bằng kết quả đọc toàn scope;
-trường hợp không bằng sẽ fallback. Vì đường kiểm chứng toàn scope vẫn được giữ,
-chưa dùng batch này để kết luận parser đã nhanh hơn.
-
-Chạy canary:
-
-```powershell
-python -m app.pipeline md_reports `
-  --output output/row_scan_shadow `
-  --audit --no-notes `
-  --schema-profile schema_v1_7 `
-  --row-scan-mode shadow
-
-python -m app.pipeline md_reports `
-  --output output/row_scan_assist `
-  --audit --no-notes `
-  --schema-profile schema_v1_7 `
-  --row-scan-mode assist
-```
-
-Trước khi bật `assist`, so sánh `comparison_summary.csv`, canonical values,
-conflict và runtime với baseline. Rollback bằng `--row-scan-mode off`.
 
 ## Output
 
@@ -347,30 +252,13 @@ Ví dụ rút gọn:
 }
 ```
 
-Output production không chứa raw IR, mapping score hoặc bảng so sánh. Dùng
-`--audit` khi cần điều tra; audit được ghi trong `<output>/audit/` và có thể
-chứa canonical JSON, comparison, Notes rows, metrics, summary và
-`error_taxonomy`.
-
-Viewer, evaluation, ground-truth, test và các báo cáo điều tra là workflow nội
-bộ. Checkout nội bộ có thể giữ các file này để review và tái tạo kết quả.
-Example synthetic ở `examples/` là fixture public đã được tách khỏi dữ liệu
-thật. Public production release chứa parser, runtime resources, schema,
-compiled guide, example synthetic và tài liệu vận hành cốt lõi.
-
-## Ground truth và đối chiếu nội bộ
-
-Ground truth chỉ dùng để đánh giá; runtime không đọc ground truth. Baseline
-chưa được human-review không phải gold standard. Các tool tạo ground truth,
-review queue và so sánh output được giữ ở checkout nội bộ, không phát hành
-trong public repository.
+Output production tập trung vào dữ liệu đã map, các observation chưa map,
+provenance và trạng thái chất lượng của từng statement.
 
 ## Đọc code
 
 Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
-[`Bản đồ code theo phase`](docs/codebase-phase-map-vi.md). Tài liệu này phân
-biệt critical path production với các script ground truth, evaluation,
-maintenance và visualization; không thay đổi layout import của code.
+[`Bản đồ code theo phase`](docs/codebase-phase-map-vi.md).
 
 Để theo dõi một file từ đầu đến output, đọc theo thứ tự:
 
@@ -396,8 +284,8 @@ Flatten/
 ├── docs/
 │   ├── README.md                # Chỉ mục tài liệu
 │   ├── codebase-phase-map-vi.md # Luồng production theo phase
-│   └── data-publication-policy-vi.md # Chính sách dữ liệu public
-├── examples/                    # Input/output synthetic để minh họa và regression
+│   └── data-publication-policy-vi.md # Thông tin sử dụng dữ liệu
+├── examples/                    # Input/output synthetic để minh họa
 │   ├── synthetic_high_coverage_statement.md
 │   └── output/
 ├── src/
@@ -412,30 +300,13 @@ Flatten/
 ├── resources/
 │   ├── schemas/                 # Schema, alias và production contract
 │   └── guides/compiled/         # Structural guide đã compile cho runtime
-├── md_reports/                  # Markdown input cục bộ
-├── ground_truth/                # Baseline và review queue cục bộ
-├── output/                      # Output chạy cục bộ
-│   ├── reports/                 # Production JSON
-│   └── audit/                   # Canonical, comparison và row-block evidence
 ├── requirements.txt             # Dependency runtime
-```
-
-`md_reports/`, `ground_truth/` và `output/` chỉ dùng ở local và được Git bỏ
-qua. Runtime đọc `md_reports/` và ghi `output/`.
-
-## Kiểm thử và review
-
-```powershell
-python -m compileall -q app src flat_parser
-git diff --check
 ```
 
 ## Giới hạn hiện tại
 
 Markdown đầu vào có thể làm mất cột, hàng, kỳ hoặc quan hệ cha-con. Parser giữ
-row chưa map và provenance để review, nhưng không đoán khi evidence không đủ.
-Vì vậy status và coverage phải được đọc cùng với source line, raw text và audit
-artifact.
+row chưa map và provenance, nhưng không tự điền khi evidence không đủ.
 
 ## Phiên bản
 
