@@ -47,6 +47,7 @@ from src.common import (
     resolve_report_years,
     infer_report_year_pair,
 )
+from src.common.row_block_scanner import summarize_row_block_scan
 from src.common.pipeline_metrics import (
     _scope_text,
     detect_sector_from_scope,
@@ -79,7 +80,7 @@ try:
     from flat_parser.statement_scanner import scan_statements
     from flat_parser.statement_locator import StatementLocator
     from flat_parser.textnorm import normalize_lines
-except Exception:
+except ImportError:
     filter_noise = normalize_lines = scan_statements = StatementLocator = None
 
 
@@ -115,6 +116,7 @@ REPORT_ARTIFACT_SUFFIXES = (
     ".financial_position.canonical.json",
     ".comparison.json",
     ".notes.ir.json",
+    ".row_blocks.json",
 )
 NOTES_ROW_SUFFIXES = (".notes_rows.csv", ".notes_rows.json")
 
@@ -152,6 +154,19 @@ def attach_locator_metrics(metrics: dict, scope: dict) -> dict:
         "locator_confidence": selected.get("confidence"),
         "locator_alias_hits": locator.get("alias_hit_count", 0),
         "locator_candidate_rows": len(locator.get("candidate_rows") or []),
+    })
+    return metrics
+
+
+def attach_row_block_metrics(metrics: dict, scope: dict, row_scan_mode: str) -> dict:
+    """Attach compact row-block diagnostics without changing canonical values."""
+
+    if row_scan_mode == "off":
+        return metrics
+    parser = metrics.setdefault("parser", {})
+    parser.update({
+        "row_block_scan_mode": row_scan_mode,
+        "row_block_scan": summarize_row_block_scan(scope.get("row_block_scan")),
     })
     return metrics
 
@@ -394,6 +409,7 @@ def run_income(
     *,
     schema_path: Path | str | None = None,
     aliases_path: Path | str | None = None,
+    row_scan_mode: str = "off",
 ):
     """Chạy extractor và mapper B02 cho một file Markdown.
 
@@ -438,6 +454,7 @@ def run_income(
         previous_year,
         fallback_unit=fallback_unit,
         locator_result=locator_result,
+        row_scan_mode=row_scan_mode,
     )
     raw_rows = ext["rows"]
     rows = []
@@ -479,6 +496,7 @@ def run_income(
             "unmapped_examples": [],
         }
         attach_locator_metrics(metrics, ext)
+        attach_row_block_metrics(metrics, ext, row_scan_mode)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector}
 
     if sector not in {"bank", "enterprise", "securities", "insurance"}:
@@ -494,6 +512,7 @@ def run_income(
             "unmapped_examples": [{"label": r.label, "current": r.current, "previous": r.previous, "code": r.code} for r in rows[:40]],
         }
         attach_locator_metrics(metrics, ext)
+        attach_row_block_metrics(metrics, ext, row_scan_mode)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": "unknown"}
 
     mapper = IncomeMapper(schema_path=schema_path, aliases_path=aliases_path, sector=sector, regex_fallback=True,
@@ -543,6 +562,7 @@ def run_income(
         "source_recovery_conflicts": sr.get("conflicts", 0),
         "source_period_scope_ambiguities": sr.get("period_scope_ambiguities", 0),
     })
+    attach_row_block_metrics(metrics, ext, row_scan_mode)
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector}
 
 
@@ -557,6 +577,7 @@ def run_cashflow(
     schema_path: Path | str | None = None,
     aliases_path: Path | str | None = None,
     preserve_decimal_branch_rows: bool = True,
+    row_scan_mode: str = "off",
 ):
     """Chạy extractor và mapper B03 cho một file Markdown.
 
@@ -603,6 +624,7 @@ def run_cashflow(
         fallback_unit=fallback_unit,
         locator_result=locator_result,
         preserve_decimal_branch_rows=preserve_decimal_branch_rows,
+        row_scan_mode=row_scan_mode,
     )
     rows = []
     for raw in ext.get("rows", []):
@@ -624,12 +646,14 @@ def run_cashflow(
     if not rows:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         attach_locator_metrics(metrics, ext)
+        attach_row_block_metrics(metrics, ext, row_scan_mode)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     # v1 chỉ hỗ trợ các profile statutory đã được nghiên cứu cho TT200 và B04/TCTD.
     # Securities/insurance vẫn được phát hiện, không ép vào schema sai.
     if sector not in {"enterprise", "bank", "securities"} or method not in {"direct", "indirect"}:
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         attach_locator_metrics(metrics, ext)
+        attach_row_block_metrics(metrics, ext, row_scan_mode)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
     mapper = CashFlowMapper(schema_path, aliases_path, sector=sector, method=method)
     mapped = mapper.map_rows(rows)
@@ -681,6 +705,7 @@ def run_cashflow(
         "supplemental_scope_start": supplemental_scope.get("scope_start_line"),
         "supplemental_scope_end": supplemental_scope.get("scope_end_line"),
     })
+    attach_row_block_metrics(metrics, ext, row_scan_mode)
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector, "method": method}
 
 
@@ -701,6 +726,7 @@ def process_one(
     income_schema_path: Optional[Path] = None,
     income_aliases_path: Optional[Path] = None,
     preserve_decimal_branch_rows: bool = True,
+    row_scan_mode: str = "off",
 ):
     """Parse một report và trả về kết quả statement cùng production JSON.
 
@@ -741,6 +767,7 @@ def process_one(
         fallback_unit=doc_unit,
         schema_path=income_schema_path,
         aliases_path=income_aliases_path,
+        row_scan_mode=row_scan_mode,
     )
     cf = run_cashflow(
         md_path,
@@ -750,6 +777,7 @@ def process_one(
         schema_path=cashflow_schema_path,
         aliases_path=cashflow_aliases_path,
         preserve_decimal_branch_rows=preserve_decimal_branch_rows,
+        row_scan_mode=row_scan_mode,
     )
     attach_source_provenance(
         inc.get("canonical"),
@@ -772,6 +800,7 @@ def process_one(
         fp_parser = FinancialPositionSourceParser(
             schema_path=financial_position_schema_path,
             aliases_path=financial_position_aliases_path,
+            row_scan_mode=row_scan_mode,
         )
     fp = fp_parser.parse_text(
         source_text,
@@ -781,6 +810,20 @@ def process_one(
         previous_year=previous_year,
         fallback_unit=doc_unit,
     )
+
+    if audit_dir is not None and row_scan_mode != "off":
+        write_json(
+            audit_dir / f"{base}.row_blocks.json",
+            {
+                "version": "row_block_audit_v1",
+                "mode": row_scan_mode,
+                "source_name": md_path.name,
+                "source_sha256": source_sha256,
+                "financial_position": (fp.get("scope") or {}).get("row_block_scan"),
+                "income_statement": (inc.get("scope") or {}).get("row_block_scan"),
+                "cash_flow": (cf.get("scope") or {}).get("row_block_scan"),
+            },
+        )
 
 # Đồng bộ lại đơn vị giữa các báo cáo.
     resolved_unit = (
@@ -1086,6 +1129,16 @@ def main():
             "schema additions; use --schema-profile baseline to roll back."
         ),
     )
+    ap.add_argument(
+        "--row-scan-mode",
+        choices=["off", "shadow", "assist"],
+        default="off",
+        help=(
+            "Fast row-block pre-scan. 'shadow' records boundaries only; "
+            "'assist' lets B02 use reliable row windows while retaining "
+            "full-scope fallback. Default is off for rollback safety."
+        ),
+    )
     args = ap.parse_args()
 
     schema_profile = SCHEMA_PROFILES[args.schema_profile]
@@ -1111,6 +1164,7 @@ def main():
         schema_path=schema_profile["financial_position_schema"],
         aliases_path=schema_profile["financial_position_aliases"],
         same_label_recovery=args.same_label_recovery,
+        row_scan_mode=args.row_scan_mode,
     )
     print("[FINANCIAL_POSITION] source=markdown")
 
@@ -1135,6 +1189,7 @@ def main():
                 "cash_flow_schema": str(schema_profile["cash_flow_schema"]),
                 "cash_flow_aliases": str(schema_profile["cash_flow_aliases"]),
                 "preserve_decimal_branch_rows": schema_profile["preserve_decimal_branch_rows"],
+                "row_scan_mode": args.row_scan_mode,
             },
         )
 
@@ -1162,6 +1217,7 @@ def main():
                 cashflow_schema_path=schema_profile["cash_flow_schema"],
                 cashflow_aliases_path=schema_profile["cash_flow_aliases"],
                 preserve_decimal_branch_rows=schema_profile["preserve_decimal_branch_rows"],
+                row_scan_mode=args.row_scan_mode,
             )
             production = r.pop("production")
             source = production["report"]["source"]
@@ -1220,6 +1276,7 @@ def main():
             "sector": args.sector,
             "notes_enabled": args.notes,
             "schema_profile": args.schema_profile,
+            "row_scan_mode": args.row_scan_mode,
         },
         "report_count": len(production_reports),
         "error_count": len(errors),

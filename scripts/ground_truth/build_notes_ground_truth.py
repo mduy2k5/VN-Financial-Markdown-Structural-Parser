@@ -21,7 +21,7 @@ try:
     from flat_parser.preprocess import filter_noise
     from flat_parser.statement_scanner import scan_statements
     from flat_parser.textnorm import normalize_lines
-except Exception:
+except ImportError:
     filter_noise = normalize_lines = scan_statements = None
 
 

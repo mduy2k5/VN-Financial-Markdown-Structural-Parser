@@ -9,11 +9,13 @@ try:
     from src.common.source_canonical_hydrator import augment_canonical_with_recovered_rows
     from src.common.source_reconciler import reconcile_source_observations
     from src.common.report_period import resolve_report_years
+    from src.common.row_block_scanner import scan_row_blocks, summarize_row_block_scan
 except ImportError:
     from source_recovery import extract_financial_position_source_rows
     from source_canonical_hydrator import augment_canonical_with_recovered_rows
     from source_reconciler import reconcile_source_observations
     from report_period import resolve_report_years
+    from row_block_scanner import scan_row_blocks, summarize_row_block_scan
 
 
 def _attach_source_provenance(
@@ -128,6 +130,7 @@ class FinancialPositionSourceParser:
         aliases_path: Optional[Path] = None,
         guide_path: Optional[Path] = None,
         same_label_recovery: bool = True,
+        row_scan_mode: str = "off",
     ):
         """Khởi tạo B01 parser từ schema, alias và structural guide.
 
@@ -141,6 +144,11 @@ class FinancialPositionSourceParser:
 
         project_root = Path(__file__).resolve().parents[2]
         self.same_label_recovery = bool(same_label_recovery)
+        if row_scan_mode not in {"off", "shadow", "assist"}:
+            raise ValueError(f"Unsupported row_scan_mode: {row_scan_mode}")
+        # B01 keeps the structural tree authoritative. The fast scanner is
+        # evidence-only here until a tree-constrained integration is proven.
+        self.row_scan_mode = row_scan_mode
         self.parser = FlatParserPipeline(
             schema_path=schema_path or project_root / "resources" / "schemas" / "financial_position_schema.json",
             aliases_path=aliases_path or project_root / "resources" / "schemas" / "financial_position_aliases.json",
@@ -200,8 +208,19 @@ class FinancialPositionSourceParser:
         debug = result.get("debug") if isinstance(result, dict) else {}
         debug = debug if isinstance(debug, dict) else {}
         raw_stats = debug.get("stats") if isinstance(debug.get("stats"), dict) else {}
+        scope_debug = debug.get("scope_debug") if isinstance(debug.get("scope_debug"), dict) else {}
+        scan_start = scope_debug.get("selected_start")
+        scan_end = scope_debug.get("selected_end")
+        row_block_scan = None
+        if self.row_scan_mode != "off" and scan_start and scan_end:
+            row_block_scan = scan_row_blocks(
+                source_text,
+                int(scan_start),
+                int(scan_end),
+                profile="financial_position",
+            )
         if not isinstance(canonical, dict):
-            return {
+            missing_result = {
                 "canonical": None,
                 "canonical_file": None,
                 "metrics": {
@@ -222,9 +241,18 @@ class FinancialPositionSourceParser:
                     },
                 },
                 "status": "financial_position_source_missing",
-                "scope": debug.get("scope_debug") or {},
+                "scope": {
+                    **scope_debug,
+                    "row_block_scan": row_block_scan,
+                },
                 "sector": raw_stats.get("detected_sector") or "unknown",
             }
+            if self.row_scan_mode != "off":
+                missing_result["metrics"]["parser"].update({
+                    "row_block_scan_mode": self.row_scan_mode,
+                    "row_block_scan": summarize_row_block_scan(row_block_scan),
+                })
+            return missing_result
 
         recovered = extract_financial_position_source_rows(
             source_text,
@@ -281,11 +309,19 @@ class FinancialPositionSourceParser:
             "locator_alias_hits": raw_stats.get("locator_alias_hits"),
             "locator_candidate_rows": raw_stats.get("locator_candidate_rows"),
         })
+        if self.row_scan_mode != "off":
+            parser_metrics.update({
+                "row_block_scan_mode": self.row_scan_mode,
+                "row_block_scan": summarize_row_block_scan(row_block_scan),
+            })
         metrics["parser"] = parser_metrics
         return {
             "canonical": canonical,
             "metrics": metrics,
             "status": metrics.get("status", "ok"),
-            "scope": debug.get("scope_debug") or {},
+            "scope": {
+                **scope_debug,
+                "row_block_scan": row_block_scan,
+            },
             "sector": raw_stats.get("detected_sector") or "unknown",
         }

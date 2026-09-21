@@ -71,6 +71,11 @@ try:
 except ImportError:
     from common.source_recovery import attach_hierarchy_context
 
+try:
+    from src.common.row_block_scanner import iter_eligible_read_ranges, scan_row_blocks
+except ImportError:
+    from common.row_block_scanner import iter_eligible_read_ranges, scan_row_blocks
+
 BULLET_RE = re.compile(r"^(\s*)[*+-]\s+(.*)$")
 NOTE_LIKE_RE = re.compile(r"^(?:(?:\d{1,3}|[IVXLC]+)(?:\.\d{1,3})+|\d{1,3}|[IVXLC]+)$", re.I)
 ENTERPRISE_CODES = {"01","02","10","11","20","21","22","23","24","25","26","30","31","32","40","50","51","52","60","61","62","70","71"}
@@ -1480,7 +1485,7 @@ def dedupe(rows):
     return list(best.values())
 
 
-def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
+def _extract_rows_for_scope(lines, start, end, current_year, previous_year, row_block_scan=None):
     """Điều phối toàn bộ collector B02 cho một scope.
 
     Đầu vào là dòng source, boundary và cặp năm. Hàm chạy bảng, inline,
@@ -1488,12 +1493,52 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
     deduplicate kết quả. Đầu ra là list row thô có nhiều pattern evidence.
     """
     rows = []
-    rows += extract_pipe_table(lines, start, end, current_year, previous_year)
-    rows += extract_inline_period_rows(lines, start, end)
-    rows += extract_period_children(lines, start, end, current_year, previous_year)
-    rows += extract_heading_attribute_rows(lines, start, end, current_year, previous_year)
-    rows += extract_positional_children(lines, start, end)
-    rows += extract_code_led_mixed_rows(lines, start, end, current_year, previous_year)
+
+    # The fast scanner only supplies local windows.  It never becomes the
+    # semantic authority: layout collectors that need the complete scope (year
+    # sections and column-major vectors) still run against the full scope.
+    # When there are not enough reliable windows, callers get the original
+    # full-scope path unchanged.
+    local_ranges = []
+    if row_block_scan and row_block_scan.get("assist_eligible"):
+        for abs_start, abs_end in iter_eligible_read_ranges(row_block_scan):
+            local_start = max(start, int(abs_start) - 1)
+            local_end = min(end, int(abs_end))
+            if local_end > local_start:
+                local_ranges.append((local_start, local_end))
+
+    if local_ranges:
+        # These collectors are row-local and benefit from the smaller block
+        # windows.  The scanner partitions source text only; it does not
+        # rewrite or normalize any line before the collector sees it.
+        for local_start, local_end in local_ranges:
+            rows += extract_pipe_table(lines, local_start, local_end, current_year, previous_year)
+            rows += extract_inline_period_rows(lines, local_start, local_end)
+            rows += extract_period_children(lines, local_start, local_end, current_year, previous_year)
+            rows += extract_heading_attribute_rows(lines, local_start, local_end, current_year, previous_year)
+            rows += extract_positional_children(lines, local_start, local_end)
+            rows += extract_code_led_mixed_rows(lines, local_start, local_end, current_year, previous_year)
+            rows += extract_plain_text_code_rows(lines, local_start, local_end)
+
+        # If the fast windows do not yield at least one observation per half of
+        # the eligible anchors, the layout is probably not row-oriented.  Fall
+        # back to the original local collectors instead of accepting a silent
+        # coverage loss.  This is the main production safety gate.
+        eligible_count = int(row_block_scan.get("eligible_blocks") or 0)
+        if len(rows) < max(2, eligible_count // 2):
+            rows = []
+            local_ranges = []
+
+    if not local_ranges:
+        rows += extract_pipe_table(lines, start, end, current_year, previous_year)
+        rows += extract_inline_period_rows(lines, start, end)
+        rows += extract_period_children(lines, start, end, current_year, previous_year)
+        rows += extract_heading_attribute_rows(lines, start, end, current_year, previous_year)
+        rows += extract_positional_children(lines, start, end)
+        rows += extract_code_led_mixed_rows(lines, start, end, current_year, previous_year)
+        rows += extract_plain_text_code_rows(lines, start, end)
+
+    # Scope-wide collectors are deliberately retained in both modes.
     rows += extract_year_section_rows(lines, start, end, current_year, previous_year)
     rows += extract_label_list_column_major(lines, start, end, current_year, previous_year)
     rows += extract_column_major(lines, start, end, current_year, previous_year)
@@ -1504,8 +1549,9 @@ def _extract_rows_for_scope(lines, start, end, current_year, previous_year):
         # trước khối vector tách rời. Tắt nó sau ranh giới vector để
         # cột mã/thuyết minh không bị nhận nhầm thành nhãn.
         plain_end = int(vector_layout.get("label_start") or end)
-        rows += extract_plain_text_code_rows(lines, start, min(end, plain_end))
-    else:
+        if not local_ranges:
+            rows += extract_plain_text_code_rows(lines, start, min(end, plain_end))
+    elif not local_ranges:
         rows += extract_plain_text_code_rows(lines, start, end)
     interleaved_rows, replaced_labels = extract_interleaved_formula_pairs(
         lines,
@@ -1535,6 +1581,7 @@ def extract_income_fallback(
     previous_year: int | None = None,
     fallback_unit: Optional[str] = None,
     locator_result: Optional[dict] = None,
+    row_scan_mode: str = "off",
 ):
     """Trích xuất dòng B02 từ các dạng Markdown và OCR phổ biến.
 
@@ -1598,7 +1645,55 @@ def extract_income_fallback(
             start = max(0, int(selected["start_line"]) - 1)
             end = min(len(lines), int(selected["end_line"]))
             score = selected.get("score", score)
-    rows = _extract_rows_for_scope(lines, start, end, current_year, previous_year)
+    initial_scan_scope = (start, end)
+    row_block_scan = None
+    if row_scan_mode not in {"off", "shadow", "assist"}:
+        raise ValueError(f"Unsupported row_scan_mode: {row_scan_mode}")
+    if row_scan_mode != "off":
+        row_block_scan = scan_row_blocks(
+            markdown_text,
+            start + 1,
+            end,
+            profile="income_statement",
+        )
+    fast_rows = _extract_rows_for_scope(
+        lines,
+        start,
+        end,
+        current_year,
+        previous_year,
+        row_block_scan=(
+            row_block_scan
+            if row_scan_mode == "assist" and row_block_scan and row_block_scan.get("assist_eligible")
+            else None
+        ),
+    )
+    rows = fast_rows
+
+    # ``assist`` is a canary until its boundaries have been proven on the
+    # entire corpus.  Verify the block-local result against the established
+    # full-scope collector before allowing it to reach the mapper.  A mismatch
+    # is fail-closed: the scan remains useful evidence, but the baseline rows
+    # remain authoritative and canonical output is unchanged.
+    if row_scan_mode == "assist" and row_block_scan and row_block_scan.get("assist_eligible"):
+        baseline_rows = _extract_rows_for_scope(
+            lines,
+            start,
+            end,
+            current_year,
+            previous_year,
+            row_block_scan=None,
+        )
+        if fast_rows == baseline_rows:
+            row_block_scan["assist_used"] = True
+            row_block_scan["assist_decision"] = "verified_equal_to_full_scope"
+        else:
+            rows = baseline_rows
+            row_block_scan["assist_used"] = False
+            row_block_scan["assist_decision"] = "fallback_full_scope_mismatch"
+    elif row_scan_mode == "assist" and row_block_scan:
+        row_block_scan["assist_used"] = False
+        row_block_scan["assist_decision"] = "full_scope_gate_not_met"
 
     # Chuyển candidate dự phòng để an toàn. Nếu tiêu đề được chọn không tạo
     # observation, thử các tiêu đề còn phù hợp về cấu trúc trước khi trả về
@@ -1614,6 +1709,20 @@ def extract_income_fallback(
             if alt_rows:
                 start, end, score, rows = cand["i"], cand["end"], cand["adjusted_score"], alt_rows
                 break
+
+    # The candidate fallback above may replace the initially selected scope.
+    # Rebuild the diagnostic index for the final scope so audit line ranges do
+    # not describe the discarded candidate.
+    if row_scan_mode != "off" and (start, end) != initial_scan_scope:
+        row_block_scan = scan_row_blocks(
+            markdown_text,
+            start + 1,
+            end,
+            profile="income_statement",
+        )
+        if row_scan_mode == "assist" and row_block_scan:
+            row_block_scan["assist_used"] = False
+            row_block_scan["assist_decision"] = "fallback_alternative_scope"
 
     # Gắn provenance cây cha-con cho row chính trước khi mapper làm mất cấu
     # trúc Markdown. Đây chỉ là evidence; identity semantic vẫn do mapper/schema
@@ -1634,6 +1743,7 @@ def extract_income_fallback(
         "unit": unit_ctx.unit,
         "unit_source": unit_ctx.source,
         "locator": locator,
+        "row_block_scan": row_block_scan,
     }
 
 

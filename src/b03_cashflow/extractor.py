@@ -26,6 +26,11 @@ try:
 except ImportError:
     from common.source_recovery import attach_hierarchy_context
 
+try:
+    from src.common.row_block_scanner import attach_row_block_evidence, scan_row_blocks
+except ImportError:
+    from common.row_block_scanner import attach_row_block_evidence, scan_row_blocks
+
 
 
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")
@@ -1124,6 +1129,7 @@ def extract_cashflow_fallback(
     fallback_unit: Optional[str] = None,
     locator_result: Optional[dict] = None,
     preserve_decimal_branch_rows: bool = True,
+    row_scan_mode: str = "off",
 ):
     """Trích xuất dòng B03 và giữ ngữ cảnh section cùng phương pháp.
 
@@ -1145,6 +1151,9 @@ def extract_cashflow_fallback(
     các bảng bổ sung chưa hỗ trợ ở dạng observation nguồn thay vì ép chúng vào
     một node canonical không liên quan.
     """
+    if row_scan_mode not in {"off", "shadow", "assist"}:
+        raise ValueError(f"Unsupported row_scan_mode: {row_scan_mode}")
+
     period = resolve_report_years(
         text,
         source_name="input",
@@ -1220,9 +1229,26 @@ def extract_cashflow_fallback(
             scope["scope_score"] = selected.get("score", scope.get("scope_score"))
             scope["scope_method"] = "alias_assisted_locator"
     scope["locator"] = locator
+    row_block_scan = None
+    if row_scan_mode != "off" and scope.get("scope_start_line") and scope.get("scope_end_line"):
+        row_block_scan = scan_row_blocks(
+            text,
+            int(scope["scope_start_line"]),
+            int(scope["scope_end_line"]),
+            profile="cash_flow",
+        )
     if not scope.get("scope_start_line"):
         unit_val = fallback_unit if fallback_unit and fallback_unit != "unknown" else "unknown"
-        return {**scope, "rows": [], "method": "unknown", "method_method": "unknown", "sector": "unknown", "sector_method": "unknown", "unit": unit_val}
+        return {
+            **scope,
+            "rows": [],
+            "method": "unknown",
+            "method_method": "unknown",
+            "sector": "unknown",
+            "sector_method": "unknown",
+            "unit": unit_val,
+            "row_block_scan": row_block_scan,
+        }
     lines = text.splitlines()
     s = scope["scope_start_line"] - 1
     e = scope["scope_end_line"]
@@ -1710,9 +1736,13 @@ def extract_cashflow_fallback(
         r.unit = u.unit
 
     patterns = sorted({r.pattern for r in dedup if r.pattern})
-    return {**scope, "rows": [r.to_dict() for r in dedup], "method": method, "method_method": method_method,
+    row_dicts = [r.to_dict() for r in dedup]
+    if row_scan_mode == "assist" and row_block_scan:
+        attach_row_block_evidence(row_dicts, row_block_scan)
+    return {**scope, "rows": row_dicts, "method": method, "method_method": method_method,
             "sector": sector, "sector_method": sector_method,
             "unit": unit_ctx.unit, "unit_source": unit_ctx.source,
+            "row_block_scan": row_block_scan,
             "column_major_layout": {
                 **{k: v for k, v in column_major_layout.items() if k != "rows"},
                 "rows_recovered": len(column_major_layout.get("rows") or []),

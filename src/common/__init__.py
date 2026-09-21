@@ -36,6 +36,13 @@ from .structural_identity import (
     occurrence_rank,
     structural_identity,
 )
+from .row_block_scanner import (
+    ROW_BLOCK_SCAN_VERSION,
+    attach_row_block_evidence,
+    iter_eligible_read_ranges,
+    scan_row_blocks,
+    summarize_row_block_scan,
+)
 
 __all__ = [
     "period_role_for_date",
@@ -68,4 +75,9 @@ __all__ = [
     "normalize_identity_label",
     "occurrence_rank",
     "structural_identity",
+    "ROW_BLOCK_SCAN_VERSION",
+    "attach_row_block_evidence",
+    "iter_eligible_read_ranges",
+    "scan_row_blocks",
+    "summarize_row_block_scan",
 ]
