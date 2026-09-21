@@ -1130,6 +1130,7 @@ def extract_cashflow_fallback(
     locator_result: Optional[dict] = None,
     preserve_decimal_branch_rows: bool = True,
     row_scan_mode: str = "off",
+    flat_code_label_periods: bool = True,
 ):
     """Trích xuất dòng B03 và giữ ngữ cảnh section cùng phương pháp.
 
@@ -1343,6 +1344,39 @@ def extract_cashflow_fallback(
             return True
         return _line_indent(raw_line) > pending_indent
 
+    def pending_accepts_period(raw_line: str) -> bool:
+        """Accept period fields for the code-led flat row layout.
+
+        Some Markdown serializers emit ``Mã số`` at indent 0 and then emit
+        ``Chỉ tiêu``, ``Năm nay`` and ``Năm trước`` as siblings at indent 4.
+        Those lines are semantic children of one statement row even though
+        the Markdown indentation does not express that relationship. Keep
+        this exception limited to a row explicitly opened by ``Mã số`` and
+        already populated with a label; all other layouts retain the strict
+        child-indent guard above.
+        """
+
+        if not pending:
+            return False
+        if pending.get("layout") == "CF_FLAT_CODE_LABEL_PERIODS":
+            return bool(pending.get("label"))
+        return pending_accepts_child(raw_line)
+
+    def start_flat_pending(code_val: str, raw_line: str, line_no: int) -> dict:
+        return {
+            "label": "",
+            "code": code_val,
+            "note": None,
+            "current": None,
+            "previous": None,
+            "section": section,
+            "line": line_no,
+            "pattern": "CF_FLAT_CODE_LABEL_PERIODS",
+            "layout": "CF_FLAT_CODE_LABEL_PERIODS",
+            "indent": _line_indent(raw_line),
+            "raw_text": raw_line.strip(),
+        }
+
     # LƯỢT 1: dòng parent/child, pipe, inline và dòng bắt đầu bằng mã thông thường.
     for rel, raw in enumerate(scoped_lines, start=1):
         abs_line = s + rel
@@ -1371,6 +1405,26 @@ def extract_cashflow_fallback(
         m = re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*([^|]+)$", clean)
         if m:
             code_val = strip_md(m.group(1))
+            if flat_code_label_periods and pending and pending.get("layout") == "CF_FLAT_CODE_LABEL_PERIODS":
+                # A new code is a hard row boundary for this layout. Flush
+                # the previous row before opening the next placeholder so a
+                # missing period value cannot leak into the next code.
+                flush_pending()
+                pending = start_flat_pending(code_val, raw, abs_line)
+                continue
+            if (
+                flat_code_label_periods
+                and pending
+                and pending.get("current") is None
+                and pending.get("previous") is None
+                and _line_indent(raw) <= (pending.get("indent") or 0)
+            ):
+                # A code at the same level as an unfinished heading starts a
+                # new flat row. This prevents the first row after a section
+                # heading from inheriting the heading as its label.
+                flush_pending()
+                pending = start_flat_pending(code_val, raw, abs_line)
+                continue
             if pending and not pending_accepts_child(raw):
                 flush_pending()
                 continue
@@ -1382,11 +1436,23 @@ def extract_cashflow_fallback(
             elif pending:
                 pending["code"] = code_val
                 pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
+            elif flat_code_label_periods:
+                # DXS-like layout: the code starts the row and the semantic
+                # label follows on a separate sibling bullet.
+                pending = start_flat_pending(code_val, raw, abs_line)
+            continue
+
+        m = re.match(r"(?i)^Ch[iỉ]\s*ti[eê]u\s*:\s*(.+)$", clean)
+        if m and pending and pending.get("layout") == "CF_FLAT_CODE_LABEL_PERIODS":
+            pending["label"] = strip_md(m.group(1))
+            pending["section"] = _section_from_label(pending["label"], section)
+            pending["label_indent"] = _line_indent(raw)
+            pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.match(r"(?i)^Chi\s*tiết\s*:\s*(.+)$", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             pending["label"] = strip_md(m.group(1))
@@ -1395,7 +1461,7 @@ def extract_cashflow_fallback(
 
         m = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             pending["note"] = strip_md(m.group(1))
@@ -1408,7 +1474,7 @@ def extract_cashflow_fallback(
         # và không bao giờ được dùng làm định danh dòng.
         m = re.match(r"(?i)^Diễn\s*giải\s*:\s*(.+)$", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             pending["label"] = strip_md(m.group(1))
@@ -1418,7 +1484,7 @@ def extract_cashflow_fallback(
 
         m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             pending["current"] = parse_number(m.group(1))
@@ -1427,7 +1493,7 @@ def extract_cashflow_fallback(
 
         m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             pending["previous"] = parse_number(m.group(1))
@@ -1436,7 +1502,7 @@ def extract_cashflow_fallback(
 
         m = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
         if m and pending:
-            if not pending_accepts_child(raw):
+            if not pending_accepts_period(raw):
                 flush_pending()
                 continue
             yr, val = int(m.group(1)), parse_number(m.group(2))
@@ -1469,7 +1535,7 @@ def extract_cashflow_fallback(
         cur, prev = _extract_inline_periods(clean, current_year, previous_year)
         if cur is not None or prev is not None:
             clean_without_numbers = re.sub(r"(?i)\b20\d{2}\b|\(?-?[\d.,]+\)?|\b(nam|ky|trieu|vnd|dong)\b|[;:.,()\-]", "", fold(clean)).strip()
-            if pending and not clean_without_numbers and not pending_accepts_child(raw):
+            if pending and not clean_without_numbers and not pending_accepts_period(raw):
                 flush_pending()
                 continue
             if pending and not clean_without_numbers:
@@ -1690,6 +1756,8 @@ def extract_cashflow_fallback(
                 return 40
             if "CF_VALUE_BEFORE_LABEL" in value:
                 return 35
+            if "CF_FLAT_CODE_LABEL_PERIODS" in value:
+                return 25
             if "CF_PERIOD_CHILDREN" in value:
                 return 10
             return 20

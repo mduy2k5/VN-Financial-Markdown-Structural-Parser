@@ -578,6 +578,7 @@ def run_cashflow(
     aliases_path: Path | str | None = None,
     preserve_decimal_branch_rows: bool = True,
     row_scan_mode: str = "off",
+    flat_code_label_periods: bool = True,
 ):
     """Chạy extractor và mapper B03 cho một file Markdown.
 
@@ -625,6 +626,7 @@ def run_cashflow(
         locator_result=locator_result,
         preserve_decimal_branch_rows=preserve_decimal_branch_rows,
         row_scan_mode=row_scan_mode,
+        flat_code_label_periods=flat_code_label_periods,
     )
     rows = []
     for raw in ext.get("rows", []):
@@ -727,6 +729,7 @@ def process_one(
     income_aliases_path: Optional[Path] = None,
     preserve_decimal_branch_rows: bool = True,
     row_scan_mode: str = "off",
+    flat_code_label_periods: bool = True,
 ):
     """Parse một report và trả về kết quả statement cùng production JSON.
 
@@ -778,6 +781,7 @@ def process_one(
         aliases_path=cashflow_aliases_path,
         preserve_decimal_branch_rows=preserve_decimal_branch_rows,
         row_scan_mode=row_scan_mode,
+        flat_code_label_periods=flat_code_label_periods,
     )
     attach_source_provenance(
         inc.get("canonical"),
@@ -1139,6 +1143,16 @@ def main():
             "full-scope fallback. Default is off for rollback safety."
         ),
     )
+    ap.add_argument(
+        "--flat-code-label-periods",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Read B03 rows serialized as Mã số -> Chỉ tiêu -> Năm nay/Năm trước "
+            "with equal Markdown indentation. Use --no-flat-code-label-periods "
+            "to roll back this parser branch."
+        ),
+    )
     args = ap.parse_args()
 
     schema_profile = SCHEMA_PROFILES[args.schema_profile]
@@ -1190,6 +1204,7 @@ def main():
                 "cash_flow_aliases": str(schema_profile["cash_flow_aliases"]),
                 "preserve_decimal_branch_rows": schema_profile["preserve_decimal_branch_rows"],
                 "row_scan_mode": args.row_scan_mode,
+                "flat_code_label_periods": args.flat_code_label_periods,
             },
         )
 
@@ -1218,6 +1233,7 @@ def main():
                 cashflow_aliases_path=schema_profile["cash_flow_aliases"],
                 preserve_decimal_branch_rows=schema_profile["preserve_decimal_branch_rows"],
                 row_scan_mode=args.row_scan_mode,
+                flat_code_label_periods=args.flat_code_label_periods,
             )
             production = r.pop("production")
             source = production["report"]["source"]
@@ -1277,6 +1293,7 @@ def main():
             "notes_enabled": args.notes,
             "schema_profile": args.schema_profile,
             "row_scan_mode": args.row_scan_mode,
+            "flat_code_label_periods": args.flat_code_label_periods,
         },
         "report_count": len(production_reports),
         "error_count": len(errors),
