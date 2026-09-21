@@ -350,10 +350,6 @@ chưa được human-review không phải gold standard. Các tool tạo ground 
 review queue và so sánh output được giữ ở checkout nội bộ, không phát hành
 trong public repository.
 
-## Tài liệu production
-
-- [Chính sách dữ liệu](docs/data-publication-policy-vi.md)
-
 ## Đọc code
 
 Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
@@ -419,26 +415,6 @@ python -m compileall -q app src flat_parser
 git diff --check
 ```
 
-Bộ test, `pytest.ini` và các artifact đánh giá được giữ ở checkout nội bộ,
-không thuộc public production release.
-
-Khi phát triển rule mới trong checkout nội bộ:
-
-1. viết test cho layout hoặc lỗi mới;
-2. dùng cấu trúc và semantic context, không dùng tên file;
-3. kiểm tra provenance và period pairing;
-4. chạy toàn bộ test;
-5. cập nhật schema hoặc guide nếu rule áp dụng chung.
-
-Trước khi dùng output cho nghiệp vụ:
-
-1. chạy pipeline trên Markdown nguồn;
-2. kiểm tra `manifest.json` và report tương ứng;
-3. bật `--audit` khi cần so sánh hoặc điều tra;
-4. xem `missing`, `unexpected`, `raw_text`, `source_line`, period và conflict;
-5. review report có `partial_mapping`, `partial_source_coverage`, confidence thấp hoặc conflict niên độ;
-6. chỉ sử dụng kết quả sau khi review xong các conflict quan trọng.
-
 ## Giới hạn hiện tại
 
 Markdown đầu vào có thể làm mất cột, hàng, kỳ hoặc quan hệ cha-con. Parser giữ
@@ -454,7 +430,3 @@ Package structural parser dùng version trong
 ```text
 parser package: 0.6.0
 ```
-
-Thông tin release metadata bổ sung được giữ ở máy local và không nằm trong
-public release artifact. Repository lưu code, schema, guide và test; dữ liệu
-nguồn, ground truth và output cục bộ không thuộc release artifact.
