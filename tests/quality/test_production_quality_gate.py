@@ -46,6 +46,95 @@ def test_numeric_formatting_difference_is_not_a_source_recovery_conflict():
     assert recovery["representation_equivalent_matches"] == 1
 
 
+def test_b02_sign_normalization_is_not_reported_as_source_conflict():
+    canonical = {
+        "unit": "million_vnd",
+        "nodes": [{
+            "node_id": "INCOME.SECURITIES.FVTPL_LOSS",
+            "canonical_name": "Lỗ bán các tài sản tài chính FVTPL",
+            "kind": "line",
+            "value": {"current": -210, "previous": -120},
+        }],
+    }
+    row = SimpleNamespace(
+        label="Lỗ bán các tài sản tài chính FVTPL",
+        current=210,
+        previous=120,
+        code=None,
+        statement_code=None,
+        note=None,
+        note_ref=None,
+        section=None,
+        source_line=25,
+        pattern="test",
+        parent_label=None,
+        hierarchy_path=None,
+        unit="million_vnd",
+        unit_source="test",
+    )
+
+    augment_canonical_with_recovered_rows(canonical, [row], "INCOME")
+
+    recovery = canonical["diagnostics"]["source_statement_recovery"]
+    assert recovery["conflicts"] == 0
+    assert recovery["sign_equivalent_matches"] == 1
+    assert canonical["diagnostics"]["source_recovery_sign_equivalents"][0]["target_node_id"] == "INCOME.SECURITIES.FVTPL_LOSS"
+
+
+def test_sign_difference_remains_a_conflict_outside_b02_normalization():
+    canonical = {
+        "unit": "vnd",
+        "nodes": [{
+            "node_id": "ASSET.CASH",
+            "canonical_name": "Tiền mặt",
+            "kind": "line",
+            "value": {"current": -210, "previous": -120},
+        }],
+    }
+    augment_canonical_with_recovered_rows(
+        canonical,
+        [_recovered_row(current=210, previous=120)],
+        "FINANCIAL_POSITION",
+    )
+
+    assert canonical["diagnostics"]["source_statement_recovery"]["conflicts"] == 1
+
+
+def test_b02_quarter_and_cumulative_source_scope_is_not_parser_conflict():
+    canonical = {
+        "unit": "million_vnd",
+        "nodes": [{
+            "node_id": "INCOME.BANK.PROFIT_AFTER_TAX",
+            "canonical_name": "Lợi nhuận sau thuế",
+            "kind": "line",
+            "value": {"current": 35198433, "previous": 33853117},
+        }],
+    }
+    row = SimpleNamespace(
+        label="Lợi nhuận sau thuế",
+        current=8633783,
+        previous=8569921,
+        code=None,
+        statement_code=None,
+        note=None,
+        note_ref=None,
+        section=None,
+        source_line=752,
+        pattern="INCOME_RAW_CHILDREN",
+        parent_label=None,
+        hierarchy_path=None,
+        unit="million_vnd",
+        unit_source="statement_header",
+    )
+
+    augment_canonical_with_recovered_rows(canonical, [row], "INCOME")
+
+    recovery = canonical["diagnostics"]["source_statement_recovery"]
+    assert recovery["conflicts"] == 0
+    assert recovery["period_scope_ambiguities"] == 1
+    assert canonical["diagnostics"]["source_period_scope_ambiguities"][0]["node_id"] == "INCOME.BANK.PROFIT_AFTER_TAX"
+
+
 def test_structural_source_recovery_conflict_is_reclassified_when_child_values_match():
     canonical = {
         "unit": "million_vnd",

@@ -62,3 +62,80 @@ VI.02
     inc=extract_income_fallback(text,2025,2024)
     r02=[r for r in inc["rows"] if r.get("code")=="02" and "giảm trừ" in r.get("indicator","").lower()]
     assert any(r.get("note")=="VI.02" and r.get("current")=="(320.000)" and r.get("previous")=="(280.000)" for r in r02)
+
+
+def test_financial_position_positional_columns_follow_source_header_order():
+    """Không mặc định số đầu tiên là kỳ hiện tại khi header bị đảo."""
+
+    text = """
+# BẢNG CÂN ĐỐI KẾ TOÁN HỢP NHẤT
+NGUỒN VỐN
+Số đầu năm
+(Trình bày lại)
+Số cuối năm
+Mã Thuyết
+số mình
+C. NỢ PHẢI TRẢ
+300
+27.563.291.053.672
+25.567.783.329.754
+"""
+    result = extract_financial_position_source_rows(text, 2025, 2024)
+    row = next(item for item in result["rows"] if item.code == "300")
+
+    assert row.previous == 27_563_291_053_672
+    assert row.current == 25_567_783_329_754
+
+
+def test_financial_position_positional_rows_skip_standalone_code_and_formula():
+    """Mã số đứng riêng/ghi chú công thức không được đọc thành giá trị kỳ."""
+
+    filler = "\n".join(f"Ghi chú trang {index}" for index in range(120))
+    text = f"""
+# BẢNG CÂN ĐỐI KẾ TOÁN HỢP NHẤT
+NGUỒN VỐN
+Số đầu năm
+(Trình bày lại)
+Số cuối năm
+Mã Thuyết minh
+số mình
+C. NỢ PHẢI TRẢ
+{filler}
+10. Quỹ khen thưởng, phúc lợi
+322
+37.315.781.858
+45.639.872.404
+TÔNG CỘNG NGUỒN VỐN
+440
+36.722.431.033.992
+(440 = 300 + 400)
+37.524.891.642.819
+"""
+
+    rows = extract_financial_position_source_rows(text, 2025, 2024)["rows"]
+    fund = next(row for row in rows if row.code == "322")
+    total = next(row for row in rows if row.code == "440")
+
+    assert fund.previous == 37_315_781_858
+    assert fund.current == 45_639_872_404
+    assert total.previous == 36_722_431_033_992
+    assert total.current == 37_524_891_642_819
+
+
+def test_income_rows_keep_parent_child_context_for_repeated_labels():
+    text = """
+# BÁO CÁO KẾT QUẢ HOẠT ĐỘNG KINH DOANH
+Mẫu B02-DN
+* Doanh thu bán hàng và cung cấp dịch vụ
+    * Năm nay: 100
+    * Năm trước: 90
+    * Doanh thu bán hàng và cung cấp dịch vụ
+        * Năm nay: 40
+        * Năm trước: 30
+"""
+
+    rows = extract_income_fallback(text, 2025, 2024)["rows"]
+    child = next(row for row in rows if row.get("current") == "40")
+
+    assert child["parent_context"] == "Doanh thu bán hàng và cung cấp dịch vụ"
+    assert child["hierarchy_path"] == "Doanh thu bán hàng và cung cấp dịch vụ"

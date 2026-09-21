@@ -17,7 +17,9 @@ from .source_recovery import (
     extract_financial_position_source_rows,
     extract_generic_statement_rows,
     extract_securities_supplemental_cashflow_rows,
+    attach_hierarchy_context,
     fold,
+    hierarchy_context_for_lines,
     parse_number,
 )
 from .source_canonical_hydrator import (
@@ -52,7 +54,9 @@ __all__ = [
     "extract_financial_position_source_rows",
     "extract_generic_statement_rows",
     "extract_securities_supplemental_cashflow_rows",
+    "attach_hierarchy_context",
     "fold",
+    "hierarchy_context_for_lines",
     "hydrate_canonical_by_form_code",
     "parse_number",
     "reconcile_source_observations",

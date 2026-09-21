@@ -89,6 +89,31 @@ Mẫu B 03 - DN/HN
     assert (row['current'], row['previous']) == (396844169100, 595916748469)
 
 
+def test_sibling_period_values_are_not_attached_to_previous_child():
+    """B03 phải tôn trọng indent khi parent có tổng không gắn nhãn."""
+
+    text = '''
+# BÁO CÁO LƯU CHUYỂN TIỀN TỆ
+Phương pháp gián tiếp
+Mẫu B03-CTCK
+* 1. LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG KINH DOANH
+    * 02. Điều chỉnh cho các khoản:
+        * 08. Dự thu tiền lãi
+            * Năm nay: (8.972.897.043)
+            * Năm trước: (8.355.631.386)
+        * Năm nay: (233.662.533.028)
+        * Năm trước: (106.577.700.028)
+'''
+
+    ext = extract_cashflow_fallback(text, 2025, 2024, fallback_unit='vnd')
+    row = next(x for x in ext['rows'] if x['code'] == '08')
+
+    assert row['current'] == -8972897043
+    assert row['previous'] == -8355631386
+    assert row['parent_label'] == '02. Điều chỉnh cho các khoản'
+    assert '02. Điều chỉnh cho các khoản' in row['hierarchy_path']
+
+
 def test_payment_label_does_not_fuzzy_map_to_receipts():
     text = '''
 # BÁO CÁO LƯU CHUYỂN TIỀN TỆ HỢP NHẤT
@@ -132,3 +157,27 @@ Mẫu B 03 - DN/HN
     assert row.mapping_status == 'mapped'
     assert row.mapped_node_id == 'CASHFLOW.ENTERPRISE.CASH_BEGINNING'
     assert row.mapping_method == 'form_code_disambiguation'
+
+
+def test_semantic_fallback_does_not_cross_cashflow_form_code_boundary():
+    """Mã 103 cuối năm không được kéo vào child 101.2 đầu năm."""
+
+    root = Path(__file__).resolve().parents[2]
+    mapper = CashFlowMapper(
+        root / 'resources/schemas/cash_flow_schema.json',
+        root / 'resources/schemas/cash_flow_aliases.json',
+        sector='securities',
+        method='indirect',
+    )
+    row = adapt_cashflow_row({
+        'source_label': 'Tiền và các khoản tương đương tiền cuối năm',
+        'code': '103',
+        'current': 1064105925053,
+        'previous': 284434076341,
+        'section': 'reconciliation',
+    })
+
+    mapped = mapper.map_rows([row])[0]
+
+    assert mapped.mapping_status == 'unmapped'
+    assert mapped.mapped_node_id is None

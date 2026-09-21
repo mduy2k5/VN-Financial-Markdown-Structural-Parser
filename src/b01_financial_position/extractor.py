@@ -127,6 +127,7 @@ class FinancialPositionSourceParser:
         schema_path: Optional[Path] = None,
         aliases_path: Optional[Path] = None,
         guide_path: Optional[Path] = None,
+        same_label_recovery: bool = True,
     ):
         """Khởi tạo B01 parser từ schema, alias và structural guide.
 
@@ -139,12 +140,14 @@ class FinancialPositionSourceParser:
         from flat_parser.pipeline import FlatParserPipeline
 
         project_root = Path(__file__).resolve().parents[2]
+        self.same_label_recovery = bool(same_label_recovery)
         self.parser = FlatParserPipeline(
             schema_path=schema_path or project_root / "resources" / "schemas" / "financial_position_schema.json",
             aliases_path=aliases_path or project_root / "resources" / "schemas" / "financial_position_aliases.json",
             universal_guide_path=guide_path or project_root / "resources" / "guides" / "compiled" / "structural_guide.json",
             scope_mode="financial_position",
             mapping_strategy="legacy",
+            same_label_recovery=self.same_label_recovery,
         )
 
     def parse_text(
@@ -237,6 +240,7 @@ class FinancialPositionSourceParser:
             canonical,
             recovered.get("rows") or [],
             "FINANCIAL_POSITION",
+            same_label_recovery=self.same_label_recovery,
         )
         canonical = reconcile_source_observations(canonical, "FINANCIAL_POSITION")
         canonical = _set_statement_unit(canonical, stmt_unit)
@@ -255,6 +259,7 @@ class FinancialPositionSourceParser:
             "source_name": source_name,
             "source_sha256": source_sha256,
             "source_parser_version": raw_stats.get("parser_version"),
+            "same_label_recovery": self.same_label_recovery,
             "source_recovery": "v16.1",
             "recovery_scope_start": recovered.get("scope_start_line"),
             "recovery_scope_end": recovered.get("scope_end_line"),

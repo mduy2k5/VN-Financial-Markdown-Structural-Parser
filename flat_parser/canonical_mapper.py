@@ -4,6 +4,30 @@ from .models import ResolvedField
 from .semantic_catalog import SemanticCatalog
 
 
+def _context_path(context) -> tuple[str, ...]:
+    if not isinstance(context, dict):
+        return ()
+    return tuple(
+        " ".join(str(part).casefold().split())
+        for part in (context.get("path") or [])
+        if str(part).strip()
+    )
+
+
+def _is_structural_context_collision(first_context, incoming_context) -> bool:
+    """Recognize the same schema alias occurring at parent and child levels."""
+
+    first = _context_path(first_context)
+    incoming = _context_path(incoming_context)
+    if not first or not incoming or first == incoming:
+        return False
+    return (
+        len(first) < len(incoming) and incoming[: len(first)] == first
+    ) or (
+        len(incoming) < len(first) and first[: len(incoming)] == incoming
+    )
+
+
 def _value_signature(value) -> tuple[str, str]:
     """So sánh payload trùng bằng giá trị đã chuẩn hóa nếu có."""
 
@@ -15,6 +39,8 @@ def _value_signature(value) -> tuple[str, str]:
 def map_first_value_per_period(
     fields: list[ResolvedField],
     catalog: SemanticCatalog,
+    *,
+    same_label_recovery: bool = True,
 ):
     """Tạo node canonical và vẫn giữ bằng chứng trùng lặp.
 
@@ -49,6 +75,7 @@ def map_first_value_per_period(
                 "has_any_payload": False,
                 "raw_by_period": {},
                 "conflict_periods": [],
+                "structural_context_collisions": [],
             },
         )
 
@@ -72,12 +99,33 @@ def map_first_value_per_period(
                         "first_raw_value": existing["raw_value"],
                         "conflicting_raw_value": v.raw_value,
                     }
-                    if conflict not in st["conflict_periods"]:
-                        st["conflict_periods"].append(conflict)
-                    actions.append({
-                        "action": "conflict_existing_period",
-                        **conflict,
-                    })
+                    first_context = existing.get("source_context")
+                    if (
+                        same_label_recovery
+                        and _is_structural_context_collision(
+                            first_context,
+                            field.source_context,
+                        )
+                    ):
+                        structural = {
+                            **conflict,
+                            "reason": "same_schema_node_parent_child_context",
+                            "first_source_context": first_context,
+                            "conflicting_source_context": field.source_context,
+                        }
+                        if structural not in st["structural_context_collisions"]:
+                            st["structural_context_collisions"].append(structural)
+                        actions.append({
+                            "action": "structural_context_collision",
+                            **structural,
+                        })
+                    else:
+                        if conflict not in st["conflict_periods"]:
+                            st["conflict_periods"].append(conflict)
+                        actions.append({
+                            "action": "conflict_existing_period",
+                            **conflict,
+                        })
                 else:
                     actions.append({
                         "action": "skip_existing_period",
@@ -92,6 +140,7 @@ def map_first_value_per_period(
                 "signature": _value_signature(v),
                 "raw_value": v.raw_value,
                 "source_line": field.source_line,
+                "source_context": field.source_context,
             }
             st["has_any_payload"] = True
             accepted_any = True
@@ -188,9 +237,22 @@ def map_first_value_per_period(
     ]
     canonical.setdefault("diagnostics", {})["semantic_dedup"] = {
         "policy": "first_value_per_period_wins_with_conflict_audit",
+        "same_label_recovery": bool(same_label_recovery),
         "conflicting_nodes": conflict_nodes,
         "conflict_count": sum(
             len(state_item.get("conflict_periods") or [])
+            for state_item in state.values()
+        ),
+        "structural_context_collisions": [
+            {
+                "node_id": node_id,
+                "collisions": state_item.get("structural_context_collisions") or [],
+            }
+            for node_id, state_item in state.items()
+            if state_item.get("structural_context_collisions")
+        ],
+        "structural_context_collision_count": sum(
+            len(state_item.get("structural_context_collisions") or [])
             for state_item in state.values()
         ),
     }

@@ -312,6 +312,7 @@ class IncomeRow:
     code: Optional[str] = None
     unit: Optional[str] = None
     parent_context: Optional[str] = None
+    hierarchy_path: Optional[str] = None
     source_line: Optional[int] = None
     pattern: Optional[str] = None
     raw_text: Optional[str] = None
@@ -343,6 +344,7 @@ def adapt_row(obj: dict, idx=0, current_year=None, previous_year=None, inherited
         code=raw_code,
         unit=_first(obj, UNIT_KEYS, inherited.get("unit")),
         parent_context=_first(obj, PARENT_KEYS, inherited.get("parent_context")),
+        hierarchy_path=_first(obj, ("hierarchy_path", "path", "source_path"), inherited.get("hierarchy_path")),
         source_line=_first(obj, LINE_KEYS, inherited.get("source_line", idx + 1)),
         pattern=_first(obj, PATTERN_KEYS, inherited.get("pattern")),
         raw_text=_source_raw_text(obj) or inherited.get("raw_text"),
@@ -644,6 +646,7 @@ class IncomeMapper:
                 "code": r.code,
                 "note": r.note,
                 "parent_context": r.parent_context,
+                "hierarchy_path": r.hierarchy_path,
                 "raw_text": r.raw_text,
             }
             node["extraction_meta"]["occurrences"].append(occ)
@@ -741,11 +744,11 @@ class IncomeMapper:
             "inspect diagnostics.formula_checks and diagnostics.sign_normalizations."
         )
         unmapped_rows = [
-            {"source_line": r.source_line, "label": r.label, "code": r.code, "current": r.current, "previous": r.previous, "parent_context": r.parent_context}
+            {"source_line": r.source_line, "label": r.label, "code": r.code, "current": r.current, "previous": r.previous, "parent_context": r.parent_context, "hierarchy_path": r.hierarchy_path}
             for r in rows if r.mapping_status == "unmapped"
         ]
         ambiguous_rows = [
-            {"source_line": r.source_line, "label": r.label, "code": r.code, "current": r.current, "previous": r.previous, "parent_context": r.parent_context}
+            {"source_line": r.source_line, "label": r.label, "code": r.code, "current": r.current, "previous": r.previous, "parent_context": r.parent_context, "hierarchy_path": r.hierarchy_path}
             for r in rows if r.mapping_status == "ambiguous"
         ]
 

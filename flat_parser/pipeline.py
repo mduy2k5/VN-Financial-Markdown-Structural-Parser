@@ -63,6 +63,7 @@ class FlatParserPipeline:
         mapping_strategy="legacy",
         enable_locator=True,
         locator_min_confidence=0.72,
+        same_label_recovery: bool = True,
     ):
         """Nạp cấu hình cần cho một phiên parse B01.
 
@@ -81,6 +82,7 @@ class FlatParserPipeline:
         self.allow_unknown_structure = allow_unknown_structure
         self.mapping_strategy = mapping_strategy
         self.enable_locator = bool(enable_locator)
+        self.same_label_recovery = bool(same_label_recovery)
         self.locator = (
             StatementLocator(
                 schema_path=schema_path,
@@ -289,6 +291,7 @@ class FlatParserPipeline:
                 allow_fuzzy=self.allow_fuzzy,
                 detected_sector=sector_qa.get("detected_sector"),
                 source_context=source_context,
+                same_label_recovery=self.same_label_recovery,
             )
             if not candidates:
                 continue
@@ -468,6 +471,7 @@ class FlatParserPipeline:
         canonical, accepted, dedup_log = map_first_value_per_period(
             expanded,
             self.catalog,
+            same_label_recovery=self.same_label_recovery,
         )
 
         if statement_profile == "financial_position":
@@ -607,6 +611,7 @@ class FlatParserPipeline:
             "collector_policy": "semantic_child_boundaries",
             "fuzzy_enabled": self.allow_fuzzy,
             "unknown_structure_allowed": self.allow_unknown_structure,
+            "same_label_recovery": self.same_label_recovery,
         }
 
         return {

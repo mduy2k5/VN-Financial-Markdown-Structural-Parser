@@ -38,6 +38,76 @@ def _values_equal(left: Any, right: Any) -> bool:
     return _normalized_value_key(left) == _normalized_value_key(right)
 
 
+def _income_sign_equivalent_periods(
+    node: dict,
+    row: Any,
+    statement: str,
+) -> list[str]:
+    """Nhận diện khác dấu do B02 chuẩn hóa semantic sign.
+
+    B02 lưu các khoản lỗ/chi phí theo quy ước cộng có dấu, trong khi nhiều
+    nguồn Markdown in chúng dưới dạng số dương (hoặc chỉ một trong hai kỳ bị
+    đổi dấu). Nếu chỉ so sánh số tuyệt đối cho mọi statement thì sẽ che mất
+    lỗi thật ở B01/B03, nên guard này chỉ chạy cho các node B02 mà validator
+    đã khai báo là luôn âm.
+    """
+
+    if statement != "INCOME":
+        return []
+
+    node_id = str(node.get("node_id") or "")
+    source_label = node.get("canonical_name") or getattr(row, "label", None)
+    try:
+        from src.b02_income.validator import (
+            BANK_ALWAYS_NEGATIVE_NODES,
+            SECURITIES_ALWAYS_NEGATIVE_NODES,
+            _label_implies_expense,
+        )
+    except ImportError:
+        try:
+            from b02_income.validator import (
+                BANK_ALWAYS_NEGATIVE_NODES,
+                SECURITIES_ALWAYS_NEGATIVE_NODES,
+                _label_implies_expense,
+            )
+        except ImportError:
+            return []
+
+    always_negative = (
+        set(BANK_ALWAYS_NEGATIVE_NODES)
+        | set(SECURITIES_ALWAYS_NEGATIVE_NODES)
+    )
+    dynamic_negative = node_id in {
+        "INCOME.BANK.DEFERRED_TAX_EXPENSE",
+        "INCOME.SECURITIES.PROVISION_EXPENSE",
+        "INCOME.SECURITIES.DEFERRED_TAX_EXPENSE",
+    } and _label_implies_expense(source_label)
+    if node_id not in always_negative and not dynamic_negative:
+        return []
+
+    periods = []
+    value = node.get("value") or {}
+    for period, incoming in (
+        ("current", getattr(row, "current", None)),
+        ("previous", getattr(row, "previous", None)),
+    ):
+        if incoming is None:
+            continue
+        existing = value.get(period)
+        if existing is None or _values_equal(existing, incoming):
+            continue
+        left = parse_number(existing)
+        right = parse_number(incoming)
+        if left is None or right is None or left == 0 or right == 0:
+            return []
+        if abs(Decimal(str(left))) != abs(Decimal(str(right))):
+            return []
+        if (left < 0) == (right < 0):
+            return []
+        periods.append(period)
+    return periods
+
+
 def _context_label_key(value: Any) -> str:
     """Chuẩn hóa nhãn hierarchy để match nguồn một cách thận trọng.
 
@@ -266,7 +336,13 @@ def hydrate_canonical_by_form_code(canonical: dict | None, evidence: list[dict],
     return canonical
 
 
-def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any], statement: str) -> dict | None:
+def augment_canonical_with_recovered_rows(
+    canonical: dict | None,
+    rows: list[Any],
+    statement: str,
+    *,
+    same_label_recovery: bool = True,
+) -> dict | None:
     """Thêm dòng nguồn mà không đổi giá trị semantic đã có.
 
     Dòng chỉ có thể điền kỳ còn thiếu khi nhãn và context cấu trúc xác định đúng
@@ -285,7 +361,9 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
             continue
         by_l.setdefault(fl, []).append(n)
 
-    added = filled = conflicts = equivalent_existing = 0
+    added = filled = conflicts = equivalent_existing = sign_equivalent_existing = 0
+    period_scope_ambiguities = 0
+    structural_ambiguities = 0
     seen_source = set()
     source_ranks: dict[tuple[str, ...], int] = {}
 
@@ -364,6 +442,19 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
                 if key:
                     labels.add(key)
         return labels
+
+    def _repeated_source_label_ancestor(row: Any) -> bool:
+        """Detect a source child repeating an ancestor's semantic label."""
+
+        row_key = _context_label_key(getattr(row, "label", None))
+        if not row_key:
+            return False
+        path_keys = {
+            _context_label_key(part)
+            for part in re.split(r"\s*>\s*", clean(getattr(row, "hierarchy_path", None) or ""))
+            if _context_label_key(part)
+        }
+        return row_key in path_keys
 
     def _find_representation_equivalent(row: Any, excluded: set[str]):
         """Tìm node child/chi tiết được biểu diễn bằng nhãn parent khôi phục.
@@ -448,6 +539,23 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
         meta.setdefault("source_recovery_equivalent_occurrences", []).append(occurrence)
         return occurrence
 
+    def _record_sign_equivalent(node: dict, row: Any, periods: list[str]):
+        occurrence = {
+            "source_line": row.source_line,
+            "source_label": row.label,
+            "pattern": row.pattern,
+            "current": row.current,
+            "previous": row.previous,
+            "node_id": node.get("node_id"),
+            "mapping_method": "source_recovery_b02_sign_normalization",
+            "mapping_confidence": 0.99,
+            "matched_periods": periods,
+        }
+        node.setdefault("extraction_meta", {}).setdefault(
+            "source_recovery_sign_equivalent_occurrences", []
+        ).append(occurrence)
+        return occurrence
+
     for r in rows:
         fl = fold(r.label)
         if not fl:
@@ -458,6 +566,54 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
             and section_matches(node, r)
             and source_identity_matches(node, r)
         ]
+        if same_label_recovery and _repeated_source_label_ancestor(r):
+            # A repeated label can be a valid schema child only when the
+            # schema exposes a concrete line node. A group with no children
+            # cannot distinguish parent from child, so keep the row as
+            # source-only instead of manufacturing a semantic conflict.
+            concrete = [node for node in candidates if node.get("kind") != "group"]
+            if concrete:
+                candidates = concrete
+            elif candidates and not any(node.get("children") for node in candidates):
+                # Give the existing hierarchy-aware representation-equivalent
+                # rule one chance first. This is the legitimate case where a
+                # flattened child is known by the schema under another label
+                # (for example net vs gross loan wording).
+                equivalent = _find_representation_equivalent(
+                    r,
+                    excluded={str(node.get("node_id") or "") for node in candidates},
+                ) if same_label_recovery else None
+                if equivalent:
+                    equivalent_node, matched_periods = equivalent
+                    _record_representation_equivalent(
+                        equivalent_node,
+                        r,
+                        matched_periods,
+                    )
+                    equivalent_existing += 1
+                    canonical.setdefault("diagnostics", {}).setdefault(
+                        "source_recovery_representation_equivalents", []
+                    ).append({
+                        "label": r.label,
+                        "source_line": r.source_line,
+                        "target_node_id": equivalent_node.get("node_id"),
+                        "matched_periods": matched_periods,
+                        "parent_label": r.parent_label,
+                        "hierarchy_path": r.hierarchy_path,
+                    })
+                    continue
+                structural_ambiguities += 1
+                canonical.setdefault("diagnostics", {}).setdefault(
+                    "source_recovery_structural_ambiguities", []
+                ).append({
+                    "label": r.label,
+                    "source_line": r.source_line,
+                    "parent_label": r.parent_label,
+                    "hierarchy_path": r.hierarchy_path,
+                    "candidate_node_ids": [node.get("node_id") for node in candidates],
+                    "reason": "repeated_source_label_without_distinct_schema_child",
+                })
+                candidates = []
         # Điền kỳ thiếu khi identity không mơ hồ; không bao giờ thay giá trị
         # semantic non-null đã có.
         if len(candidates) == 1:
@@ -503,10 +659,61 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
                 and not _values_equal(r.previous, v.get("previous"))
             )
             if current_differs or previous_differs:
+                # B02 annual reports can contain both ``Quý IV`` and
+                # ``Lũy kế`` under one semantic label. The generic recovery
+                # row intentionally preserves one flattened pair, while the
+                # primary extractor already selected the annual scope. This
+                # is source-period ambiguity, not a parser disagreement.
+                if (
+                    statement == "INCOME"
+                    and r.pattern == "INCOME_RAW_CHILDREN"
+                    and not r.parent_label
+                    and not r.hierarchy_path
+                ):
+                    period_scope_ambiguities += 1
+                    occurrence = {
+                        "source_line": r.source_line,
+                        "source_label": r.label,
+                        "pattern": r.pattern,
+                        "recovered_current": r.current,
+                        "recovered_previous": r.previous,
+                        "existing_current": v.get("current"),
+                        "existing_previous": v.get("previous"),
+                        "reason": "quarter_and_cumulative_values_share_one_source_label",
+                    }
+                    n.setdefault("extraction_meta", {}).setdefault(
+                        "source_recovery_period_scope_ambiguities", []
+                    ).append(occurrence)
+                    canonical.setdefault("diagnostics", {}).setdefault(
+                        "source_period_scope_ambiguities", []
+                    ).append({"node_id": n.get("node_id"), **occurrence})
+                    continue
+                sign_equivalent_periods = _income_sign_equivalent_periods(
+                    n,
+                    r,
+                    statement,
+                )
+                if sign_equivalent_periods:
+                    _record_sign_equivalent(n, r, sign_equivalent_periods)
+                    sign_equivalent_existing += 1
+                    equivalent_existing += 1
+                    canonical.setdefault("diagnostics", {}).setdefault(
+                        "source_recovery_sign_equivalents", []
+                    ).append({
+                        "label": r.label,
+                        "source_line": r.source_line,
+                        "target_node_id": n.get("node_id"),
+                        "matched_periods": sign_equivalent_periods,
+                        "recovered_current": r.current,
+                        "recovered_previous": r.previous,
+                        "existing_current": v.get("current"),
+                        "existing_previous": v.get("previous"),
+                    })
+                    continue
                 equivalent = _find_representation_equivalent(
                     r,
                     excluded={str(n.get("node_id") or "")},
-                )
+                ) if same_label_recovery else None
                 if equivalent:
                     equivalent_node, matched_periods = equivalent
                     _record_representation_equivalent(
@@ -531,6 +738,9 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
                     "label": r.label, "code": r.code, "source_line": r.source_line,
                     "recovered_current": r.current, "recovered_previous": r.previous,
                     "existing_current": v.get("current"), "existing_previous": v.get("previous"),
+                    "target_node_id": n.get("node_id"),
+                    "source_parent_label": r.parent_label,
+                    "source_hierarchy_path": r.hierarchy_path,
                 })
             elif (
                 (r.current is not None and v.get("current") is not None)
@@ -668,6 +878,10 @@ def augment_canonical_with_recovered_rows(canonical: dict | None, rows: list[Any
         "statement": statement, "rows_recovered": len(rows), "added_nodes": added,
         "filled_existing_nodes": filled, "conflicts": conflicts,
         "representation_equivalent_matches": equivalent_existing,
+        "sign_equivalent_matches": sign_equivalent_existing,
+        "structural_ambiguities": structural_ambiguities,
+        "period_scope_ambiguities": period_scope_ambiguities,
+        "same_label_recovery": bool(same_label_recovery),
         "policy": "source_scope_structural_identity_repair_v22_4_1",
     }
     return canonical

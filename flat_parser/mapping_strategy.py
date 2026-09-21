@@ -18,6 +18,7 @@ def _regex_fallback_candidates(
     allow_fuzzy=False,
     detected_sector=None,
     source_context=None,
+    same_label_recovery=True,
 ):
     """Fallback regex nghiêm ngặt, chỉ dùng sau khi mapping alias thường thất bại.
 
@@ -36,6 +37,7 @@ def _regex_fallback_candidates(
         allow_fuzzy=False,  # fallback tự động phải có tính quyết định
         detected_sector=detected_sector,
         source_context=source_context,
+        same_label_recovery=same_label_recovery,
     )
     if not candidates:
         return []
@@ -67,6 +69,7 @@ def match_candidates_for_strategy(
     allow_fuzzy=False,
     detected_sector=None,
     source_context=None,
+    same_label_recovery=True,
 ):
     strategy = (strategy or MAPPING_LEGACY).lower()
 
@@ -76,6 +79,7 @@ def match_candidates_for_strategy(
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
             source_context=source_context,
+            same_label_recovery=same_label_recovery,
         )
 
     if strategy == MAPPING_LEGACY:
@@ -84,6 +88,7 @@ def match_candidates_for_strategy(
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
             source_context=source_context,
+            same_label_recovery=same_label_recovery,
         )
 
     if strategy == MAPPING_ALIAS_REGEX_FALLBACK:
@@ -92,6 +97,7 @@ def match_candidates_for_strategy(
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
             source_context=source_context,
+            same_label_recovery=same_label_recovery,
         )
         selected, _ = choose_candidate(legacy)
         if selected is not None:
@@ -104,6 +110,7 @@ def match_candidates_for_strategy(
             allow_fuzzy=allow_fuzzy,
             detected_sector=detected_sector,
             source_context=source_context,
+            same_label_recovery=same_label_recovery,
         )
 
     raise ValueError(f"Unknown mapping strategy: {strategy}")

@@ -66,6 +66,11 @@ try:
 except ImportError:
     from statement_locator import StatementLocator
 
+try:
+    from src.common.source_recovery import attach_hierarchy_context
+except ImportError:
+    from common.source_recovery import attach_hierarchy_context
+
 BULLET_RE = re.compile(r"^(\s*)[*+-]\s+(.*)$")
 NOTE_LIKE_RE = re.compile(r"^(?:(?:\d{1,3}|[IVXLC]+)(?:\.\d{1,3})+|\d{1,3}|[IVXLC]+)$", re.I)
 ENTERPRISE_CODES = {"01","02","10","11","20","21","22","23","24","25","26","30","31","32","40","50","51","52","60","61","62","70","71"}
@@ -1609,6 +1614,11 @@ def extract_income_fallback(
             if alt_rows:
                 start, end, score, rows = cand["i"], cand["end"], cand["adjusted_score"], alt_rows
                 break
+
+    # Gắn provenance cây cha-con cho row chính trước khi mapper làm mất cấu
+    # trúc Markdown. Đây chỉ là evidence; identity semantic vẫn do mapper/schema
+    # quyết định nên không tự tạo node mới từ hierarchy mơ hồ.
+    attach_hierarchy_context(rows, lines[start:end], start + 1)
 
     unit_ctx = detect_statement_unit("\n".join(lines[start:end]), fallback_unit=fallback_unit)
     for r in rows:

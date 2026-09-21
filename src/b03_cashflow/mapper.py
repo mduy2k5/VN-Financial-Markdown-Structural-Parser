@@ -8,6 +8,8 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Optional
 
+from flat_parser.schema_loader import load_alias_document, load_schema_document
+
 def _find_root(start: Path) -> Path:
     cur = start.resolve()
     for _ in range(5):
@@ -59,8 +61,11 @@ def _form_code_key(value: Any) -> str | None:
     """Chuẩn hóa mã biểu mẫu dòng tiền theo luật định để phân biệt có guard."""
 
     text = strip_md(value)
-    if not text or not re.fullmatch(r"0*\d+", text):
+    if not text or not re.fullmatch(r"0*\d+(?:\.\d+)?", text):
         return None
+    if "." in text:
+        major, minor = text.split(".", 1)
+        return f"{int(major)}.{minor}"
     return str(int(text))
 
 
@@ -111,6 +116,8 @@ class CFRow:
     pattern: Optional[str] = None
     unit: Optional[str] = None
     raw_text: Optional[str] = None
+    parent_label: Optional[str] = None
+    hierarchy_path: Optional[str] = None
     mapping_status: str = "unmapped"
     mapped_node_id: Optional[str] = None
     mapping_method: Optional[str] = None
@@ -145,6 +152,8 @@ def adapt_cashflow_row(obj: dict) -> CFRow:
         source_line=obj.get("source_line"), pattern=obj.get("pattern"),
         unit=obj.get("unit"),
         raw_text=obj.get("raw_text") or obj.get("source_text"),
+        parent_label=obj.get("parent_label") or obj.get("parent_context"),
+        hierarchy_path=obj.get("hierarchy_path") or obj.get("source_path"),
     )
 
 
@@ -162,8 +171,8 @@ class CashFlowMapper:
         Đầu vào là đường dẫn cấu hình, sector và phương pháp. Xử lý index node,
         form code và alias catalog. Đầu ra là mapper chưa đọc source report.
         """
-        self.schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
-        self.aliases = json.loads(Path(aliases_path).read_text(encoding="utf-8"))
+        self.schema = load_schema_document(schema_path)
+        self.aliases = load_alias_document(aliases_path)
         self.sector = sector
         self.method = method
         self.nodes = [n for n in self.schema["nodes"] if n["sector"] == sector and n.get("method", "any") in {"any", method}]
@@ -196,6 +205,12 @@ class CashFlowMapper:
         """
         flabel = fold(row.label)
         best = None
+        row_code_key = _form_code_key(row.statement_code or row.code)
+        exact_candidate_ids = {
+            node["node_id"]
+            for node in self.nodes
+            if flabel and flabel in self.alias_catalog[node["node_id"]]
+        }
         # Identity chính: section + method + nhãn semantic. Mã báo cáo và tham
         # chiếu thuyết minh chỉ giữ làm metadata, không phải identity hay khóa cứu hộ.
         for node in self.nodes:
@@ -217,6 +232,20 @@ class CashFlowMapper:
                         token_sim = max((semantic_label_similarity(flabel, a) for a in aliases), default=0.0)
                         if token_sim >= 0.90:
                             score, how = token_sim, "semantic_tokens"
+                # Khi source có mã dòng, semantic gần đúng không được vượt
+                # qua mã luật định khác. Ví dụ mã 103 ``... cuối năm`` có
+                # nhiều token chung với node 101.2 ``... đầu năm`` nhưng đó
+                # là hai dòng khác nhau; giữ source-only còn an toàn hơn gán
+                # nhầm vào child trước đó.
+                node_code_key = _form_code_key(node.get("form_code"))
+                if (
+                    score >= 0.90
+                    and how in {"fuzzy_label", "semantic_tokens"}
+                    and row_code_key
+                    and node_code_key
+                    and row_code_key != node_code_key
+                ):
+                    score, how = 0.0, None
             if best is None or score > best[0]:
                 best = (score, how, node)
 
@@ -232,7 +261,12 @@ class CashFlowMapper:
         if len(code_candidates) == 1:
             code_node = code_candidates[0]
             exact_best = bool(best and best[1] == "exact_label")
-            if not exact_best and (best is None or best[2]["node_id"] != code_node["node_id"]):
+            code_is_exact = code_node["node_id"] in exact_candidate_ids
+            if not exact_best or (code_is_exact and best[2]["node_id"] != code_node["node_id"]):
+                # Mã duy nhất xác nhận candidate fuzzy/semantic (hoặc thay
+                # candidate exact khác node); ghi provenance đúng là
+                # code-confirmed. Điều này cần thiết cho các cặp cùng nhãn
+                # như ``Tiền`` ở 101.1 và 103.1.
                 best = (0.97, "form_code_disambiguation", code_node)
         if best and best[0] >= 0.90:
             row.mapping_status = "mapped"
@@ -285,6 +319,8 @@ class CashFlowMapper:
                      "mapping_method": r.mapping_method, "mapping_confidence": r.mapping_confidence,
                      "current": r.current, "previous": r.previous, "code": r.code, "note": r.note,
                      "section": r.section, "method": r.method, "unit": getattr(r, "unit", None),
+                     "parent_label": getattr(r, "parent_label", None),
+                     "hierarchy_path": getattr(r, "hierarchy_path", None),
                      "raw_text": getattr(r, "raw_text", None)}
                     for r in occ
                 ]}

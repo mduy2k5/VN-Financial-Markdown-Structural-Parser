@@ -37,6 +37,7 @@ def regex_match_candidates(
     allow_fuzzy: bool = False,
     detected_sector: str | None = None,
     source_context: dict | None = None,
+    same_label_recovery: bool = True,
 ):
     """Matcher regex phẳng với bằng chứng context nguồn có giới hạn.
 
@@ -114,12 +115,55 @@ def regex_match_candidates(
         if not matches:
             continue
 
+        source_path = [
+            normalize_label(x)
+            for x in (source_context or {}).get("path") or []
+            if normalize_label(x)
+        ]
+        source_has_same_label_ancestor = source in source_path[:-1]
+        structural = spec.structural or {}
+        schema_same_label_overlap = (
+            catalog.same_label_parent_overlap(spec.node_id)
+            if same_label_recovery
+            else set()
+        )
+        same_label_parent_required = bool(
+            same_label_recovery
+            and (
+                structural.get("same_label_as_parent_required")
+                or schema_same_label_overlap
+            )
+        )
+        # Regex fallback must obey the same parent/child guard as the primary
+        # matcher. Otherwise disabling or enabling the recovery rule would
+        # produce different identity decisions depending on mapping strategy.
+        if (
+            same_label_recovery
+            and source_has_same_label_ancestor
+            and spec.kind == "group"
+            and not same_label_parent_required
+        ):
+            continue
+
         score, alias, method, alias_len = max(matches, key=lambda x: (x[0], x[3]))
         context_score, context_evidence = _source_context_score(
             spec,
             catalog,
             source_context,
         )
+        if same_label_parent_required:
+            if source_has_same_label_ancestor:
+                context_score += 0.30
+                context_evidence = list(context_evidence) + [
+                    "same_label_source_context_parent"
+                ]
+            else:
+                context_score -= 0.34
+                context_evidence = list(context_evidence) + [
+                    "missing_same_label_actual_tree_parent"
+                ]
+            if schema_same_label_overlap:
+                context_evidence.append("schema_parent_label_overlap")
         candidates.append(
             AliasCandidate(
                 node_id=spec.node_id,

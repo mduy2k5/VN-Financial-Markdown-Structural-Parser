@@ -20,6 +20,7 @@ from typing import Any, Iterable
 
 from .models import SourceLine
 from .preprocess import filter_noise
+from .schema_loader import load_alias_document, load_schema_document
 from .textnorm import fold, normalize_lines, strip_inline_markdown, strip_numbering
 
 
@@ -252,7 +253,7 @@ def _schema_names(schema_path: str | Path | None) -> dict[str, str]:
     if not schema_path:
         return {}
     try:
-        document = json.loads(Path(schema_path).read_text(encoding="utf-8"))
+        document = load_schema_document(schema_path)
     except (OSError, ValueError):
         return {}
     return {
@@ -270,7 +271,7 @@ def _alias_entries(
     if not aliases_path:
         return []
     try:
-        document = json.loads(Path(aliases_path).read_text(encoding="utf-8"))
+        document = load_alias_document(aliases_path)
     except (OSError, ValueError):
         return []
 

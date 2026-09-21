@@ -5,11 +5,39 @@ import re
 from .document import descendants
 from .guide import UniversalGuide
 from .models import StructuralNode
-from .primitives import extract_values, whole_text_period
+from .primitives import extract_periods, extract_values, whole_text_period
 from .textnorm import fold
 
 
 ROLE_PAREN_RE = re.compile(r"\(([^()]{1,80})\)")
+
+
+def _standalone_period_heading(
+    text: str,
+    line_no: int,
+    guide: UniversalGuide,
+):
+    """Nhận diện tiêu đề kỳ có hậu tố trình bày lại/ghi chú hình thức."""
+
+    period = whole_text_period(text, line_no, guide)
+    if period is not None:
+        return period
+
+    periods = extract_periods(text, line_no, guide)
+    if len(periods) != 1:
+        return None
+
+    remainder = text.replace(periods[0].raw_period, " ")
+    remainder = re.sub(r"[*_`]+", " ", remainder)
+    remainder = remainder.strip(" ():-").strip()
+    if fold(remainder) in {
+        "trinh bay lai",
+        "restated",
+        "reclassified",
+        "recast",
+    }:
+        return periods[0]
+    return None
 
 
 class StructuralClassifier:
@@ -28,6 +56,22 @@ class StructuralClassifier:
         # Pass 3: lan truyền context kỳ/đơn vị/qualifier.
         for node in nodes:
             self._inherit_context(node, nodes)
+
+        # Pass 4: một số nguồn period-major không tạo quan hệ cây giữa tiêu đề
+        # kỳ và block dữ liệu kế tiếp. Ví dụ Markdown có dạng:
+        #
+        #   **31/12/2025**
+        #   * TÀI SẢN
+        #       * ...: giá trị
+        #   **01/01/2025**
+        #   * TÀI SẢN
+        #       * ...: giá trị
+        #
+        # Hai dòng ``TÀI SẢN`` đều ở cùng mức indent với tiêu đề kỳ, nên pass 3
+        # không thể truyền period qua parent. Giữ period hiện hành theo thứ tự
+        # nguồn để các record có payload nhận đúng kỳ; record đã có period hoặc
+        # đã nhận được period từ cây vẫn được ưu tiên.
+        self._inherit_sequential_period_context(nodes)
 
     def _set(self, node, pid, score, *evidence):
         node.pattern_id = pid
@@ -50,13 +94,18 @@ class StructuralClassifier:
             self._set(node, "SP_QUALIFIER_CONTAINER", 1.0, "qualifier_lexicon")
             return
 
-        # Bullet chỉ có kỳ mà không có payload là period-container.
-        # Nếu cùng dòng đã có giá trị (ví dụ "Năm 2025: -"), nó phải giữ là
-        # thuộc tính giá trị kỳ.
-        p = whole_text_period(text, node.line_no, self.guide)
-        if p and node.is_bullet and not node.values:
+        # Dòng chỉ có kỳ mà không có payload là period-container.  Nguồn OCR/
+        # Markdown thường bỏ dấu bullet ở tiêu đề kỳ (ví dụ ``31/12/2025`` và
+        # ``01/01/2025`` đứng riêng trên một dòng), vì vậy không được giới hạn
+        # rule này cho bullet. Nếu cùng dòng đã có giá trị (ví dụ
+        # ``Năm 2025: -``), nó phải giữ là thuộc tính giá trị kỳ.
+        p = _standalone_period_heading(text, node.line_no, self.guide)
+        if p and not node.values:
             node.periods = [p]
-            self._set(node, "SP_PERIOD_CONTAINER", 1.0, "whole_text_period")
+            evidence = ["whole_text_period"]
+            if not node.is_bullet:
+                evidence.append("standalone_period_heading")
+            self._set(node, "SP_PERIOD_CONTAINER", 1.0, *evidence)
             return
 
         # Dòng pipe không thuộc bảng.
@@ -184,11 +233,95 @@ class StructuralClassifier:
             seen.add(current.parent_index)
             parent = nodes[current.parent_index]
 
-            if node.inherited_period is None and parent.pattern_id == "SP_PERIOD_CONTAINER" and parent.periods:
+            # Nhiều báo cáo đặt tổng kỳ ở một dòng wrapper có cả kỳ và giá
+            # trị, sau đó đặt các dòng chi tiết bên dưới nhưng không lặp lại
+            # nhãn kỳ. Ví dụ:
+            #
+            #   31/12/2025: tổng
+            #       Chi tiết: giá trị
+            #
+            # Trước đây chỉ ``SP_PERIOD_CONTAINER`` truyền được kỳ xuống
+            # child. Khi wrapper là ``SP_PERIOD_VALUE_ATTRIBUTE`` hoặc một
+            # dòng period-value tương đương, child bị resolve theo vị trí và
+            # thường rơi cả vào kỳ hiện tại. Đây là nguyên nhân chính của
+            # semantic duplicate ở VIB/VCB. Chỉ truyền từ node thực sự có
+            # period, không suy đoán từ nhãn tài chính bất kỳ.
+            if (
+                node.inherited_period is None
+                and parent.periods
+                and (
+                    parent.pattern_id == "SP_PERIOD_CONTAINER"
+                    or parent.pattern_id == "SP_CONTEXT_CARRIER"
+                    or (
+                        parent.values
+                        and parent.pattern_id in {
+                            "SP_PERIOD_VALUE_ATTRIBUTE",
+                            "SP_LABEL_VALUE_INLINE",
+                            "SP_MULTI_PERIOD_INLINE",
+                            "SP_CODE_NOTE_PERIOD_INLINE_ROW",
+                            "SP_MARKDOWN_TABLE_ROW",
+                        }
+                    )
+                )
+            ):
                 node.inherited_period = parent.periods[0]
 
             if node.inherited_unit is None:
-                if parent.unit and parent.pattern_id in {"SP_PERIOD_CONTAINER", "SP_CONTEXT_CARRIER"}:
+                if parent.unit and (
+                    parent.pattern_id in {
+                        "SP_PERIOD_CONTAINER",
+                        "SP_PERIOD_VALUE_ATTRIBUTE",
+                        "SP_LABEL_VALUE_INLINE",
+                        "SP_MULTI_PERIOD_INLINE",
+                        "SP_CODE_NOTE_PERIOD_INLINE_ROW",
+                        "SP_MARKDOWN_TABLE_ROW",
+                        "SP_CONTEXT_CARRIER",
+                    }
+                ):
                     node.inherited_unit = parent.unit
 
             current = parent
+
+    def _inherit_sequential_period_context(self, nodes: list[StructuralNode]):
+        active_period = None
+        period_heading_indices = [
+            node.node_index
+            for node in nodes
+            if node.pattern_id == "SP_PERIOD_CONTAINER" and node.periods
+        ]
+        # Hai ngày nằm sát nhau thường là header cột (kỳ hiện tại/kỳ trước),
+        # không phải hai block dữ liệu nối tiếp. Những header này không được
+        # dùng để gán một kỳ cho toàn bộ các dòng ``Số liệu`` phía sau.
+        paired_header_indices = {
+            index
+            for left, right in zip(period_heading_indices, period_heading_indices[1:])
+            if nodes[right].line_no - nodes[left].line_no <= 2
+            for index in (left, right)
+        }
+
+        for node in nodes:
+            if node.pattern_id == "SP_PERIOD_CONTAINER" and node.periods:
+                candidate = node.periods[0]
+                # ``Năm 2025``/``Năm 2024`` thường là header chung của các
+                # dòng có hai giá trị theo vị trí, không phải hai block dữ liệu
+                # nối tiếp. Chỉ dùng tiêu đề có ngày cụ thể làm ranh giới
+                # period-major; đây là bằng chứng đủ mạnh để đổi toàn bộ block
+                # tiếp theo sang kỳ mới.
+                raw_period = fold(candidate.raw_period or "")
+                if node.node_index in paired_header_indices:
+                    active_period = None
+                elif re.search(
+                    r"\b\d{1,2}[./]\d{1,2}[./]\d{4}\b"
+                    r"|\bngay\s+\d{1,2}\s+thang\s+\d{1,2}\s+nam\s+20\d{2}\b",
+                    raw_period,
+                ):
+                    active_period = candidate
+                continue
+
+            if (
+                active_period is not None
+                and not node.periods
+                and len(node.values) == 1
+                and node.inherited_period is None
+            ):
+                node.inherited_period = active_period

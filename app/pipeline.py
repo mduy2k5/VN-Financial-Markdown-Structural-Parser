@@ -88,6 +88,23 @@ SCHEMA = ROOT / "resources" / "schemas" / "income_statement_schema.json"
 ALIASES = ROOT / "resources" / "schemas" / "income_statement_aliases.json"
 CF_SCHEMA = ROOT / "resources" / "schemas" / "cash_flow_schema.json"
 CF_ALIASES = ROOT / "resources" / "schemas" / "cash_flow_aliases.json"
+SCHEMA_OVERLAYS = ROOT / "resources" / "schemas" / "overlays"
+SCHEMA_PROFILES = {
+    "baseline": {
+        "financial_position_schema": ROOT / "resources" / "schemas" / "financial_position_schema.json",
+        "financial_position_aliases": ROOT / "resources" / "schemas" / "financial_position_aliases.json",
+        "cash_flow_schema": CF_SCHEMA,
+        "cash_flow_aliases": CF_ALIASES,
+        "preserve_decimal_branch_rows": False,
+    },
+    "schema_v1_7": {
+        "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_7_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_7_0.json",
+        "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_2_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_2_0.json",
+        "preserve_decimal_branch_rows": True,
+    },
+}
 REPORT_ARTIFACT_SUFFIXES = (
     ".income.canonical.json",
     ".cashflow.canonical.json",
@@ -509,13 +526,23 @@ def run_income(md_path: Path, current_year: int | None = None, previous_year: in
         "source_recovery_added_nodes": sr.get("added_nodes", 0),
         "source_recovery_filled_nodes": sr.get("filled_existing_nodes", 0),
         "source_recovery_conflicts": sr.get("conflicts", 0),
+        "source_period_scope_ambiguities": sr.get("period_scope_ambiguities", 0),
     })
     return {"canonical": canonical, "metrics": metrics, "rows": mapped, "scope": ext, "sector": sector}
 
 
 
 
-def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: int | None = None, fallback_unit: Optional[str] = None):
+def run_cashflow(
+    md_path: Path,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+    fallback_unit: Optional[str] = None,
+    *,
+    schema_path: Path | str | None = None,
+    aliases_path: Path | str | None = None,
+    preserve_decimal_branch_rows: bool = True,
+):
     """Chạy extractor và mapper B03 cho một file Markdown.
 
     Đầu vào:
@@ -538,6 +565,8 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
     target an toàn.
     """
     text = md_path.read_text(encoding="utf-8", errors="ignore")
+    schema_path = schema_path or CF_SCHEMA
+    aliases_path = aliases_path or CF_ALIASES
     period = resolve_report_years(
         text,
         source_name=md_path.name,
@@ -546,7 +575,7 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
     )
     current_year = period["current_year"]
     previous_year = period["previous_year"]
-    locator = statement_locator(str(CF_SCHEMA), str(CF_ALIASES))
+    locator = statement_locator(str(schema_path), str(aliases_path))
     locator_result = (
         locator.locate(text, profile="cash_flow")
         if locator is not None
@@ -558,6 +587,7 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
         previous_year,
         fallback_unit=fallback_unit,
         locator_result=locator_result,
+        preserve_decimal_branch_rows=preserve_decimal_branch_rows,
     )
     rows = []
     for raw in ext.get("rows", []):
@@ -586,7 +616,7 @@ def run_cashflow(md_path: Path, current_year: int | None = None, previous_year: 
         metrics = build_cashflow_metrics(None, rows, ext, sector, sector_method, method, method_method)
         attach_locator_metrics(metrics, ext)
         return {"canonical": None, "metrics": metrics, "rows": rows, "scope": ext, "sector": sector, "method": method}
-    mapper = CashFlowMapper(CF_SCHEMA, CF_ALIASES, sector=sector, method=method)
+    mapper = CashFlowMapper(schema_path, aliases_path, sector=sector, method=method)
     mapped = mapper.map_rows(rows)
     stmt_unit = ext.get("unit") or fallback_unit
     if stmt_unit == "unknown":
@@ -649,6 +679,11 @@ def process_one(
     fp_parser: Optional[FinancialPositionSourceParser] = None,
     enable_notes: bool = True,
     year_resolution: Optional[dict[str, Any]] = None,
+    financial_position_schema_path: Optional[Path] = None,
+    financial_position_aliases_path: Optional[Path] = None,
+    cashflow_schema_path: Optional[Path] = None,
+    cashflow_aliases_path: Optional[Path] = None,
+    preserve_decimal_branch_rows: bool = True,
 ):
     """Parse một report và trả về kết quả statement cùng production JSON.
 
@@ -682,7 +717,15 @@ def process_one(
         remove_report_artifacts(audit_dir, base)
 
     inc = run_income(md_path, current_year, previous_year, sector, fallback_unit=doc_unit)
-    cf = run_cashflow(md_path, current_year, previous_year, fallback_unit=doc_unit)
+    cf = run_cashflow(
+        md_path,
+        current_year,
+        previous_year,
+        fallback_unit=doc_unit,
+        schema_path=cashflow_schema_path,
+        aliases_path=cashflow_aliases_path,
+        preserve_decimal_branch_rows=preserve_decimal_branch_rows,
+    )
     attach_source_provenance(
         inc.get("canonical"),
         source_name=md_path.name,
@@ -701,7 +744,10 @@ def process_one(
     )
 
     if fp_parser is None:
-        fp_parser = FinancialPositionSourceParser()
+        fp_parser = FinancialPositionSourceParser(
+            schema_path=financial_position_schema_path,
+            aliases_path=financial_position_aliases_path,
+        )
     fp = fp_parser.parse_text(
         source_text,
         source_name=md_path.name,
@@ -996,7 +1042,28 @@ def main():
         action="store_true",
         help="Also write rich parser/evaluation artifacts under <output>/audit/.",
     )
+    ap.add_argument(
+        "--same-label-recovery",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Enable hierarchy-aware recovery for parent/child rows with the "
+            "same label. Use --no-same-label-recovery to roll back to the "
+            "baseline behavior."
+        ),
+    )
+    ap.add_argument(
+        "--schema-profile",
+        choices=sorted(SCHEMA_PROFILES),
+        default="schema_v1_7",
+        help=(
+            "Schema bundle to use. schema_v1_7 enables the reversible BSI "
+            "schema additions; use --schema-profile baseline to roll back."
+        ),
+    )
     args = ap.parse_args()
+
+    schema_profile = SCHEMA_PROFILES[args.schema_profile]
 
     input_path = Path(args.input)
     output_dir = Path(args.output)
@@ -1015,7 +1082,11 @@ def main():
     if audit_dir is not None:
         audit_dir.mkdir(parents=True, exist_ok=True)
         prune_stale_report_artifacts(audit_dir, {stem_base(path) for path in md_files})
-    fp_parser = FinancialPositionSourceParser()
+    fp_parser = FinancialPositionSourceParser(
+        schema_path=schema_profile["financial_position_schema"],
+        aliases_path=schema_profile["financial_position_aliases"],
+        same_label_recovery=args.same_label_recovery,
+    )
     print("[FINANCIAL_POSITION] source=markdown")
 
     if audit_dir is not None:
@@ -1030,6 +1101,11 @@ def main():
                 "period_resolution": "per_report_inferred_or_cli_override",
                 "input_policy": "markdown_source_only",
                 "source_reports": len(md_files),
+                "same_label_recovery": args.same_label_recovery,
+                "schema_profile": args.schema_profile,
+                "financial_position_schema": str(schema_profile["financial_position_schema"]),
+                "cash_flow_schema": str(schema_profile["cash_flow_schema"]),
+                "preserve_decimal_branch_rows": schema_profile["preserve_decimal_branch_rows"],
             },
         )
 
@@ -1052,6 +1128,9 @@ def main():
                 fp_parser=fp_parser,
                 enable_notes=args.notes,
                 year_resolution=year_resolution,
+                cashflow_schema_path=schema_profile["cash_flow_schema"],
+                cashflow_aliases_path=schema_profile["cash_flow_aliases"],
+                preserve_decimal_branch_rows=schema_profile["preserve_decimal_branch_rows"],
             )
             production = r.pop("production")
             source = production["report"]["source"]
@@ -1109,6 +1188,7 @@ def main():
             "previous_year": args.previous_year,
             "sector": args.sector,
             "notes_enabled": args.notes,
+            "schema_profile": args.schema_profile,
         },
         "report_count": len(production_reports),
         "error_count": len(errors),

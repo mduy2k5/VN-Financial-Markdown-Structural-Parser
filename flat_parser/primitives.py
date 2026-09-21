@@ -19,7 +19,7 @@ DATE_PATTERNS = [
 RELATIVE_PERIOD_RE = re.compile(
     r"(?i)\b(?:"
     r"Số cuối năm|Số đầu năm|"
-    r"Năm nay|Năm trước|"
+    r"Năm nay|Năm hiện tại|Năm trước|"
     r"Cuối năm|Đầu năm|"
     r"Dư nợ cuối năm|Dư nợ đầu năm|"
     r"Năm\s+20\d{2}"
@@ -131,7 +131,7 @@ def extract_periods(text: str, line_no: int, guide: UniversalGuide) -> list[Prim
     for _, _, raw in kept:
         f = fold(raw)
         role = None
-        if any(x in f for x in ("so cuoi nam", "cuoi nam", "du no cuoi nam", "nam nay")):
+        if any(x in f for x in ("so cuoi nam", "cuoi nam", "du no cuoi nam", "nam nay", "nam hien tai")):
             role = "current"
         elif any(x in f for x in ("so dau nam", "dau nam", "du no dau nam", "nam truoc")):
             role = "previous"

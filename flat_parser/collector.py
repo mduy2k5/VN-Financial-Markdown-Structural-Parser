@@ -62,6 +62,18 @@ def _parse_pipe_inline(node: StructuralNode, guide: UniversalGuide):
         role_m = re.search(r"\(([^()]+)\)", segment)
         explicit_role = role_m.group(1).strip() if role_m else None
 
+        # Hậu tố đơn vị như ``(đồng)``, ``(triệu VND)`` là metadata hiển thị,
+        # không phải role của kỳ. Nếu giữ chúng làm role, hai giá trị của một
+        # dòng pipe sẽ cùng rơi vào ``additional:đồng`` thay vì được ghép theo
+        # vị trí hiện tại/trước đây.
+        if explicit_role:
+            role_fold = fold(explicit_role)
+            if any(
+                marker in role_fold
+                for marker in ("dong", "vnd", "vnđ", "usd", "eur", "trieu", "ty", "nghin")
+            ):
+                explicit_role = None
+
         if periods and vals:
             vals[0].role = explicit_role or periods[0].role
             period_values.append((periods[0], vals[0]))

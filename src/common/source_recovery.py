@@ -446,6 +446,90 @@ def _hierarchy_context(scoped: list[str]):
     return out
 
 
+def hierarchy_context_for_lines(scoped: list[str]):
+    """Expose the conservative Markdown hierarchy detector to statement parsers.
+
+    B02/B03 collectors produce rows independently from the generic source
+    recovery pass.  Keeping this small shared adapter ensures both paths use
+    the same parent/child evidence without making hierarchy part of the
+    semantic mapping key by itself.
+    """
+
+    return _hierarchy_context(scoped)
+
+
+def attach_hierarchy_context(rows: list[Any], scoped: list[str], scope_start_line: int):
+    """Attach parent/path provenance to dict or dataclass observations.
+
+    ``scope_start_line`` is one-based, as it is in the public extractor
+    metadata; hierarchy indexes are zero-based within ``scoped``.  Existing
+    context is preserved so a stronger upstream context is never overwritten.
+    """
+
+    context = _hierarchy_context(scoped)
+    for row in rows or []:
+        if isinstance(row, dict):
+            source_line = row.get("source_line", row.get("source_start_line"))
+            label = row.get("source_label") or row.get("label") or row.get("indicator")
+        else:
+            source_line = getattr(row, "source_line", None)
+            label = (
+                getattr(row, "source_label", None)
+                or getattr(row, "label", None)
+                or getattr(row, "indicator", None)
+            )
+        try:
+            relative = int(source_line) - int(scope_start_line)
+        except (TypeError, ValueError):
+            continue
+
+        # Một số collectors chạy trên danh sách đã nối dòng, trong khi
+        # hierarchy chạy trên source nguyên bản. Nếu dòng được ghi trong row
+        # không còn chứa label tương ứng, tìm lại label gần nhất trên source
+        # để tránh gắn context của dòng kỳ vào semantic row.
+        label_key = fold(label or "")
+
+        def line_matches(index: int) -> bool:
+            if not label_key or index < 0 or index >= len(scoped):
+                return False
+            source_key = fold(scoped[index])
+            return bool(source_key and (label_key == source_key or label_key in source_key))
+
+        actual_relative = relative
+        if not line_matches(relative):
+            candidates = [idx for idx in range(len(scoped)) if line_matches(idx)]
+            if candidates:
+                actual_relative = min(candidates, key=lambda idx: abs(idx - relative))
+                actual_line = int(scope_start_line) + actual_relative
+                if isinstance(row, dict):
+                    if row.get("source_line") is not None:
+                        row["source_line"] = actual_line
+                    if row.get("source_start_line") is not None:
+                        row["source_start_line"] = actual_line
+                    if row.get("source_end_line") is not None:
+                        row["source_end_line"] = actual_line
+                else:
+                    if getattr(row, "source_line", None) is not None:
+                        setattr(row, "source_line", actual_line)
+
+        parent, path = context.get(actual_relative, (None, None))
+        if not parent and not path:
+            continue
+        if isinstance(row, dict):
+            if not row.get("parent_context"):
+                row["parent_context"] = parent
+            if not row.get("parent_label"):
+                row["parent_label"] = parent
+            if not row.get("hierarchy_path"):
+                row["hierarchy_path"] = path
+        else:
+            if not getattr(row, "parent_label", None):
+                setattr(row, "parent_label", parent)
+            if not getattr(row, "hierarchy_path", None):
+                setattr(row, "hierarchy_path", path)
+    return rows
+
+
 def _extract_explicit_inline_year_pair(line: str, current_year: int, previous_year: int):
     """Đọc dạng `123 (2025), 456 (2024)` và các dạng tương tự."""
     s = clean(line)
@@ -467,6 +551,138 @@ def _looks_like_form_code_token(token: str) -> bool:
 def _looks_like_note_token(token: str) -> bool:
     t = clean(token)
     return bool(re.fullmatch(r"\d{1,2}(?:\.\d{1,2})?(?:\s*,\s*\d{1,2}(?:\.\d{1,2})?)*", t))
+
+
+def _is_positional_interstitial_metadata(text: str) -> bool:
+    """Return whether a flattened row contains metadata between its values.
+
+    OCR/LLM output can put a formula such as ``(440 = 300 + 400)`` between
+    the form code and the two period values.  It is not a new semantic row and
+    must not terminate positional recovery before the second value is seen.
+    """
+
+    candidate = clean(text)
+    folded = fold(candidate)
+    if re.fullmatch(r"\(?\s*\d{2,4}\s*=\s*[0-9 +().-]+\)?", candidate):
+        return True
+    return bool(
+        re.fullmatch(
+            r"(?:ma\s*(?:so|thuyet minh)|thuyet minh|don vi(?: tinh)?|"
+            r"trinh bay lai|so dau nam|so cuoi nam)",
+            folded,
+        )
+    )
+
+
+def _standalone_period_header_role(text: str, current_year: int, previous_year: int):
+    """Return the role of a standalone period-column heading.
+
+    Some source Markdown keeps the table header as sibling lines and emits the
+    values afterwards as an unlabeled sequence, for example::
+
+        Số đầu năm (Trình bày lại)
+        Số cuối năm
+        Mã Thuyết minh
+        300
+        27.563...
+        25.567...
+
+    The generic row recovery used to assume that the first number was always
+    current-period.  That is false when the source explicitly orders the
+    columns previous-period first.  This helper only accepts standalone header
+    tokens, so a row such as ``Số cuối năm: 123`` is not mistaken for a column
+    header.
+    """
+
+    candidate = clean(text)
+    folded = fold(candidate)
+    if re.fullmatch(
+        r"so dau nam(?: trinh bay lai)?(?: dong|vnd|vnđ)?", folded
+    ):
+        return "previous"
+    if re.fullmatch(r"so cuoi nam(?: dong|vnd|vnđ)?", folded):
+        return "current"
+    # OCR/LLM serialization often emits ``(Trình bày lại)`` as a sibling
+    # line, separate from ``Số đầu năm``.  It is still the previous-period
+    # column marker and must not be ignored when the two values are emitted
+    # later as an unlabeled positional sequence.
+    if folded == "trinh bay lai":
+        return "previous"
+    if folded in {"nam nay", "nam hien tai"}:
+        return "current"
+    if folded in {"nam truoc", "nam qua", "ky truoc"}:
+        return "previous"
+    return _period_header_role(candidate, current_year, previous_year)
+
+
+def _positional_period_order(
+    scoped: list[str], index: int, current_year: int, previous_year: int
+):
+    """Infer the order of two unlabeled positional values near ``index``.
+
+    The search is intentionally local.  A distant header belongs to another
+    page/table and must not be allowed to reorder the current row.  ``None``
+    means that the legacy current-first order remains the safest fallback.
+    """
+
+    def is_strong_column_marker(text: str) -> bool:
+        folded = fold(clean(text))
+        return bool(
+            re.fullmatch(
+                r"so dau nam(?: trinh bay lai)?(?: dong|vnd|vnđ)?", folded
+            )
+            or re.fullmatch(r"so cuoi nam(?: dong|vnd|vnđ)?", folded)
+            or folded == "trinh bay lai"
+            or re.fullmatch(r"20\d{2}(?:\s*\([^)]*\))?", folded)
+        )
+
+    # Prefer explicit column markers.  A nearby standalone ``Năm nay`` may
+    # belong to a child block (not to the table header), so it must not hide
+    # the real ``Số đầu năm``/``Số cuối năm`` pair farther above the row.
+    strong_roles: list[tuple[int, str]] = []
+    for cursor in range(index - 1, max(-1, index - 256), -1):
+        role = _standalone_period_header_role(
+            scoped[cursor], current_year, previous_year
+        )
+        if role and is_strong_column_marker(scoped[cursor]):
+            strong_roles.append((cursor, role))
+            if len(strong_roles) >= 2:
+                ordered = [role for _, role in reversed(strong_roles)]
+                ordered_tuple = tuple(ordered)
+                if ordered_tuple in (("current", "previous"), ("previous", "current")):
+                    return ordered_tuple
+
+    roles: list[tuple[int, str]] = []
+    # A flattened table can put mã số, thuyết minh and several preceding
+    # labels between the column header and the numeric row.  Keep the search
+    # bounded to the local statement block, but allow that metadata gap.
+    for cursor in range(index - 1, max(-1, index - 256), -1):
+        if not clean(scoped[cursor]):
+            continue
+        role = _standalone_period_header_role(
+            scoped[cursor], current_year, previous_year
+        )
+        if role:
+            roles.append((cursor, role))
+            if len(roles) >= 2:
+                break
+            continue
+        # A new semantic row/header between the data row and a possible period
+        # header means the header is no longer local enough to be trusted.
+        if roles and re.search(r"[A-Za-zÀ-ỹ]", clean(scoped[cursor])):
+            folded = fold(scoped[cursor])
+            if not re.fullmatch(
+                r"(?:ma so|ma thuyet minh|thuyet minh|don vi(?: tinh)?|trinh bay lai)",
+                folded,
+            ):
+                break
+
+    if len(roles) != 2:
+        return None
+    ordered = [role for _, role in reversed(roles)]
+    if ordered in (["current", "previous"], ["previous", "current"]):
+        return tuple(ordered)
+    return None
 
 
 def _positional_numeric_children(scoped: list[str], s: int, current_year: int, previous_year: int, statement: str, hierarchy):
@@ -500,6 +716,8 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
             cc = clean(scoped[j])
             if not cc:
                 continue
+            if _is_positional_interstitial_metadata(cc):
+                continue
             if _is_period_value_line(cc):
                 break
             # Có dòng text mới => không còn child.
@@ -515,15 +733,29 @@ def _positional_numeric_children(scoped: list[str], s: int, current_year: int, p
         code = code_from_label
         note = suffix_note
         data = list(vals)
-        if code is None and data and _looks_like_form_code_token(data[0][1]):
-            # Không xem số lớn có phân cách hàng nghìn rõ là mã.
-            if not re.search(r"[.,]\d{3}[.,]", data[0][1]) and len(re.sub(r"\D", "", data[0][1])) <= 4:
+        if data and _looks_like_form_code_token(data[0][1]):
+            # Khi nhãn bắt đầu bằng số thứ tự hai chữ số (ví dụ ``10.``),
+            # ``_split_code_label`` có thể tạm xem số đó là mã. Nếu ngay sau
+            # nhãn còn một mã ngắn rồi mới đến ít nhất hai giá trị, mã đứng
+            # riêng mới là form code thật; không được đưa nó vào một kỳ.
+            is_short_code = (
+                not re.search(r"[.,]\d{3}[.,]", data[0][1])
+                and len(re.sub(r"\D", "", data[0][1])) <= 4
+            )
+            if is_short_code and (code is None or len(data) >= 3):
                 code = clean(data.pop(0)[1])
         if len(data) >= 3 and _looks_like_note_token(data[0][1]) and abs(float(data[0][2])) < 100:
             note = clean(data.pop(0)[1])
         if len(data) < 2:
             continue
-        cur, prev = data[0][2], data[1][2]
+        first_role, second_role = _positional_period_order(
+            scoped, idx, current_year, previous_year
+        ) or ("current", "previous")
+        first_value, second_value = data[0][2], data[1][2]
+        if (first_role, second_role) == ("previous", "current"):
+            cur, prev = second_value, first_value
+        else:
+            cur, prev = first_value, second_value
         parent, path = hierarchy.get(idx, (None, None))
         rows.append(RecoveredRow(label=label, current=cur, previous=prev, code=code, note=note,
                                  source_line=s+idx+1, pattern=f"{statement}_RAW_POSITIONAL_COLUMNS",

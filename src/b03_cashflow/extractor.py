@@ -21,6 +21,11 @@ try:
 except ImportError:
     from statement_locator import StatementLocator
 
+try:
+    from src.common.source_recovery import attach_hierarchy_context
+except ImportError:
+    from common.source_recovery import attach_hierarchy_context
+
 
 
 HEADING_RE = re.compile(r"(?i)B[ÁA]O\s+C[ÁA]O\s+L[ƯU]U\s+CHUY[ỂEÊ]N\s+TI[ỀEÊ]N\s+T[ỆE](?:\s+H[ỢO]P\s+NH[ẤA]T)?")
@@ -66,6 +71,9 @@ class CashFlowObservation:
     # đã chuẩn hóa dùng cho mapper; trường này được tách riêng để các bước sau
     # có thể audit chính xác bằng chứng Markdown.
     raw_text: Optional[str] = None
+    # Provenance cây nguồn, được gắn sau khi các collector đã deduplicate row.
+    parent_label: Optional[str] = None
+    hierarchy_path: Optional[str] = None
 
     def __post_init__(self):
         if self.statement_code is None:
@@ -1115,6 +1123,7 @@ def extract_cashflow_fallback(
     previous_year=None,
     fallback_unit: Optional[str] = None,
     locator_result: Optional[dict] = None,
+    preserve_decimal_branch_rows: bool = True,
 ):
     """Trích xuất dòng B03 và giữ ngữ cảnh section cùng phương pháp.
 
@@ -1290,6 +1299,24 @@ def extract_cashflow_fallback(
                  pending.get("raw_text"))
         pending = None
 
+    def pending_accepts_child(raw_line: str) -> bool:
+        """Chỉ gắn metadata/kỳ vào semantic row nếu còn nằm dưới row đó.
+
+        Bản Markdown có thể giữ hai dòng ``Năm nay`` ở cùng mức thụt lề với
+        hai sibling semantic khác nhau. Trước đây B03 chỉ dùng biến ``pending``
+        theo thứ tự dòng, không kiểm tra indent, nên giá trị tổng của parent
+        bị kéo vào child ngay trước đó (ví dụ mã 08 ``Dự thu tiền lãi``).
+        Dòng plain không thụt lề vẫn giữ tương thích với layout cũ; guard chỉ
+        chặn cấu trúc bullet có indent rõ ràng.
+        """
+
+        if not pending:
+            return False
+        pending_indent = pending.get("indent")
+        if pending_indent in (None, 0):
+            return True
+        return _line_indent(raw_line) > pending_indent
+
     # LƯỢT 1: dòng parent/child, pipe, inline và dòng bắt đầu bằng mã thông thường.
     for rel, raw in enumerate(scoped_lines, start=1):
         abs_line = s + rel
@@ -1318,6 +1345,9 @@ def extract_cashflow_fallback(
         m = re.match(r"(?i)^(?:Mã(?:\s*số)?|Số|MS)\s*:\s*([^|]+)$", clean)
         if m:
             code_val = strip_md(m.group(1))
+            if pending and not pending_accepts_child(raw):
+                flush_pending()
+                continue
             if pending and (pending.get("current") is not None or pending.get("previous") is not None):
                 flush_pending()
                 pending = {"label": "", "code": code_val, "note": None, "current": None, "previous": None,
@@ -1330,12 +1360,18 @@ def extract_cashflow_fallback(
 
         m = re.match(r"(?i)^Chi\s*tiết\s*:\s*(.+)$", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             pending["label"] = strip_md(m.group(1))
             pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.match(r"(?i)^Thuyết\s*minh\s*:\s*(.+)$", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             pending["note"] = strip_md(m.group(1))
             pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
@@ -1346,6 +1382,9 @@ def extract_cashflow_fallback(
         # và không bao giờ được dùng làm định danh dòng.
         m = re.match(r"(?i)^Diễn\s*giải\s*:\s*(.+)$", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             pending["label"] = strip_md(m.group(1))
             pending["section"] = _section_from_label(pending["label"], pending.get("section"))
             pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
@@ -1353,18 +1392,27 @@ def extract_cashflow_fallback(
 
         m = re.match(r"(?i)^(?:Năm\s*nay|Kỳ\s*này)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             pending["current"] = parse_number(m.group(1))
             pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.match(r"(?i)^(?:Năm\s*trước|Kỳ\s*trước)(?:\s*\([^)]*\))?\s*:\s*(.+)$", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             pending["previous"] = parse_number(m.group(1))
             pending["raw_text"] = _join_raw_text(pending.get("raw_text"), raw)
             continue
 
         m = re.search(r"(?i)\b(20\d{2})\b(?:\s*\([^)]*\))?\s*:\s*(\(?-?[\d.,]+\)?|-)", clean)
         if m and pending:
+            if not pending_accepts_child(raw):
+                flush_pending()
+                continue
             yr, val = int(m.group(1)), parse_number(m.group(2))
             if yr == current_year: pending["current"] = val
             elif yr == previous_year: pending["previous"] = val
@@ -1395,6 +1443,9 @@ def extract_cashflow_fallback(
         cur, prev = _extract_inline_periods(clean, current_year, previous_year)
         if cur is not None or prev is not None:
             clean_without_numbers = re.sub(r"(?i)\b20\d{2}\b|\(?-?[\d.,]+\)?|\b(nam|ky|trieu|vnd|dong)\b|[;:.,()\-]", "", fold(clean)).strip()
+            if pending and not clean_without_numbers and not pending_accepts_child(raw):
+                flush_pending()
+                continue
             if pending and not clean_without_numbers:
                 pending["current"] = cur
                 pending["previous"] = prev
@@ -1585,13 +1636,23 @@ def extract_cashflow_fallback(
     if column_major_layout.get("detected"):
         rows = [row for row in rows if row.pattern != "CF_POSITIONAL_VALUE_CHILDREN"]
 
-    # Loại trùng/gộp các observation bổ sung từ những bộ thu chồng lấn.
+    # Loại trùng/gộp các observation bổ sung từ những bộ thu chồng lấn. Các
+    # mã nhánh thập phân như 101.1 và 103.1 là hai dòng luật định khác nhau dù
+    # cùng nhãn ``Tiền``; giữ mã nhánh trong khóa để không gộp mất child.
     merged = {}
     order = []
     for r in rows:
         # Định danh cấu trúc là nhãn + section + phương pháp. Mã báo cáo và
         # tham chiếu thuyết minh chỉ là provenance, không bao giờ là khóa gộp.
-        key = (fold(r.source_label), r.section or "", r.method or "")
+        # Riêng mã nhánh dạng 101.1/103.1 là identity của dòng con trong cùng
+        # bảng và cần được giữ để tránh gộp hai dòng cùng tên.
+        raw_code = strip_md(r.statement_code or r.code)
+        branch_code = (
+            raw_code
+            if preserve_decimal_branch_rows and re.fullmatch(r"\d+\.\d+", raw_code)
+            else ""
+        )
+        key = (fold(r.source_label), r.section or "", r.method or "", branch_code)
         if key not in merged:
             merged[key] = r; order.append(key); continue
         old = merged[key]
@@ -1637,6 +1698,11 @@ def extract_cashflow_fallback(
         if old.pattern != r.pattern and r.pattern and "CF_REPEATED_PERIOD_BLOCK" not in (old.pattern or ""):
             old.pattern = old.pattern or r.pattern
     dedup=[merged[k] for k in order if merged[k].current is not None or merged[k].previous is not None]
+
+    # B03 trước đây chỉ giữ label/value, làm mất bằng chứng row đang là child
+    # hay sibling. Khôi phục parent/path từ indent trên source gốc sau dedupe;
+    # đây là provenance, không phải một phép đoán mapping mới.
+    attach_hierarchy_context(dedup, source_scoped_lines, s + 1)
 
     unit_ctx = detect_statement_unit("\n".join(scoped_lines), fallback_unit=fallback_unit)
     for r in dedup:

@@ -17,16 +17,30 @@ Runtime chỉ đọc Markdown nguồn. Runtime không đọc output, ground trut
 
 | Hạng mục | Kết quả | Ghi chú |
 |---|---:|---|
+| Schema profile | `schema_v1_7` | Overlay versioned cho BSI B01/B03; baseline vẫn có thể rollback. |
 | Discovery | 57/57 | Pipeline nhận đủ file Markdown trong input. |
-| B01 | 57/57 đã chạy | Không có lỗi runtime. Một số conflict vẫn cần review. |
-| B02 | 57/57 `ok` | Tỷ lệ map theo dòng: 100%. |
-| B03 | 57/57 `ok` | Tỷ lệ map theo dòng: 100%. |
-| Notes | 57/57 `parsed` | Notes không ghi đè B01, B02 hoặc B03. |
-| Locator | B01: 41/57; B02: 46/57; B03: 44/57 | Chỉ bật khi đủ bằng chứng. File còn lại dùng fallback. |
-| Chất lượng batch | 14 `ok`; 43 `review_required` | `review_required` yêu cầu kiểm tra thêm. Đây không phải lỗi runtime. |
-| Regression suite | **111 passed** | Kết quả của `python -m pytest -q`. |
+| Runtime | 0 lỗi | Batch chạy xong 57/57 file, không có runtime error. |
+| Report-level status | 6 `ok`; 51 `review_required` | Lấy từ manifest; `review_required` là cổng review, không đồng nghĩa parser đọc sai. |
+| B01 statement status | 13 `ok`; 44 `review_required` | Còn conflict hoặc thiếu source evidence ở một số file. |
+| B02 statement status | 37 `ok`; 20 `review_required` | Coverage phụ thuộc cấu trúc và phạm vi kỳ trong source. |
+| B03 statement status | 20 `ok`; 37 `review_required` | Cần tách review chất lượng khỏi trường hợp source thiếu cấu trúc. |
+| Audit fingerprint B01 | 32 `ok`; 25 `review_required` | Đây là audit gate riêng, không phải report-level status trong manifest. |
+| Audit coverage B03 | 55 `ok`; 1 `partial_source_coverage`; 1 `no_structural_rows` | Hai trạng thái cuối phản ánh source coverage, không phải runtime failure. |
+| Formula checks | 8 file; 11 cảnh báo | Không tăng do schema overlay trong focused comparison; cần triage riêng. |
+| Notes | 57/57 chạy khi bật `--notes` | Notes không ghi đè B01, B02 hoặc B03. |
+| Regression suite | **134 passed** | Kết quả của `python -m pytest -q`. |
 
-Các số liệu trên mô tả một lần chạy. Chúng không phải cam kết accuracy cho mọi nguồn mới.
+Các số liệu trên là kết quả batch schema_v1_7 ngày 21/09/2026. Chúng mô tả
+một lần chạy, không phải cam kết accuracy cho mọi nguồn mới. Nguyên nhân chính
+của các trường hợp còn review_required là Markdown đầu vào làm mất ngữ cảnh
+hàng/cột, kỳ báo cáo và quan hệ cha–con; dữ liệu nguồn thiếu hoặc schema chưa
+bao phủ biến thể mới là các nguyên nhân thứ cấp.
+
+Báo cáo chi tiết:
+
+- [Báo cáo lỗi còn tồn đọng và nguyên nhân](PARSER_REMAINING_ISSUES_REPORT_VI.md)
+- [Bằng chứng VCB, BSI, VIB](PARSER_EVIDENCE_VCB_BSI_VIB_VI.md)
+- [Báo cáo ảnh hưởng của Markdown](MARKDOWN_IMPACT_REPORT_VI.md)
 
 ## Flow xử lý một file Markdown
 
@@ -168,6 +182,44 @@ Sau parser cấu trúc, B01 chạy source recovery:
 - `src/common/source_reconciler.py::reconcile_source_observations()`
 
 Locator chỉ chọn scope khi có title evidence, overlap đủ lớn và confidence đạt ngưỡng. Nếu không, B01 dùng scope cấu trúc ban đầu.
+
+### Same-label recovery và rollback
+
+Khi nhãn cha và nhãn con giống nhau, parser không dùng nhãn đơn độc làm
+identity. Nó kết hợp `hierarchy_path`, parent trực tiếp, occurrence và các alias
+giao nhau giữa node với parent. Ví dụ `Tài sản Có khác` ở cấp cha và cấp con
+được map lần lượt vào `ASSET.OTHER` và `ASSET.OTHER.OTHER`.
+
+Tính năng được bật mặc định. Có thể chạy lại baseline để so sánh hoặc rollback
+ngay bằng:
+
+```powershell
+python -m app.pipeline <input> --output <output> --no-same-label-recovery
+```
+
+Trạng thái đã dùng được ghi trong `debug.stats.same_label_recovery`,
+`parser.same_label_recovery` và `audit/run_metadata.json`. Tắt tính năng chỉ
+đổi quyết định mapping; không xóa source observation hoặc output run cũ.
+
+### Schema profile và rollback
+
+Schema bổ sung cho BSI được triển khai dưới dạng overlay versioned, không ghi
+đè schema baseline. CLI hiện dùng `schema_v1_7` mặc định, gồm:
+
+- B01: các node con của `ASSET.OTHER.NON_CURRENT`;
+- B03 securities: `103` và `103.1` cho tiền cuối năm;
+- công thức kiểm tra tiền cuối năm của profile securities.
+
+Toàn bộ overlay nằm trong `resources/schemas/overlays/`. Để rollback về
+baseline:
+
+```powershell
+python -m app.pipeline <input> --output <output> --schema-profile baseline
+```
+
+Mỗi audit run ghi `schema_profile` và đường dẫn schema đã dùng trong
+`audit/run_metadata.json`; output của baseline và overlay nên được ghi vào hai
+thư mục khác nhau để so sánh và khôi phục an toàn.
 
 ### Bước 6 — Chạy Notes
 

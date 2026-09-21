@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from difflib import SequenceMatcher
+import re
 
 from .document import ancestors
 from .models import AliasCandidate, StructuralNode
@@ -12,6 +13,26 @@ def normalize_label(text: str) -> str:
     text = strip_numbering(text or "")
     text = text.strip(" |;:-")
     return fold(text)
+
+
+def _is_period_wrapper_label(text: str) -> bool:
+    """Return whether a source-path label is a reporting-period wrapper.
+
+    Period-major Markdown commonly serializes the same semantic child once
+    under each period wrapper.  That repeated label is not evidence that the
+    second occurrence is a ``same_label_as_parent`` child.  We keep this
+    helper local to alias selection so real nested same-label trees still use
+    the stronger path evidence below.
+    """
+
+    normalized = normalize_label(text)
+    if not normalized or not re.search(r"\b20\d{2}\b", normalized):
+        return False
+    return bool(
+        re.search(r"\b(?:0?1|3?1)[./-]0?1[./-]20\d{2}\b", normalized)
+        or re.search(r"\b31[./-]12[./-]20\d{2}\b", normalized)
+        or "nam" in normalized
+    )
 
 
 def _base_match(text: str, spec, allow_fuzzy: bool):
@@ -111,8 +132,37 @@ def _source_context_score(spec, catalog: SemanticCatalog, source_context: dict |
         normalized = normalize_label(current.canonical_name)
         if normalized:
             parent_chain.append(normalized)
+
+        # Alias của parent cũng là bằng chứng hierarchy hợp lệ. Nguồn thực tế
+        # thường dùng ``Vốn đầu tư...``/``Vốn của tổ chức tín dụng`` cho dòng
+        # cha trong khi schema canonical giữ tên chuẩn khác. Nếu chỉ nhìn
+        # canonical_name, context đúng sẽ bị bỏ qua.
+        for label in [
+            current.canonical_name,
+            *(current.exact or []),
+            *(current.aliases or []),
+        ]:
+            normalized_alias = normalize_label(label)
+            if normalized_alias:
+                candidate_contexts.add(normalized_alias)
         current = catalog.nodes.get(current.parent_id) if current.parent_id else None
     candidate_contexts.update(parent_chain)
+
+    # Khi Markdown chèn wrapper kỳ giữa group và dòng con, ``parent_label``
+    # có thể là ``31/12/2024`` thay vì tên group. Vẫn phải ưu tiên ancestor
+    # semantic trực tiếp của candidate (ví dụ ``Tài sản cố định vô hình``)
+    # hơn một candidate chỉ khớp ancestor xa chung như ``Tài sản cố định``.
+    direct_parent_contexts = set()
+    direct_parent = catalog.nodes.get(spec.parent_id) if spec.parent_id else None
+    if direct_parent:
+        for label in [
+            direct_parent.canonical_name,
+            *(direct_parent.exact or []),
+            *(direct_parent.aliases or []),
+        ]:
+            normalized = normalize_label(label)
+            if normalized:
+                direct_parent_contexts.add(normalized)
 
     score = 0.0
     evidence = []
@@ -122,6 +172,9 @@ def _source_context_score(spec, catalog: SemanticCatalog, source_context: dict |
     if parent_label and parent_label in candidate_contexts:
         score = max(score, 0.56)
         evidence.append("source_context_parent_label")
+    if any(label in direct_parent_contexts for label in ancestor_labels):
+        score = max(score, 0.68)
+        evidence.append("source_context_direct_semantic_parent")
     if any(label in candidate_contexts for label in ancestor_labels):
         score = max(score, 0.40)
         evidence.append("source_context_ancestor_path")
@@ -149,6 +202,7 @@ def match_candidates(
     allow_fuzzy: bool = False,
     detected_sector: str | None = None,
     source_context: dict | None = None,
+    same_label_recovery: bool = True,
 ):
     text = node.label_text or ""
     if not text:
@@ -279,7 +333,42 @@ def match_candidates(
                 break
 
         structural = spec.structural or {}
-        if structural.get("same_label_as_parent_required"):
+        schema_same_label_overlap = (
+            catalog.same_label_parent_overlap(spec.node_id)
+            if same_label_recovery
+            else set()
+        )
+        same_label_parent_required = bool(
+            same_label_recovery
+            and (
+                structural.get("same_label_as_parent_required")
+                or schema_same_label_overlap
+            )
+        )
+        source_path = [
+            normalize_label(x)
+            for x in (source_context or {}).get("path") or []
+            if normalize_label(x)
+        ]
+        source_has_same_label_ancestor = normalized_source in source_path[:-1]
+        period_wrapper_in_path = any(
+            _is_period_wrapper_label(x) for x in source_path[:-1]
+        )
+
+        # Nếu nguồn lặp đúng nhãn của dòng cha nhưng schema không có node con
+        # tương ứng, không được đẩy dòng con vào lại node group của cha. Giữ
+        # dòng đó ở source-observation để báo cáo cấu trúc nguồn, thay vì tạo
+        # semantic duplicate giả. Candidate child có cờ
+        # same_label_as_parent_required sẽ đi qua nhánh dưới đây.
+        if (
+            same_label_recovery
+            and source_has_same_label_ancestor
+            and spec.kind == "group"
+            and not same_label_parent_required
+        ):
+            continue
+
+        if same_label_parent_required:
             # QUAN TRỌNG: không được nhầm các sibling lặp lại theo vị trí thành
             # cặp parent/child. Phải yêu cầu parent gần nhất THỰC TẾ trong cây
             # có cùng nhãn. Điều này giữ được cấu trúc thật như:
@@ -302,7 +391,15 @@ def match_candidates(
             if actual_parent_same_label:
                 context_score += 0.30
                 evidence.append("same_label_actual_tree_parent")
-            elif recent_same_label_semantic_parent:
+            elif source_has_same_label_ancestor:
+                # Markdown serializer có thể chèn wrapper kỳ giữa parent và
+                # child, nên tree parent trực tiếp không còn là nhãn lặp.
+                # Full source_context.path vẫn giữ được bằng chứng này.
+                context_score += 0.30
+                evidence.append("same_label_source_context_parent")
+            elif recent_same_label_semantic_parent and (
+                not period_wrapper_in_path or source_has_same_label_ancestor
+            ):
                 # Bảng theo mẫu bị làm phẳng thường chèn dòng số/mã biểu mẫu
                 # giữa parent và child lặp nhãn. Khi đó parent thụt lề thực tế
                 # là dòng mã, nên kiểm tra chỉ dùng cây nghiêm ngặt sẽ loại
@@ -314,6 +411,9 @@ def match_candidates(
             else:
                 context_score -= 0.34
                 evidence.append("missing_same_label_actual_tree_parent")
+
+            if schema_same_label_overlap:
+                evidence.append("schema_parent_label_overlap")
 
         candidates.append(
             AliasCandidate(
