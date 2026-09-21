@@ -11,6 +11,13 @@ Dữ liệu báo cáo đầu vào chỉ đến từ Markdown nguồn. Runtime kh
 ground truth hoặc kết quả của lần chạy trước. Logic parser cũng không chọn theo
 tên file, ticker hay giá trị đã biết.
 
+## Bản đồ code theo phase
+
+Để đọc nhanh đường chạy production và biết mỗi phase gọi những file nào, xem
+[`docs/codebase-phase-map-vi.md`](docs/codebase-phase-map-vi.md). Tài liệu này
+phân biệt critical path production với các script ground truth, evaluation,
+maintenance và visualization; không thay đổi layout import của code.
+
 ## Chính sách công bố dữ liệu input/output
 
 `md_reports/`, `ground_truth/` và `output/` là dữ liệu local, được Git bỏ qua
@@ -337,50 +344,17 @@ Output production không chứa raw IR, mapping score hoặc bảng so sánh. D�
 chứa canonical JSON, comparison, Notes rows, metrics, summary và
 `error_taxonomy`.
 
-Viewer output:
+Viewer và các công cụ evaluation/ground-truth là workflow nội bộ. Thư mục
+`scripts/` không nằm trong public repository; checkout nội bộ có thể giữ các
+công cụ này để review và tái tạo báo cáo. Public release chỉ chứa parser,
+schema, test runtime và tài liệu.
 
-```powershell
-python .\scripts\visualize_output.py --open
-```
-
-Viewer nằm ở `output/inspection/output_viewer.html` và cho phép lọc theo file,
-statement, label, value, mapping, raw text và source line.
-
-## Ground truth và đối chiếu
+## Ground truth và đối chiếu nội bộ
 
 Ground truth chỉ dùng để đánh giá; runtime không đọc ground truth. Baseline
-chưa được human-review không phải gold standard.
-
-Tạo Notes ground truth:
-
-```powershell
-python .\scripts\ground_truth\build_notes_ground_truth.py `
-  .\md_reports `
-  --output .\ground_truth\notes
-```
-
-Tạo review queue cho ba statement chính:
-
-```powershell
-python .\scripts\ground_truth\prepare_main_statement_gold.py `
-  --baselines .\ground_truth\main_statements `
-  --source-dir .\md_reports `
-  --output .\output\main_statement_gold_queue
-```
-
-So sánh output với baseline:
-
-```powershell
-python .\scripts\evaluation\compare_main_statement_ground_truth.py `
-  --ground-truth .\ground_truth\main_statements `
-  --current .\output\current\audit `
-  --ground-truth-mode eligible `
-  --sources .\md_reports `
-  --report .\output\main_statement_comparison.json
-```
-
-`eligible` loại observation mơ hồ hoặc cần review khỏi chỉ số chính. Comparator
-so sánh `label + period + value` và tách `missing` khỏi `unexpected`.
+chưa được human-review không phải gold standard. Các tool tạo ground truth,
+review queue và so sánh output được giữ ở checkout nội bộ, không phát hành
+trong public repository.
 
 ## Tài liệu điều tra
 
@@ -428,7 +402,7 @@ Flatten/
 ├── resources/
 │   ├── schemas/                 # Schema, alias và production contract
 │   └── guides/                  # Structural guide
-├── scripts/                     # Evaluation, ground truth, maintenance
+├── scripts/                     # Local-only; không có trong public release
 ├── tests/                       # B01, B02, B03, Notes, integration, quality
 ├── md_reports/                  # Markdown input cục bộ
 ├── ground_truth/                # Baseline và review queue cục bộ

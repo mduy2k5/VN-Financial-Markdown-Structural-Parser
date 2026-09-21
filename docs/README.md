@@ -4,6 +4,7 @@ Các báo cáo phân tích, bằng chứng và lỗi còn tồn đọng nằm tr
 [`reports/`](reports/).
 
 - [Chính sách công bố input/output](data-publication-policy-vi.md)
+- [Bản đồ code theo phase](codebase-phase-map-vi.md)
 
 - [Báo cáo đọc code](reports/CODE_READING_REPORT_VI.md)
 - [Báo cáo ảnh hưởng của Markdown](reports/MARKDOWN_IMPACT_REPORT_VI.md)
