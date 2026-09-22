@@ -1,0 +1,388 @@
+{
+  "source_name": "synthetic_high_coverage_statement.md",
+  "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+  "current_year": 2026,
+  "previous_year": 2025,
+  "year_resolution": {
+    "current_year": 2026,
+    "previous_year": 2025,
+    "method": "statement_end_date",
+    "explicit_current_year": false,
+    "explicit_previous_year": false,
+    "filename_years": [],
+    "candidate_scores": {
+      "2025": 76,
+      "2026": 746,
+      "2027": 2
+    },
+    "period_type": "annual",
+    "current_end_date": "2026-12-31",
+    "previous_end_date": "2025-12-31",
+    "current_start_date": "2026-01-01",
+    "previous_start_date": "2025-01-01",
+    "calendar_end_year": 2026,
+    "fiscal_year_label": 2026,
+    "fiscal_year_label_source": "statement_end_year",
+    "confidence": "high",
+    "conflict": false,
+    "conflict_reasons": [],
+    "date_evidence": [
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 164.0,
+        "line": 20,
+        "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 164.0,
+        "line": 381,
+        "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 164.0,
+        "line": 717,
+        "text": "- **Kỳ hiện tại:** năm tài chính mô phỏng kết thúc ngày 31/12/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 64.0,
+        "line": 47,
+        "text": "Tại ngày 31 tháng 12 năm 2026",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 64.0,
+        "line": 392,
+        "text": "Vốn góp mô phỏng tại ngày 31 tháng 12 năm 2026 là 3.456.789.012.300 đồng.",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 64.0,
+        "line": 436,
+        "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 64.0,
+        "line": 437,
+        "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 64.0,
+        "line": 446,
+        "text": "- Giá trị ghi sổ mô phỏng: 689.321.456.700 đồng tại ngày 31/12/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-01-01",
+        "role": "opening",
+        "weight": 55.0,
+        "line": 436,
+        "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-01-01",
+        "role": "opening",
+        "weight": 55.0,
+        "line": 437,
+        "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-01-01",
+        "role": "opening",
+        "weight": 55.0,
+        "line": 447,
+        "text": "- Giá trị so sánh mô phỏng: 543.210.987.600 đồng tại ngày 01/01/2026.",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "opening",
+        "weight": 30.0,
+        "line": 210,
+        "text": "*   421a. Lợi nhuận lũy kế đến đầu kỳ: 128.765.432.100 đồng (31/12/2026), 95.432.109.800 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 52,
+        "text": "*   **31/12/2026** (VND)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 188,
+        "text": "*   311. 1. Phải trả người bán ngắn hạn: 345.678.901.200 đồng (31/12/2026), 298.765.432.100 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 189,
+        "text": "*   312. 2. Người mua trả tiền trước ngắn hạn: 456.789.012.300 đồng (31/12/2026), 321.234.567.800 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 190,
+        "text": "*   313. 3. Thuế và các khoản phải nộp Nhà nước: 123.456.789.400 đồng (31/12/2026), 98.765.432.100 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 191,
+        "text": "*   314. 4. Phải trả người lao động: 234.567.890.500 đồng (31/12/2026), 210.123.456.700 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 192,
+        "text": "*   315. 5. Chi phí phải trả ngắn hạn: 345.678.901.600 đồng (31/12/2026), 300.987.654.300 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 193,
+        "text": "*   318. 6. Doanh thu chưa thực hiện ngắn hạn: 123.456.789.700 đồng (31/12/2026), 100.222.333.400 đồng (01/01/2026)",
+        "administrative": false
+      },
+      {
+        "date": "2026-12-31",
+        "role": "end",
+        "weight": 24.0,
+        "line": 194,
+        "text": "*   319. 7. Phải trả ngắn hạn khác: 234.567.890.800 đồng (31/12/2026), 190.111.222.500 đồng (01/01/2026)",
+        "administrative": false
+      }
+    ]
+  },
+  "financial_position": {
+    "v05": {
+      "status": "ok",
+      "value_nodes": 78,
+      "current_value_nodes": 78,
+      "previous_value_nodes": 78,
+      "mapping": {
+        "canonical_value_nodes": 78,
+        "current_value_nodes": 78,
+        "previous_value_nodes": 78,
+        "current_coverage": 1.0,
+        "previous_coverage": 1.0
+      },
+      "parser": {
+        "statement_profile": "financial_position",
+        "schema_id": "UNIVERSAL_FINANCIAL_POSITION_V1",
+        "schema_version": "1.7.0",
+        "integration_mode": "source_parse",
+        "semantic_dedup_conflicts": 0,
+        "source_recovery_conflicts": 0,
+        "ambiguous_source_nodes": 0,
+        "source_name": "synthetic_high_coverage_statement.md",
+        "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+        "source_parser_version": "0.6.0",
+        "same_label_recovery": true,
+        "source_recovery": "v16.1",
+        "recovery_scope_start": 45,
+        "recovery_scope_end": 222,
+        "recovery_scope_score": 437,
+        "recovered_rows": 56,
+        "source_recovery_added_nodes": 60,
+        "source_recovery_filled_nodes": 1,
+        "statement_health": "healthy",
+        "scope_health": "healthy",
+        "unresolved": 0,
+        "source_statement_health": "healthy",
+        "source_scope_health": "healthy",
+        "locator_enabled": true,
+        "locator_activated": false,
+        "locator_confidence": 0.995,
+        "locator_alias_hits": 121,
+        "locator_candidate_rows": 48
+      }
+    },
+    "canonical_file": "synthetic_high_coverage_statement.financial_position.canonical.json"
+  },
+  "income_statement": {
+    "v05": {
+      "status": "ok",
+      "value_nodes": 29,
+      "current_value_nodes": 29,
+      "previous_value_nodes": 29,
+      "mapping": {
+        "input_rows": 18,
+        "mapped_rows": 18,
+        "unmapped_rows": 0,
+        "mapping_rate": 1.0,
+        "canonical_value_nodes": 29,
+        "coverage_value_nodes": 18,
+        "source_observation_nodes": 11,
+        "current_value_nodes": 29,
+        "previous_value_nodes": 29,
+        "coverage_current_value_nodes": 18,
+        "coverage_previous_value_nodes": 18,
+        "current_coverage": 1.0,
+        "previous_coverage": 1.0,
+        "accepted_occurrences": 29
+      },
+      "parser": {
+        "statement_profile": "income_statement",
+        "sector": "enterprise",
+        "sector_method": "form_code",
+        "scope_start": 223,
+        "scope_end": 290,
+        "scope_score": 20.52,
+        "collector_policy": "income_multi_layout_v8",
+        "patterns": [
+          "SP_INCOME_PERIOD_CHILDREN"
+        ],
+        "locator_enabled": true,
+        "locator_activated": true,
+        "locator_reason": "title_backed_scope_overlap",
+        "locator_confidence": 0.995,
+        "locator_alias_hits": 23,
+        "locator_candidate_rows": 11,
+        "source_recovery": "v16",
+        "source_recovered_rows": 21,
+        "source_recovery_added_nodes": 7,
+        "source_recovery_filled_nodes": 1,
+        "source_recovery_conflicts": 0,
+        "source_period_scope_ambiguities": 0
+      },
+      "quality": {
+        "canonical_status": "ok",
+        "formula_evaluated": 7,
+        "formula_passed": 7,
+        "formula_failed": 0,
+        "formula_pass_rate": 1.0,
+        "sign_normalizations": 12
+      },
+      "error_taxonomy": {
+        "unmapped_total": 0,
+        "by_reason": {},
+        "by_severity": {},
+        "examples": []
+      },
+      "unmapped_examples": []
+    },
+    "canonical_file": "synthetic_high_coverage_statement.income.canonical.json"
+  },
+  "cash_flow_statement": {
+    "v01": {
+      "status": "ok",
+      "value_nodes": 46,
+      "current_value_nodes": 46,
+      "previous_value_nodes": 46,
+      "mapping": {
+        "input_rows": 20,
+        "mapped_rows": 20,
+        "unmapped_rows": 0,
+        "mapping_rate": 1.0,
+        "canonical_value_nodes": 46,
+        "coverage_value_nodes": 18,
+        "source_observation_nodes": 28,
+        "current_value_nodes": 46,
+        "previous_value_nodes": 46,
+        "coverage_current_value_nodes": 18,
+        "coverage_previous_value_nodes": 18,
+        "current_coverage": 1.0,
+        "previous_coverage": 1.0
+      },
+      "parser": {
+        "statement_profile": "cash_flow_statement",
+        "sector": "enterprise",
+        "sector_method": "form_code",
+        "method": "indirect",
+        "method_method": "heading",
+        "scope_start": 291,
+        "scope_end": 378,
+        "scope_score": 195,
+        "collector_policy": "cashflow_multi_layout_v7_structural_identity_repair",
+        "patterns": [
+          "CF_YEAR_VALUE_CHILDREN"
+        ],
+        "locator_enabled": true,
+        "locator_activated": false,
+        "locator_reason": "no_selected_scope",
+        "locator_confidence": null,
+        "locator_alias_hits": 41,
+        "locator_candidate_rows": 14,
+        "source_recovery": "v16",
+        "source_recovered_rows": 26,
+        "source_recovery_added_nodes": 17,
+        "source_recovery_filled_nodes": 0,
+        "source_recovery_conflicts": 0,
+        "supplemental_source_recovered_rows": 0,
+        "supplemental_scope_start": null,
+        "supplemental_scope_end": null
+      },
+      "quality": {
+        "canonical_status": "ok",
+        "formula_evaluated": 2,
+        "formula_passed": 2,
+        "formula_failed": 0,
+        "formula_pass_rate": 1.0,
+        "core_anchor_hits": 6,
+        "core_anchor_total": 6,
+        "core_anchor_ratio": 1.0
+      },
+      "error_taxonomy": {
+        "unmapped_total": 0,
+        "by_reason": {},
+        "by_severity": {},
+        "examples": []
+      },
+      "unmapped_examples": []
+    },
+    "canonical_file": "synthetic_high_coverage_statement.cashflow.canonical.json"
+  },
+  "notes": {
+    "schema_id": "GENERIC_NOTE_IR_V1",
+    "schema_version": "1.0.0",
+    "status": "parsed",
+    "ir_file": "synthetic_high_coverage_statement.notes.ir.json",
+    "scope_start": 379,
+    "scope_end": 743,
+    "sections": 31,
+    "tables": 0,
+    "rows": 2,
+    "exported_rows": 2,
+    "rows_csv": "notes_rows/synthetic_high_coverage_statement.notes_rows.csv",
+    "rows_json": "notes_rows/synthetic_high_coverage_statement.notes_rows.json",
+    "links": 17,
+    "high_confidence_links": 4,
+    "policy": "PRIMARY_GT_NOTES_non_destructive_v1"
+  }
+}

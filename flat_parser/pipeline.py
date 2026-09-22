@@ -344,6 +344,7 @@ class FlatParserPipeline:
                 candidates,
                 self.guide,
                 semantic_anchor_indices=semantic_anchor_indices,
+                context=context,
             )
             observations.append(obs)
 

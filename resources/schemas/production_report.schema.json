@@ -307,7 +307,7 @@
     "notes": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "schema", "sections", "rows", "links", "summary"],
+      "required": ["status", "schema", "sections", "rows", "raw_blocks", "links", "summary"],
       "properties": {
         "status": { "type": "string" },
         "schema": {
@@ -331,6 +331,7 @@
         },
         "sections": { "type": "array" },
         "rows": { "type": "array" },
+        "raw_blocks": { "type": "array" },
         "links": { "type": "array" },
         "summary": {
           "type": "object",

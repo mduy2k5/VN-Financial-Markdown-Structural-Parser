@@ -58,7 +58,7 @@ File chạy trực tiếp:
 Resource được nạp theo schema profile:
 
 - `resources/schemas/*.json`: schema và alias baseline;
-- `resources/schemas/overlays/*.json`: bundle versioned, ví dụ `schema_v1_7`;
+- `resources/schemas/overlays/*.json`: bundle versioned, ví dụ `schema_v1_11`;
 - `resources/guides/compiled/structural_guide.json`: guide cho structural
   parser;
 - `resources/guides/A*_*/`: pattern nguồn trước khi compile guide, chỉ giữ ở

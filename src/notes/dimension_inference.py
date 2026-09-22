@@ -16,8 +16,10 @@ AGING_TOKENS = ("qua han", "chua qua han", "duoi 30", "30 90", "90 180", "tren 1
 
 MOVEMENT_ROLE_PATTERNS = (
     ("opening", ("dau nam", "dau ky", "so du dau")),
-    ("addition", ("mua trong nam", "tang trong nam", "phat sinh", "bo sung", "ghi nhan")),
-    ("disposal", ("thanh ly", "nhuong ban", "giam trong nam", "xoa so")),
+    ("addition", ("mua trong nam", "tang trong nam", "phat sinh", "bo sung", "ghi nhan", "trich lap", "tang du phong")),
+    ("disposal", ("thanh ly", "nhuong ban", "giam trong nam", "giam du phong", "xoa so")),
+    ("usage", ("su dung", "xu ly rui ro")),
+    ("transfer", ("ket chuyen",)),
     ("depreciation", ("khau hao", "hao mon", "phan bo")),
     ("closing", ("cuoi nam", "cuoi ky", "so du cuoi")),
     ("reversal", ("hoan nhap",)),
@@ -36,13 +38,21 @@ def infer_dimensions(block: NoteBlock, *, current_year: int | None = None, previ
     if block.form != "table":
         period_members = []
         seen = set()
+        movement_members = []
+        movement_seen = set()
         for row in block.rows:
             for value in row.values:
                 if value.period_role and value.period_role not in seen:
                     period_members.append({"role": value.period_role, "label": value.period_label})
                     seen.add(value.period_role)
+                if value.movement_role and value.movement_role not in movement_seen:
+                    movement_members.append({"role": value.movement_role})
+                    movement_seen.add(value.movement_role)
+        block.dimensions = []
         if period_members:
-            block.dimensions = [{"kind": "period", "members": period_members}]
+            block.dimensions.append({"kind": "period", "members": period_members})
+        if movement_members:
+            block.dimensions.append({"kind": "movement", "members": movement_members})
         return block
 
     headers = [fold_text(x) for x in block.headers_raw]

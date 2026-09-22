@@ -1,0 +1,1922 @@
+{
+  "schema_id": "UNIVERSAL_INCOME_STATEMENT_V1",
+  "schema_version": "1.5.2",
+  "statement_type": "INCOME_STATEMENT",
+  "sector": "enterprise",
+  "unit": "vnd",
+  "source_name": "synthetic_high_coverage_statement.md",
+  "periods": {
+    "current": 2026,
+    "previous": 2025
+  },
+  "status": "ok",
+  "diagnostic": null,
+  "validation_status": "ok",
+  "validation_diagnostic": null,
+  "nodes": [
+    {
+      "node_id": "INCOME.ENTERPRISE.REVENUE_GROSS",
+      "canonical_name": "Doanh thu bán hàng và cung cấp dịch vụ",
+      "sector": "enterprise",
+      "form_code": "01",
+      "value": {
+        "current": 18765432109800,
+        "previous": 16543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Doanh thu bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.765.432.109.800 đồng\n        *   Năm 2025: 16.543.210.987.600 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 248,
+            "source_label": "Doanh thu bán hàng và cung cấp dịch vụ",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 18765432109800,
+            "previous": 16543210987600,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Doanh thu bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.765.432.109.800 đồng\n        *   Năm 2025: 16.543.210.987.600 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.REVENUE_DEDUCTIONS",
+      "canonical_name": "Các khoản giảm trừ doanh thu",
+      "sector": "enterprise",
+      "form_code": "02",
+      "value": {
+        "current": -123456789100,
+        "previous": -98765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Các khoản giảm trừ doanh thu:**\n        *   Năm 2026: (123.456.789.100) đồng\n        *   Năm 2025: (98.765.432.100) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 251,
+            "source_label": "Các khoản giảm trừ doanh thu",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -123456789100,
+            "previous": -98765432100,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Các khoản giảm trừ doanh thu:**\n        *   Năm 2026: (123.456.789.100) đồng\n        *   Năm 2025: (98.765.432.100) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+      "canonical_name": "Doanh thu thuần về bán hàng và cung cấp dịch vụ",
+      "sector": "enterprise",
+      "form_code": "10",
+      "value": {
+        "current": 18641975320700,
+        "previous": 16444445555500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Doanh thu thuần bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.641.975.320.700 đồng\n        *   Năm 2025: 16.444.445.555.500 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 228,
+            "source_label": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 18641975320700,
+            "previous": 16444445555500,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Doanh thu thuần bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.641.975.320.700 đồng\n        *   Năm 2025: 16.444.445.555.500 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.COGS",
+      "canonical_name": "Giá vốn hàng bán",
+      "sector": "enterprise",
+      "form_code": "11",
+      "value": {
+        "current": 16432109876500,
+        "previous": 14777777765400,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Giá vốn hàng bán:**\n        *   Năm 2026: 16.432.109.876.500 đồng\n        *   Năm 2025: 14.777.777.765.400 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 254,
+            "source_label": "Giá vốn hàng bán",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 16432109876500,
+            "previous": 14777777765400,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Giá vốn hàng bán:**\n        *   Năm 2026: 16.432.109.876.500 đồng\n        *   Năm 2025: 14.777.777.765.400 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.GROSS_PROFIT",
+      "canonical_name": "Lợi nhuận gộp về bán hàng và cung cấp dịch vụ",
+      "sector": "enterprise",
+      "form_code": "20",
+      "value": {
+        "current": 2209865444200,
+        "previous": 1666667790100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Lợi nhuận gộp về bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 2.209.865.444.200 đồng\n        *   Năm 2025: 1.666.667.790.100 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 231,
+            "source_label": "Lợi nhuận gộp về bán hàng và cung cấp dịch vụ",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 2209865444200,
+            "previous": 1666667790100,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Lợi nhuận gộp về bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 2.209.865.444.200 đồng\n        *   Năm 2025: 1.666.667.790.100 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.FINANCIAL_INCOME",
+      "canonical_name": "Doanh thu hoạt động tài chính",
+      "sector": "enterprise",
+      "form_code": "21",
+      "value": {
+        "current": 345678901200,
+        "previous": 287654321000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Doanh thu hoạt động tài chính:**\n        *   Năm 2026: 345.678.901.200 đồng\n        *   Năm 2025: 287.654.321.000 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 257,
+            "source_label": "Doanh thu hoạt động tài chính",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 345678901200,
+            "previous": 287654321000,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Doanh thu hoạt động tài chính:**\n        *   Năm 2026: 345.678.901.200 đồng\n        *   Năm 2025: 287.654.321.000 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.FINANCIAL_EXPENSE",
+      "canonical_name": "Chi phí tài chính",
+      "sector": "enterprise",
+      "form_code": "22",
+      "value": {
+        "current": -456789012300,
+        "previous": -398765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Chi phí tài chính:**\n        *   Năm 2026: (456.789.012.300) đồng\n        *   Năm 2025: (398.765.432.100) đồng\n        *   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 260,
+            "source_label": "Chi phí tài chính",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -456789012300,
+            "previous": -398765432100,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Chi phí tài chính:**\n        *   Năm 2026: (456.789.012.300) đồng\n        *   Năm 2025: (398.765.432.100) đồng\n        *   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+      "canonical_name": "Chi phí lãi vay",
+      "sector": "enterprise",
+      "form_code": "23",
+      "value": {
+        "current": -321234567800,
+        "previous": -287654321000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "        *   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 263,
+            "source_label": "Trong đó, chi phí lãi vay",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -321234567800,
+            "previous": -287654321000,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi phí tài chính",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí > Chi phí tài chính",
+            "raw_text": "        *   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.SHARE_OF_PROFIT_ASSOCIATES",
+      "canonical_name": "Phần lãi/lỗ trong công ty liên doanh, liên kết",
+      "sector": "enterprise",
+      "form_code": "24",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.SELLING_EXPENSE",
+      "canonical_name": "Chi phí bán hàng",
+      "sector": "enterprise",
+      "form_code": "25",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.GENERAL_ADMIN_EXPENSE",
+      "canonical_name": "Chi phí quản lý doanh nghiệp",
+      "sector": "enterprise",
+      "form_code": "26",
+      "value": {
+        "current": -789012345600,
+        "previous": -678901234500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Chi phí quản lý doanh nghiệp:**\n        *   Năm 2026: (789.012.345.600) đồng\n        *   Năm 2025: (678.901.234.500) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 266,
+            "source_label": "Chi phí quản lý doanh nghiệp",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -789012345600,
+            "previous": -678901234500,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Chi phí quản lý doanh nghiệp:**\n        *   Năm 2026: (789.012.345.600) đồng\n        *   Năm 2025: (678.901.234.500) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.OPERATING_PROFIT",
+      "canonical_name": "Lợi nhuận thuần từ hoạt động kinh doanh",
+      "sector": "enterprise",
+      "form_code": "30",
+      "value": {
+        "current": 1309742987500,
+        "previous": 876655444500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Lợi nhuận thuần từ hoạt động kinh doanh:**\n        *   Năm 2026: 1.309.742.987.500 đồng\n        *   Năm 2025: 876.655.444.500 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 234,
+            "source_label": "Lợi nhuận thuần từ hoạt động kinh doanh",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 1309742987500,
+            "previous": 876655444500,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Lợi nhuận thuần từ hoạt động kinh doanh:**\n        *   Năm 2026: 1.309.742.987.500 đồng\n        *   Năm 2025: 876.655.444.500 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.OTHER_INCOME",
+      "canonical_name": "Thu nhập khác",
+      "sector": "enterprise",
+      "form_code": "31",
+      "value": {
+        "current": 234567890700,
+        "previous": 145678901200,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Thu nhập khác:**\n        *   Năm 2026: 234.567.890.700 đồng\n        *   Năm 2025: 145.678.901.200 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 269,
+            "source_label": "Thu nhập khác",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 234567890700,
+            "previous": 145678901200,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Thu nhập khác:**\n        *   Năm 2026: 234.567.890.700 đồng\n        *   Năm 2025: 145.678.901.200 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.OTHER_EXPENSE",
+      "canonical_name": "Chi phí khác",
+      "sector": "enterprise",
+      "form_code": "32",
+      "value": {
+        "current": -123456789800,
+        "previous": -90123456700,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Chi phí khác:**\n        *   Năm 2026: (123.456.789.800) đồng\n        *   Năm 2025: (90.123.456.700) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 272,
+            "source_label": "Chi phí khác",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -123456789800,
+            "previous": -90123456700,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Chi phí khác:**\n        *   Năm 2026: (123.456.789.800) đồng\n        *   Năm 2025: (90.123.456.700) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.OTHER_PROFIT",
+      "canonical_name": "Lợi nhuận khác",
+      "sector": "enterprise",
+      "form_code": "40",
+      "value": {
+        "current": 111111100900,
+        "previous": 55555444500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Lợi nhuận khác:**\n        *   Năm 2026: 111.111.100.900 đồng\n        *   Năm 2025: 55.555.444.500 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 275,
+            "source_label": "Lợi nhuận khác",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 111111100900,
+            "previous": 55555444500,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Lợi nhuận khác:**\n        *   Năm 2026: 111.111.100.900 đồng\n        *   Năm 2025: 55.555.444.500 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.PROFIT_BEFORE_TAX",
+      "canonical_name": "Tổng lợi nhuận kế toán trước thuế",
+      "sector": "enterprise",
+      "form_code": "50",
+      "value": {
+        "current": 1420854088400,
+        "previous": 932210889000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Tổng lợi nhuận kế toán trước thuế:**\n        *   Năm 2026: 1.420.854.088.400 đồng\n        *   Năm 2025: 932.210.889.000 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 237,
+            "source_label": "Tổng lợi nhuận kế toán trước thuế",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 1420854088400,
+            "previous": 932210889000,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Tổng lợi nhuận kế toán trước thuế:**\n        *   Năm 2026: 1.420.854.088.400 đồng\n        *   Năm 2025: 932.210.889.000 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+      "canonical_name": "Chi phí thuế TNDN hiện hành",
+      "sector": "enterprise",
+      "form_code": "51",
+      "value": {
+        "current": -278901234500,
+        "previous": -201234567800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Chi phí thuế thu nhập doanh nghiệp hiện hành:**\n        *   Năm 2026: (278.901.234.500) đồng\n        *   Năm 2025: (201.234.567.800) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 278,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -278901234500,
+            "previous": -201234567800,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Chi phí thuế thu nhập doanh nghiệp hiện hành:**\n        *   Năm 2026: (278.901.234.500) đồng\n        *   Năm 2025: (201.234.567.800) đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+      "canonical_name": "Chi phí thuế TNDN hoãn lại",
+      "sector": "enterprise",
+      "form_code": "52",
+      "value": {
+        "current": -12345678900,
+        "previous": 8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Chi phí thuế thu nhập doanh nghiệp hoãn lại:**\n        *   Năm 2026: (12.345.678.900) đồng\n        *   Năm 2025: 8.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 281,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": -12345678900,
+            "previous": 8765432100,
+            "code": null,
+            "note": null,
+            "parent_context": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "raw_text": "    *   **Chi phí thuế thu nhập doanh nghiệp hoãn lại:**\n        *   Năm 2026: (12.345.678.900) đồng\n        *   Năm 2025: 8.765.432.100 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.PROFIT_AFTER_TAX",
+      "canonical_name": "Lợi nhuận sau thuế thu nhập doanh nghiệp",
+      "sector": "enterprise",
+      "form_code": "60",
+      "value": {
+        "current": 1154298532800,
+        "previous": 722210889100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "    *   **Lợi nhuận sau thuế thu nhập doanh nghiệp:**\n        *   Năm 2026: 1.154.298.532.800 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 240,
+            "source_label": "Lợi nhuận sau thuế thu nhập doanh nghiệp",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 1154298532800,
+            "previous": null,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Lợi nhuận sau thuế thu nhập doanh nghiệp:**\n        *   Năm 2026: 1.154.298.532.800 đồng"
+          }
+        ],
+        "source_recovery_occurrences": [
+          {
+            "source_line": 240,
+            "source_label": "Lợi nhuận sau thuế thu nhập doanh nghiệp",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": 1154298532800,
+            "previous": 722210889100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "unit": null,
+            "unit_source": null
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.PROFIT_ATTRIBUTABLE_PARENT",
+      "canonical_name": "Lợi nhuận sau thuế của cổ đông công ty mẹ",
+      "sector": "enterprise",
+      "form_code": "61",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.PROFIT_ATTRIBUTABLE_NCI",
+      "canonical_name": "Lợi nhuận sau thuế của cổ đông không kiểm soát",
+      "sector": "enterprise",
+      "form_code": "62",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.BASIC_EPS",
+      "canonical_name": "Lãi cơ bản trên cổ phiếu",
+      "sector": "enterprise",
+      "form_code": "70",
+      "value": {
+        "current": 3456,
+        "previous": 2987,
+        "note": null,
+        "unit": "vnd_per_share",
+        "raw_text": "    *   **Lãi cơ bản trên cổ phiếu:**\n        *   Năm 2026: 3.456 đồng\n        *   Năm 2025: 2.987 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 243,
+            "source_label": "Lãi cơ bản trên cổ phiếu",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "mapping_method": "exact_alias",
+            "mapping_confidence": 1.0,
+            "current": 3456,
+            "previous": 2987,
+            "code": null,
+            "note": null,
+            "parent_context": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "raw_text": "    *   **Lãi cơ bản trên cổ phiếu:**\n        *   Năm 2026: 3.456 đồng\n        *   Năm 2025: 2.987 đồng"
+          }
+        ]
+      }
+    },
+    {
+      "node_id": "INCOME.ENTERPRISE.DILUTED_EPS",
+      "canonical_name": "Lãi suy giảm trên cổ phiếu",
+      "sector": "enterprise",
+      "form_code": "71",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd_per_share",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.cdbe12564ec206",
+      "canonical_name": "Tổng doanh thu và chi phí",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 18641975320700,
+        "previous": 16444445555500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tổng doanh thu và chi phí"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 227,
+            "source_label": "Tổng doanh thu và chi phí",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": 18641975320700,
+            "previous": 16444445555500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.bde5604214aa2a",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.6058092c2512c0",
+      "canonical_name": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": "Tổng doanh thu và chi phí",
+      "hierarchy_path": "Tổng doanh thu và chi phí",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 18641975320700,
+        "previous": 16444445555500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Doanh thu thuần bán hàng và cung cấp dịch vụ"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 228,
+            "source_label": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": 18641975320700,
+            "previous": 16444445555500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "Tổng doanh thu và chi phí",
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.85747d6157baec",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.6058092c2512c0",
+      "canonical_name": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 18641975320700,
+        "previous": 16444445555500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Doanh thu thuần bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.641.975.320.700 đồng\n        *   Năm 2025: 16.444.445.555.500 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 228,
+            "source_label": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+            "raw_text": "*   **Doanh thu thuần bán hàng và cung cấp dịch vụ:**\n        *   Năm 2026: 18.641.975.320.700 đồng\n        *   Năm 2025: 16.444.445.555.500 đồng",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "current": 18641975320700,
+            "previous": 16444445555500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": null,
+            "parent_label": null,
+            "hierarchy_path": "Tổng doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.85747d6157baec",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.REVENUE_NET",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.09d2c8bb35d49c",
+      "canonical_name": "Năm 2026",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 18641975320700,
+        "previous": 16444445555500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Năm 2026"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 229,
+            "source_label": "Năm 2026",
+            "pattern": "INCOME_RAW_CURRENT_PREVIOUS_CHILD",
+            "current": 18641975320700,
+            "previous": 16444445555500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.20449fc6f1fa5f",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.10d680ff5f82de",
+      "canonical_name": "Chi tiết doanh thu và chi phí",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 18765432109800,
+        "previous": 16543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Chi tiết doanh thu và chi phí"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 247,
+            "source_label": "Chi tiết doanh thu và chi phí",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": 18765432109800,
+            "previous": 16543210987600,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.6709fbfa6c3b89",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.ad01ff03e2397d",
+      "canonical_name": "Trong đó, chi phí lãi vay",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": "Chi phí tài chính",
+      "hierarchy_path": "Chi tiết doanh thu và chi phí > Chi phí tài chính",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -321234567800,
+        "previous": -287654321000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Trong đó, chi phí lãi vay"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 263,
+            "source_label": "Trong đó, chi phí lãi vay",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": -321234567800,
+            "previous": -287654321000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "Chi phí tài chính",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí > Chi phí tài chính",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.01a00a6e5f4499",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.ad01ff03e2397d",
+      "canonical_name": "Trong đó, chi phí lãi vay",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -321234567800,
+        "previous": -287654321000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 263,
+            "source_label": "Trong đó, chi phí lãi vay",
+            "raw_text": "*   Trong đó, chi phí lãi vay:\n            *   Năm 2026: (321.234.567.800) đồng\n            *   Năm 2025: (287.654.321.000) đồng",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "current": -321234567800,
+            "previous": -287654321000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": null,
+            "parent_label": null,
+            "hierarchy_path": "Chi tiết doanh thu và chi phí > Chi phí tài chính",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.01a00a6e5f4499",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.5a386173ccbe84",
+      "canonical_name": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": "Chi tiết doanh thu và chi phí",
+      "hierarchy_path": "Chi tiết doanh thu và chi phí",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -278901234500,
+        "previous": -201234567800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Chi phí thuế thu nhập doanh nghiệp hiện hành"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 278,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": -278901234500,
+            "previous": -201234567800,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.6a2720216a06cd",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.5a386173ccbe84",
+      "canonical_name": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -278901234500,
+        "previous": -201234567800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Chi phí thuế thu nhập doanh nghiệp hiện hành:**\n        *   Năm 2026: (278.901.234.500) đồng\n        *   Năm 2025: (201.234.567.800) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 278,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+            "raw_text": "*   **Chi phí thuế thu nhập doanh nghiệp hiện hành:**\n        *   Năm 2026: (278.901.234.500) đồng\n        *   Năm 2025: (201.234.567.800) đồng",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "current": -278901234500,
+            "previous": -201234567800,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": null,
+            "parent_label": null,
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.6a2720216a06cd",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.7cd866442bd962",
+      "canonical_name": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "parent_label": "Chi tiết doanh thu và chi phí",
+      "hierarchy_path": "Chi tiết doanh thu và chi phí",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -12345678900,
+        "previous": 8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Chi phí thuế thu nhập doanh nghiệp hoãn lại"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 281,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+            "pattern": "INCOME_RAW_CHILDREN",
+            "current": -12345678900,
+            "previous": 8765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "Chi tiết doanh thu và chi phí",
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.18c60f441df0df",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.INCOME.7cd866442bd962",
+      "canonical_name": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": null,
+      "section": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -12345678900,
+        "previous": 8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Chi phí thuế thu nhập doanh nghiệp hoãn lại:**\n        *   Năm 2026: (12.345.678.900) đồng\n        *   Năm 2025: 8.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 281,
+            "source_label": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+            "raw_text": "*   **Chi phí thuế thu nhập doanh nghiệp hoãn lại:**\n        *   Năm 2026: (12.345.678.900) đồng\n        *   Năm 2025: 8.765.432.100 đồng",
+            "pattern": "SP_INCOME_PERIOD_CHILDREN",
+            "current": -12345678900,
+            "previous": 8765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": null,
+            "parent_label": null,
+            "hierarchy_path": "Chi tiết doanh thu và chi phí",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+        "source_semantic_link": {
+          "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.18c60f441df0df",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    }
+  ],
+  "conflicts": [],
+  "mapping_summary": {
+    "rows_total": 18,
+    "mapped": 18,
+    "ambiguous": 0,
+    "unmapped": 0,
+    "valued_nodes": 18,
+    "current_nodes": 18,
+    "previous_nodes": 17,
+    "both_period_nodes": 17
+  },
+  "diagnostics": {
+    "core_anchor_hits": [
+      "INCOME.ENTERPRISE.GROSS_PROFIT",
+      "INCOME.ENTERPRISE.PROFIT_AFTER_TAX",
+      "INCOME.ENTERPRISE.PROFIT_BEFORE_TAX",
+      "INCOME.ENTERPRISE.REVENUE_NET"
+    ],
+    "core_anchor_total": 4,
+    "core_anchor_ratio": 1.0,
+    "unmapped_rows": [],
+    "ambiguous_rows": [],
+    "formula_checks": [
+      {
+        "name": "revenue_net",
+        "period": "current",
+        "status": "pass",
+        "reported": 18641975320700,
+        "expected": 18641975320700,
+        "difference": 0
+      },
+      {
+        "name": "gross_profit",
+        "period": "current",
+        "status": "pass",
+        "reported": 2209865444200,
+        "expected": 2209865444200,
+        "difference": 0
+      },
+      {
+        "name": "other_profit",
+        "period": "current",
+        "status": "pass",
+        "reported": 111111100900,
+        "expected": 111111100900,
+        "difference": 0
+      },
+      {
+        "name": "profit_after_tax",
+        "period": "current",
+        "status": "pass",
+        "reported": 1154298532800,
+        "expected": 1154298532800,
+        "difference": 0
+      },
+      {
+        "name": "revenue_net",
+        "period": "previous",
+        "status": "pass",
+        "reported": 16444445555500,
+        "expected": 16444445555500,
+        "difference": 0
+      },
+      {
+        "name": "gross_profit",
+        "period": "previous",
+        "status": "pass",
+        "reported": 1666667790100,
+        "expected": 1666667790100,
+        "difference": 0
+      },
+      {
+        "name": "other_profit",
+        "period": "previous",
+        "status": "pass",
+        "reported": 55555444500,
+        "expected": 55555444500,
+        "difference": 0
+      },
+      {
+        "name": "profit_after_tax",
+        "period": "previous",
+        "status": "skipped_missing_operand"
+      }
+    ],
+    "formula_summary": {
+      "evaluated": 7,
+      "passed": 7,
+      "failed": 0,
+      "pass_rate": 1.0
+    },
+    "sign_normalizations": [
+      {
+        "node_id": "INCOME.ENTERPRISE.GENERAL_ADMIN_EXPENSE",
+        "period": "current",
+        "source_value": -789012345600,
+        "formula_value": 789012345600,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.GENERAL_ADMIN_EXPENSE",
+        "period": "previous",
+        "source_value": -678901234500,
+        "formula_value": 678901234500,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.OTHER_EXPENSE",
+        "period": "current",
+        "source_value": -123456789800,
+        "formula_value": 123456789800,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.OTHER_EXPENSE",
+        "period": "previous",
+        "source_value": -90123456700,
+        "formula_value": 90123456700,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "period": "current",
+        "source_value": -321234567800,
+        "formula_value": 321234567800,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.INTEREST_EXPENSE",
+        "period": "previous",
+        "source_value": -287654321000,
+        "formula_value": 287654321000,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.FINANCIAL_EXPENSE",
+        "period": "current",
+        "source_value": -456789012300,
+        "formula_value": 456789012300,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.FINANCIAL_EXPENSE",
+        "period": "previous",
+        "source_value": -398765432100,
+        "formula_value": 398765432100,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.REVENUE_DEDUCTIONS",
+        "period": "current",
+        "source_value": -123456789100,
+        "formula_value": 123456789100,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.REVENUE_DEDUCTIONS",
+        "period": "previous",
+        "source_value": -98765432100,
+        "formula_value": 98765432100,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "period": "current",
+        "source_value": -278901234500,
+        "formula_value": 278901234500,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      },
+      {
+        "node_id": "INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+        "period": "previous",
+        "source_value": -201234567800,
+        "formula_value": 201234567800,
+        "reason": "enterprise_formula_magnitude_normalization",
+        "canonical_mutated": false
+      }
+    ],
+    "source_observation_layer": {
+      "enabled": true,
+      "statement": "INCOME",
+      "added_nodes": 4,
+      "policy": "schema_additive_preserve_structural_rows"
+    },
+    "source_statement_recovery": {
+      "statement": "INCOME",
+      "rows_recovered": 21,
+      "added_nodes": 7,
+      "filled_existing_nodes": 1,
+      "conflicts": 0,
+      "representation_equivalent_matches": 13,
+      "sign_equivalent_matches": 0,
+      "structural_ambiguities": 0,
+      "period_scope_ambiguities": 0,
+      "same_label_recovery": true,
+      "policy": "source_scope_structural_identity_repair_v22_4_1"
+    },
+    "source_observation_reconciliation": {
+      "statement": "INCOME",
+      "policy": "structural_identity_non_destructive_v16",
+      "input_source_nodes": 11,
+      "output_source_nodes": 11,
+      "duplicate_groups": 4,
+      "removed_duplicate_nodes": 0,
+      "conflicting_groups": 0,
+      "preferred_completed_nodes": 0,
+      "semantic_nodes_filled": 0,
+      "preserves_all_source_observations": true,
+      "source_mapping": {
+        "policy": "source_evidence_link_v1",
+        "source_nodes": 11,
+        "linked_source_nodes": 8,
+        "source_only_nodes": 3,
+        "ambiguous_source_nodes": 0
+      }
+    },
+    "source_observation_mapping": {
+      "policy": "source_evidence_link_v1",
+      "source_nodes": 11,
+      "linked_source_nodes": 8,
+      "source_only_nodes": 3,
+      "ambiguous_source_nodes": 0
+    }
+  },
+  "reconciled_source_view": [
+    {
+      "group_id": "SRCGRP.bde5604214aa2a",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "tong doanh thu va chi phi",
+      "identity_context": null,
+      "display_label": "Tổng doanh thu và chi phí",
+      "preferred_node_id": "SOURCE.INCOME.cdbe12564ec206",
+      "member_node_ids": [
+        "SOURCE.INCOME.cdbe12564ec206"
+      ],
+      "member_count": 1,
+      "current": 18641975320700,
+      "previous": 16444445555500,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "18641975320700": 1
+      },
+      "previous_votes": {
+        "16444445555500": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.85747d6157baec",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "doanh thu thuan ban hang va cung cap dich vu",
+      "identity_context": null,
+      "display_label": "Doanh thu thuần bán hàng và cung cấp dịch vụ",
+      "preferred_node_id": "SOURCE.INCOME.6058092c2512c0",
+      "member_node_ids": [
+        "SOURCE.INCOME.6058092c2512c0",
+        "SOURCE.INCOME.6058092c2512c0"
+      ],
+      "member_count": 2,
+      "current": 18641975320700,
+      "previous": 16444445555500,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "18641975320700": 2
+      },
+      "previous_votes": {
+        "16444445555500": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.20449fc6f1fa5f",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "nam 2026",
+      "identity_context": null,
+      "display_label": "Năm 2026",
+      "preferred_node_id": "SOURCE.INCOME.09d2c8bb35d49c",
+      "member_node_ids": [
+        "SOURCE.INCOME.09d2c8bb35d49c"
+      ],
+      "member_count": 1,
+      "current": 18641975320700,
+      "previous": 16444445555500,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "18641975320700": 1
+      },
+      "previous_votes": {
+        "16444445555500": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.6709fbfa6c3b89",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "chi tiet doanh thu va chi phi",
+      "identity_context": null,
+      "display_label": "Chi tiết doanh thu và chi phí",
+      "preferred_node_id": "SOURCE.INCOME.10d680ff5f82de",
+      "member_node_ids": [
+        "SOURCE.INCOME.10d680ff5f82de"
+      ],
+      "member_count": 1,
+      "current": 18765432109800,
+      "previous": 16543210987600,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "18765432109800": 1
+      },
+      "previous_votes": {
+        "16543210987600": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.01a00a6e5f4499",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "trong do chi phi lai vay",
+      "identity_context": null,
+      "display_label": "Trong đó, chi phí lãi vay",
+      "preferred_node_id": "SOURCE.INCOME.ad01ff03e2397d",
+      "member_node_ids": [
+        "SOURCE.INCOME.ad01ff03e2397d",
+        "SOURCE.INCOME.ad01ff03e2397d"
+      ],
+      "member_count": 2,
+      "current": -321234567800,
+      "previous": -287654321000,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-321234567800": 2
+      },
+      "previous_votes": {
+        "-287654321000": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.6a2720216a06cd",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "chi phi thue thu nhap doanh nghiep hien hanh",
+      "identity_context": null,
+      "display_label": "Chi phí thuế thu nhập doanh nghiệp hiện hành",
+      "preferred_node_id": "SOURCE.INCOME.5a386173ccbe84",
+      "member_node_ids": [
+        "SOURCE.INCOME.5a386173ccbe84",
+        "SOURCE.INCOME.5a386173ccbe84"
+      ],
+      "member_count": 2,
+      "current": -278901234500,
+      "previous": -201234567800,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-278901234500": 2
+      },
+      "previous_votes": {
+        "-201234567800": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.18c60f441df0df",
+      "statement": "INCOME",
+      "section": null,
+      "normalized_label": "chi phi thue thu nhap doanh nghiep hoan lai",
+      "identity_context": null,
+      "display_label": "Chi phí thuế thu nhập doanh nghiệp hoãn lại",
+      "preferred_node_id": "SOURCE.INCOME.7cd866442bd962",
+      "member_node_ids": [
+        "SOURCE.INCOME.7cd866442bd962",
+        "SOURCE.INCOME.7cd866442bd962"
+      ],
+      "member_count": 2,
+      "current": -12345678900,
+      "previous": 8765432100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-12345678900": 2
+      },
+      "previous_votes": {
+        "8765432100": 2
+      },
+      "conflict": false
+    }
+  ],
+  "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+  "provenance": {
+    "source_name": "synthetic_high_coverage_statement.md",
+    "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+    "current_year": 2026,
+    "previous_year": 2025,
+    "year_resolution": {
+      "current_year": 2026,
+      "previous_year": 2025,
+      "method": "statement_end_date",
+      "explicit_current_year": false,
+      "explicit_previous_year": false,
+      "filename_years": [],
+      "candidate_scores": {
+        "2025": 76,
+        "2026": 746,
+        "2027": 2
+      },
+      "period_type": "annual",
+      "current_end_date": "2026-12-31",
+      "previous_end_date": "2025-12-31",
+      "current_start_date": "2026-01-01",
+      "previous_start_date": "2025-01-01",
+      "calendar_end_year": 2026,
+      "fiscal_year_label": 2026,
+      "fiscal_year_label_source": "statement_end_year",
+      "confidence": "high",
+      "conflict": false,
+      "conflict_reasons": [],
+      "date_evidence": [
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 20,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 381,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 717,
+          "text": "- **Kỳ hiện tại:** năm tài chính mô phỏng kết thúc ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 47,
+          "text": "Tại ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 392,
+          "text": "Vốn góp mô phỏng tại ngày 31 tháng 12 năm 2026 là 3.456.789.012.300 đồng.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 446,
+          "text": "- Giá trị ghi sổ mô phỏng: 689.321.456.700 đồng tại ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 447,
+          "text": "- Giá trị so sánh mô phỏng: 543.210.987.600 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "opening",
+          "weight": 30.0,
+          "line": 210,
+          "text": "*   421a. Lợi nhuận lũy kế đến đầu kỳ: 128.765.432.100 đồng (31/12/2026), 95.432.109.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 52,
+          "text": "*   **31/12/2026** (VND)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 188,
+          "text": "*   311. 1. Phải trả người bán ngắn hạn: 345.678.901.200 đồng (31/12/2026), 298.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 189,
+          "text": "*   312. 2. Người mua trả tiền trước ngắn hạn: 456.789.012.300 đồng (31/12/2026), 321.234.567.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 190,
+          "text": "*   313. 3. Thuế và các khoản phải nộp Nhà nước: 123.456.789.400 đồng (31/12/2026), 98.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 191,
+          "text": "*   314. 4. Phải trả người lao động: 234.567.890.500 đồng (31/12/2026), 210.123.456.700 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 192,
+          "text": "*   315. 5. Chi phí phải trả ngắn hạn: 345.678.901.600 đồng (31/12/2026), 300.987.654.300 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 193,
+          "text": "*   318. 6. Doanh thu chưa thực hiện ngắn hạn: 123.456.789.700 đồng (31/12/2026), 100.222.333.400 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 194,
+          "text": "*   319. 7. Phải trả ngắn hạn khác: 234.567.890.800 đồng (31/12/2026), 190.111.222.500 đồng (01/01/2026)",
+          "administrative": false
+        }
+      ]
+    }
+  }
+}

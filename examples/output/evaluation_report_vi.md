@@ -7,7 +7,7 @@
 - **Cấu hình:** tự nhận diện sector, schema `schema_v1_7`, notes bật, chỉ đọc dữ liệu Markdown nguồn.
 - **Manifest:** [manifest.json](./manifest.json)
 - **Report JSON:** [synthetic_high_coverage_statement__b2b4b67ea02e0ba9.json](./reports/synthetic_high_coverage_statement__b2b4b67ea02e0ba9.json)
-- **Thời điểm chạy:** `2026-09-21T13:41:42.142896+07:00`
+- **Thời điểm chạy:** `2026-09-21T16:59:29.541706+07:00`
 - **Report ID:** `r_b2b4b67ea02e0ba9`
 - **SHA-256 đầu vào:** `b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb`
 

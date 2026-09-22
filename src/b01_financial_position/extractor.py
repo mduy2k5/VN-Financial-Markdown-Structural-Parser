@@ -85,6 +85,14 @@ def summarize_canonical(
     source_mapping = diagnostics.get("source_observation_mapping") or {}
     recovery_conflicts = int(recovery.get("conflicts") or 0)
     ambiguous_source_nodes = int(source_mapping.get("ambiguous_source_nodes") or 0)
+    source_nodes = int(source_mapping.get("source_nodes") or 0)
+    linked_source_nodes = int(source_mapping.get("linked_source_nodes") or 0)
+    source_only_nodes = int(source_mapping.get("source_only_nodes") or 0)
+    source_mapping_rate = (
+        round(linked_source_nodes / source_nodes, 6)
+        if source_nodes
+        else None
+    )
     if not valued_n:
         status = "no_financial_position_values"
     elif semantic_conflicts:
@@ -102,6 +110,14 @@ def summarize_canonical(
             "previous_value_nodes": len(previous),
             "current_coverage": round(len(current) / valued_n, 6) if valued_n else 0.0,
             "previous_coverage": round(len(previous) / valued_n, 6) if valued_n else 0.0,
+            # B01 không thu thập row mapping theo cùng pipeline B02/B03.
+            # Metric này đo riêng tỷ lệ evidence nguồn đã nối được vào schema,
+            # không đưa vào quality gate mapping_rate chung để tránh thay đổi
+            # eligibility production ngoài phạm vi yêu cầu.
+            "source_mapping_input_rows": source_nodes,
+            "source_mapping_mapped_rows": linked_source_nodes,
+            "source_mapping_unmapped_rows": source_only_nodes,
+            "source_mapping_rate": source_mapping_rate,
         },
         "parser": {
             "statement_profile": "financial_position",

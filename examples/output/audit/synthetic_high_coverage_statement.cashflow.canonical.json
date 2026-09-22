@@ -1,0 +1,3555 @@
+{
+  "schema_id": "UNIVERSAL_CASH_FLOW_V1",
+  "schema_version": "1.2.0",
+  "statement_type": "CASH_FLOW_STATEMENT",
+  "sector": "enterprise",
+  "method": "indirect",
+  "unit": "vnd",
+  "source_name": "synthetic_high_coverage_statement.md",
+  "periods": {
+    "current": 2026,
+    "previous": 2025
+  },
+  "status": "ok",
+  "validation_status": "ok",
+  "nodes": [
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROFIT_BEFORE_TAX",
+      "canonical_name": "Lợi nhuận trước thuế",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "01",
+      "value": {
+        "current": 1420854088400,
+        "previous": 932210889000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **1. Lợi nhuận trước thuế:**\n*   Năm 2026: 1.420.854.088.400 đồng\n*   Năm 2025: 932.210.889.000 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 299,
+            "source_label": "Lợi nhuận trước thuế",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 1420854088400,
+            "previous": 932210889000,
+            "code": "1",
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **1. Lợi nhuận trước thuế:**\n*   Năm 2026: 1.420.854.088.400 đồng\n*   Năm 2025: 932.210.889.000 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROFIT_BEFORE_TAX",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+      "canonical_name": "Khấu hao TSCĐ và BĐSĐT",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "02",
+      "value": {
+        "current": 321098765400,
+        "previous": 298765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Khấu hao tài sản cố định và bất động sản đầu tư:**\n*   Năm 2026: 321.098.765.400 đồng\n*   Năm 2025: 298.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 304,
+            "source_label": "Khấu hao tài sản cố định và bất động sản đầu tư",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 321098765400,
+            "previous": 298765432100,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "raw_text": "*   **Khấu hao tài sản cố định và bất động sản đầu tư:**\n*   Năm 2026: 321.098.765.400 đồng\n*   Năm 2025: 298.765.432.100 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+      "canonical_name": "Các khoản dự phòng",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "03",
+      "value": {
+        "current": 45678901200,
+        "previous": 38901234500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng/giảm các khoản dự phòng:**\n*   Năm 2026: 45.678.901.200 đồng\n*   Năm 2025: 38.901.234.500 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 307,
+            "source_label": "Tăng/giảm các khoản dự phòng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 45678901200,
+            "previous": 38901234500,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "raw_text": "*   **Tăng/giảm các khoản dự phòng:**\n*   Năm 2026: 45.678.901.200 đồng\n*   Năm 2025: 38.901.234.500 đồng"
+          },
+          {
+            "source_line": 314,
+            "source_label": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "form_code_disambiguation",
+            "mapping_confidence": 0.97,
+            "current": 1775286076100,
+            "previous": 1261112123500,
+            "code": "3",
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **3. Lợi nhuận từ hoạt động trước thay đổi vốn lưu động:**\n*   Năm 2026: 1.775.286.076.100 đồng\n*   Năm 2025: 1.261.112.123.500 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "method": "multiple_evidence_methods",
+        "confidence": 0.97
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+      "canonical_name": "Lãi, lỗ chênh lệch tỷ giá hối đoái do đánh giá lại các khoản mục tiền tệ có gốc ngoại tệ",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "04",
+      "value": {
+        "current": -12345678900,
+        "previous": -8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lãi chênh lệch tỷ giá chưa thực hiện:**\n*   Năm 2026: (12.345.678.900) đồng\n*   Năm 2025: (8.765.432.100) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 310,
+            "source_label": "Lãi chênh lệch tỷ giá chưa thực hiện",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "semantic_tokens",
+            "mapping_confidence": 0.96,
+            "current": -12345678900,
+            "previous": -8765432100,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "raw_text": "*   **Lãi chênh lệch tỷ giá chưa thực hiện:**\n*   Năm 2026: (12.345.678.900) đồng\n*   Năm 2025: (8.765.432.100) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+        "method": "semantic_tokens",
+        "confidence": 0.96
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.INVESTING_GAIN_LOSS",
+      "canonical_name": "Lãi, lỗ từ hoạt động đầu tư",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "05",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.INTEREST_EXPENSE",
+      "canonical_name": "Chi phí lãi vay",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "06",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.OTHER_ADJUSTMENTS",
+      "canonical_name": "Các khoản điều chỉnh khác",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "07",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.OPERATING_BEFORE_WORKING_CAPITAL",
+      "canonical_name": "Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn lưu động",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "08",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+      "canonical_name": "Tăng, giảm các khoản phải thu",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "09",
+      "value": {
+        "current": -255443333400,
+        "previous": -177654222100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng các khoản phải thu:**\n*   Năm 2026: (255.443.333.400) đồng\n*   Năm 2025: (177.654.222.100) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 319,
+            "source_label": "Tăng các khoản phải thu",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -255443333400,
+            "previous": -177654222100,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "raw_text": "*   **Tăng các khoản phải thu:**\n*   Năm 2026: (255.443.333.400) đồng\n*   Năm 2025: (177.654.222.100) đồng"
+          },
+          {
+            "source_line": 325,
+            "source_label": "Tăng các khoản phải trả",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "fuzzy_label",
+            "mapping_confidence": 0.913,
+            "current": 498765432100,
+            "previous": 321234567800,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "raw_text": "*   **Tăng các khoản phải trả:**\n*   Năm 2026: 498.765.432.100 đồng\n*   Năm 2025: 321.234.567.800 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "method": "multiple_evidence_methods",
+        "confidence": 0.913
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+      "canonical_name": "Tăng, giảm hàng tồn kho",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "10",
+      "value": {
+        "current": -133691357800,
+        "previous": 42345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng hàng tồn kho:**\n*   Năm 2026: (133.691.357.800) đồng\n*   Năm 2025: 42.345.678.900 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 322,
+            "source_label": "Tăng hàng tồn kho",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -133691357800,
+            "previous": 42345678900,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "raw_text": "*   **Tăng hàng tồn kho:**\n*   Năm 2026: (133.691.357.800) đồng\n*   Năm 2025: 42.345.678.900 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_PAYABLES",
+      "canonical_name": "Tăng, giảm các khoản phải trả",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "11",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_PREPAID_EXPENSES",
+      "canonical_name": "Tăng, giảm chi phí trả trước",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "12",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_TRADING_SECURITIES",
+      "canonical_name": "Tăng, giảm chứng khoán kinh doanh",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "13",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.INTEREST_PAID",
+      "canonical_name": "Tiền lãi vay đã trả",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "14",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.INCOME_TAX_PAID",
+      "canonical_name": "Thuế thu nhập doanh nghiệp đã nộp",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "15",
+      "value": {
+        "current": -234567890100,
+        "previous": -165432109800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Thuế thu nhập doanh nghiệp đã nộp:**\n*   Năm 2026: (234.567.890.100) đồng\n*   Năm 2025: (165.432.109.800) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 328,
+            "source_label": "Thuế thu nhập doanh nghiệp đã nộp",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -234567890100,
+            "previous": -165432109800,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "raw_text": "*   **Thuế thu nhập doanh nghiệp đã nộp:**\n*   Năm 2026: (234.567.890.100) đồng\n*   Năm 2025: (165.432.109.800) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.INCOME_TAX_PAID",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.OTHER_OPERATING_RECEIPTS",
+      "canonical_name": "Tiền thu khác từ hoạt động kinh doanh",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "16",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.OTHER_OPERATING_PAYMENTS",
+      "canonical_name": "Tiền chi khác cho hoạt động kinh doanh",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "17",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.OPERATING.NET_CASH",
+      "canonical_name": "Lưu chuyển tiền thuần từ hoạt động kinh doanh",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "operating",
+      "form_code": "20",
+      "value": {
+        "current": 1650349926900,
+        "previous": 1281606038300,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động kinh doanh:**\n*   Năm 2026: 1.650.349.926.900 đồng\n*   Năm 2025: 1.281.606.038.300 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 332,
+            "source_label": "Lưu chuyển tiền thuần từ hoạt động kinh doanh",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 1650349926900,
+            "previous": 1281606038300,
+            "code": null,
+            "note": null,
+            "section": "operating",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động kinh doanh:**\n*   Năm 2026: 1.650.349.926.900 đồng\n*   Năm 2025: 1.281.606.038.300 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.OPERATING.NET_CASH",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+      "canonical_name": "Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "21",
+      "value": {
+        "current": -456789012300,
+        "previous": -312345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền chi mua sắm tài sản cố định:**\n*   Năm 2026: (456.789.012.300) đồng\n*   Năm 2025: (312.345.678.900) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 338,
+            "source_label": "Tiền chi mua sắm tài sản cố định",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "fuzzy_label",
+            "mapping_confidence": 0.9552,
+            "current": -456789012300,
+            "previous": -312345678900,
+            "code": null,
+            "note": null,
+            "section": "investing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền chi mua sắm tài sản cố định:**\n*   Năm 2026: (456.789.012.300) đồng\n*   Năm 2025: (312.345.678.900) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+        "method": "fuzzy_label",
+        "confidence": 0.9552
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+      "canonical_name": "Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "22",
+      "value": {
+        "current": 123456789000,
+        "previous": 98765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền thu từ thanh lý tài sản dài hạn:**\n*   Năm 2026: 123.456.789.000 đồng\n*   Năm 2025: 98.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 341,
+            "source_label": "Tiền thu từ thanh lý tài sản dài hạn",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "semantic_tokens",
+            "mapping_confidence": 0.96,
+            "current": 123456789000,
+            "previous": 98765432100,
+            "code": null,
+            "note": null,
+            "section": "investing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền thu từ thanh lý tài sản dài hạn:**\n*   Năm 2026: 123.456.789.000 đồng\n*   Năm 2025: 98.765.432.100 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+        "method": "semantic_tokens",
+        "confidence": 0.96
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.LOANS_ADVANCED",
+      "canonical_name": "Tiền chi cho vay, mua các công cụ nợ của đơn vị khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "23",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.LOANS_COLLECTED",
+      "canonical_name": "Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "24",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.EQUITY_INVESTMENTS",
+      "canonical_name": "Tiền chi đầu tư góp vốn vào đơn vị khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "25",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.EQUITY_DIVESTMENTS",
+      "canonical_name": "Tiền thu hồi đầu tư góp vốn vào đơn vị khác",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "26",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.INTEREST_DIVIDENDS_RECEIVED",
+      "canonical_name": "Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "27",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INVESTING.NET_CASH",
+      "canonical_name": "Lưu chuyển tiền thuần từ hoạt động đầu tư",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "investing",
+      "form_code": "30",
+      "value": {
+        "current": -333332223300,
+        "previous": -213580246800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động đầu tư:**\n*   Năm 2026: (333.332.223.300) đồng\n*   Năm 2025: (213.580.246.800) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 344,
+            "source_label": "Lưu chuyển tiền thuần từ hoạt động đầu tư",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -333332223300,
+            "previous": -213580246800,
+            "code": null,
+            "note": null,
+            "section": "investing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động đầu tư:**\n*   Năm 2026: (333.332.223.300) đồng\n*   Năm 2025: (213.580.246.800) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.NET_CASH",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.EQUITY_ISSUANCE",
+      "canonical_name": "Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "31",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.CAPITAL_REPAYMENT",
+      "canonical_name": "Tiền trả lại vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "32",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+      "canonical_name": "Tiền thu từ đi vay",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "33",
+      "value": {
+        "current": 654321098700,
+        "previous": 543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền thu từ các khoản vay:**\n*   Năm 2026: 654.321.098.700 đồng\n*   Năm 2025: 543.210.987.600 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 350,
+            "source_label": "Tiền thu từ các khoản vay",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "fuzzy_label",
+            "mapping_confidence": 0.9434,
+            "current": 654321098700,
+            "previous": 543210987600,
+            "code": null,
+            "note": null,
+            "section": "financing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền thu từ các khoản vay:**\n*   Năm 2026: 654.321.098.700 đồng\n*   Năm 2025: 543.210.987.600 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+        "method": "fuzzy_label",
+        "confidence": 0.9434
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_REPAID",
+      "canonical_name": "Tiền trả nợ gốc vay",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "34",
+      "value": {
+        "current": -432109876500,
+        "previous": -398765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền trả nợ gốc vay:**\n*   Năm 2026: (432.109.876.500) đồng\n*   Năm 2025: (398.765.432.100) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 353,
+            "source_label": "Tiền trả nợ gốc vay",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -432109876500,
+            "previous": -398765432100,
+            "code": null,
+            "note": null,
+            "section": "financing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền trả nợ gốc vay:**\n*   Năm 2026: (432.109.876.500) đồng\n*   Năm 2025: (398.765.432.100) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_REPAID",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.FINANCE_LEASE_REPAID",
+      "canonical_name": "Tiền trả nợ gốc thuê tài chính",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "35",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+      "canonical_name": "Cổ tức, lợi nhuận đã trả cho chủ sở hữu",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "36",
+      "value": {
+        "current": -156789012300,
+        "previous": -123456789000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Cổ tức đã trả:**\n*   Năm 2026: (156.789.012.300) đồng\n*   Năm 2025: (123.456.789.000) đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 356,
+            "source_label": "Cổ tức đã trả",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": -156789012300,
+            "previous": -123456789000,
+            "code": null,
+            "note": null,
+            "section": "financing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Cổ tức đã trả:**\n*   Năm 2026: (156.789.012.300) đồng\n*   Năm 2025: (123.456.789.000) đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FINANCING.NET_CASH",
+      "canonical_name": "Lưu chuyển tiền thuần từ hoạt động tài chính",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "financing",
+      "form_code": "40",
+      "value": {
+        "current": 65422209900,
+        "previous": 20988766500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động tài chính:**\n*   Năm 2026: 65.422.209.900 đồng\n*   Năm 2025: 20.988.766.500 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 359,
+            "source_label": "Lưu chuyển tiền thuần từ hoạt động tài chính",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 65422209900,
+            "previous": 20988766500,
+            "code": null,
+            "note": null,
+            "section": "financing",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Lưu chuyển tiền thuần từ hoạt động tài chính:**\n*   Năm 2026: 65.422.209.900 đồng\n*   Năm 2025: 20.988.766.500 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.NET_CASH",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.NET_CHANGE_IN_CASH",
+      "canonical_name": "Lưu chuyển tiền thuần trong kỳ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "50",
+      "value": {
+        "current": 1382439913500,
+        "previous": 1089014558000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lưu chuyển tiền thuần trong kỳ:**\n*   Năm 2026: 1.382.439.913.500 đồng\n*   Năm 2025: 1.089.014.558.000 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 363,
+            "source_label": "Lưu chuyển tiền thuần trong kỳ",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 1382439913500,
+            "previous": 1089014558000,
+            "code": null,
+            "note": null,
+            "section": "reconciliation",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Lưu chuyển tiền thuần trong kỳ:**\n*   Năm 2026: 1.382.439.913.500 đồng\n*   Năm 2025: 1.089.014.558.000 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.NET_CHANGE_IN_CASH",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.CASH_BEGINNING",
+      "canonical_name": "Tiền và tương đương tiền đầu kỳ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "60",
+      "value": {
+        "current": 987654321230,
+        "previous": 765432109800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền và tương đương tiền đầu kỳ:**\n*   Năm 2026: 987.654.321.230 đồng\n*   Năm 2025: 765.432.109.800 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 366,
+            "source_label": "Tiền và tương đương tiền đầu kỳ",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 987654321230,
+            "previous": 765432109800,
+            "code": null,
+            "note": null,
+            "section": "reconciliation",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền và tương đương tiền đầu kỳ:**\n*   Năm 2026: 987.654.321.230 đồng\n*   Năm 2025: 765.432.109.800 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.CASH_BEGINNING",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.FX_EFFECT",
+      "canonical_name": "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "61",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.TRANSLATION_DIFFERENCE",
+      "canonical_name": "Chênh lệch quy đổi tiền tệ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "62",
+      "value": {
+        "current": null,
+        "previous": null,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": null
+      },
+      "extraction_meta": {
+        "occurrences": []
+      }
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.CASH_ENDING",
+      "canonical_name": "Tiền và tương đương tiền cuối kỳ",
+      "sector": "enterprise",
+      "method": "any",
+      "section": "reconciliation",
+      "form_code": "70",
+      "value": {
+        "current": 2370094234730,
+        "previous": 1854446667800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền và tương đương tiền cuối kỳ:**\n*   Năm 2026: 2.370.094.234.730 đồng\n*   Năm 2025: 1.854.446.667.800 đồng"
+      },
+      "extraction_meta": {
+        "occurrences": [
+          {
+            "source_line": 369,
+            "source_label": "Tiền và tương đương tiền cuối kỳ",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "mapping_method": "exact_label",
+            "mapping_confidence": 1.0,
+            "current": 2370094234730,
+            "previous": 1854446667800,
+            "code": null,
+            "note": null,
+            "section": "reconciliation",
+            "method": "indirect",
+            "unit": "vnd",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "raw_text": "*   **Tiền và tương đương tiền cuối kỳ:**\n*   Năm 2026: 2.370.094.234.730 đồng\n*   Năm 2025: 1.854.446.667.800 đồng"
+          }
+        ]
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.CASH_ENDING",
+        "method": "exact_label",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.16f371a92071f1",
+      "canonical_name": "Năm 2026",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 1420854088400,
+        "previous": 932210889000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Năm 2026"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 300,
+            "source_label": "Năm 2026",
+            "pattern": "CASHFLOW_RAW_CURRENT_PREVIOUS_CHILD",
+            "current": 1420854088400,
+            "previous": 932210889000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.7c283d699695d6",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.e6e59ad269a0a9",
+      "canonical_name": "Điều chỉnh cho các khoản",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 321098765400,
+        "previous": 298765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Điều chỉnh cho các khoản"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 303,
+            "source_label": "Điều chỉnh cho các khoản",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 321098765400,
+            "previous": 298765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.e05cfc8f6cfa41",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.5577fb8cc2a02b",
+      "canonical_name": "Khấu hao tài sản cố định và bất động sản đầu tư",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "2. Điều chỉnh cho các khoản",
+      "hierarchy_path": "2. Điều chỉnh cho các khoản",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 321098765400,
+        "previous": 298765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Khấu hao tài sản cố định và bất động sản đầu tư"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 304,
+            "source_label": "Khấu hao tài sản cố định và bất động sản đầu tư",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 321098765400,
+            "previous": 298765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.1d18b3939b8852",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.5577fb8cc2a02b",
+      "canonical_name": "Khấu hao tài sản cố định và bất động sản đầu tư",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 321098765400,
+        "previous": 298765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Khấu hao tài sản cố định và bất động sản đầu tư:**\n*   Năm 2026: 321.098.765.400 đồng\n*   Năm 2025: 298.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 304,
+            "source_label": "Khấu hao tài sản cố định và bất động sản đầu tư",
+            "raw_text": "*   **Khấu hao tài sản cố định và bất động sản đầu tư:**\n*   Năm 2026: 321.098.765.400 đồng\n*   Năm 2025: 298.765.432.100 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 321098765400,
+            "previous": 298765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.1d18b3939b8852",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.DEPRECIATION",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.d58e52734cfc35",
+      "canonical_name": "Tăng/giảm các khoản dự phòng",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "2. Điều chỉnh cho các khoản",
+      "hierarchy_path": "2. Điều chỉnh cho các khoản",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 45678901200,
+        "previous": 38901234500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tăng/giảm các khoản dự phòng"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 307,
+            "source_label": "Tăng/giảm các khoản dự phòng",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 45678901200,
+            "previous": 38901234500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.503281118513b0",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.d58e52734cfc35",
+      "canonical_name": "Tăng/giảm các khoản dự phòng",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 45678901200,
+        "previous": 38901234500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng/giảm các khoản dự phòng:**\n*   Năm 2026: 45.678.901.200 đồng\n*   Năm 2025: 38.901.234.500 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 307,
+            "source_label": "Tăng/giảm các khoản dự phòng",
+            "raw_text": "*   **Tăng/giảm các khoản dự phòng:**\n*   Năm 2026: 45.678.901.200 đồng\n*   Năm 2025: 38.901.234.500 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 45678901200,
+            "previous": 38901234500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.503281118513b0",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.bda3b993f60666",
+      "canonical_name": "Lãi chênh lệch tỷ giá chưa thực hiện",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "2. Điều chỉnh cho các khoản",
+      "hierarchy_path": "2. Điều chỉnh cho các khoản",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -12345678900,
+        "previous": -8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Lãi chênh lệch tỷ giá chưa thực hiện"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 310,
+            "source_label": "Lãi chênh lệch tỷ giá chưa thực hiện",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -12345678900,
+            "previous": -8765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.0ae5309f17ede7",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.bda3b993f60666",
+      "canonical_name": "Lãi chênh lệch tỷ giá chưa thực hiện",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -12345678900,
+        "previous": -8765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Lãi chênh lệch tỷ giá chưa thực hiện:**\n*   Năm 2026: (12.345.678.900) đồng\n*   Năm 2025: (8.765.432.100) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 310,
+            "source_label": "Lãi chênh lệch tỷ giá chưa thực hiện",
+            "raw_text": "*   **Lãi chênh lệch tỷ giá chưa thực hiện:**\n*   Năm 2026: (12.345.678.900) đồng\n*   Năm 2025: (8.765.432.100) đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": -12345678900,
+            "previous": -8765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "2. Điều chỉnh cho các khoản",
+            "hierarchy_path": "2. Điều chỉnh cho các khoản",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.0ae5309f17ede7",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.UNREALIZED_FX",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.1f4506001c03d3",
+      "canonical_name": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 1775286076100,
+        "previous": 1261112123500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 314,
+            "source_label": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 1775286076100,
+            "previous": 1261112123500,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.1e9eb95d337774",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.1f4506001c03d3",
+      "canonical_name": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": "3",
+      "statement_code": "3",
+      "note_ref": null,
+      "value": {
+        "current": 1775286076100,
+        "previous": 1261112123500,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **3. Lợi nhuận từ hoạt động trước thay đổi vốn lưu động:**\n*   Năm 2026: 1.775.286.076.100 đồng\n*   Năm 2025: 1.261.112.123.500 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 314,
+            "source_label": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+            "raw_text": "*   **3. Lợi nhuận từ hoạt động trước thay đổi vốn lưu động:**\n*   Năm 2026: 1.775.286.076.100 đồng\n*   Năm 2025: 1.261.112.123.500 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 1775286076100,
+            "previous": 1261112123500,
+            "code": "3",
+            "statement_code": "3",
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.1e9eb95d337774",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.4621acc02f941f",
+      "canonical_name": "Thay đổi các khoản mục hoạt động",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -255443333400,
+        "previous": -177654222100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Thay đổi các khoản mục hoạt động"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 318,
+            "source_label": "Thay đổi các khoản mục hoạt động",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -255443333400,
+            "previous": -177654222100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.23871655902345",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.a621a5010a6051",
+      "canonical_name": "Tăng các khoản phải thu",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "4. Thay đổi các khoản mục hoạt động",
+      "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -255443333400,
+        "previous": -177654222100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tăng các khoản phải thu"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 319,
+            "source_label": "Tăng các khoản phải thu",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -255443333400,
+            "previous": -177654222100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.47445875e6501e",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.a621a5010a6051",
+      "canonical_name": "Tăng các khoản phải thu",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -255443333400,
+        "previous": -177654222100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng các khoản phải thu:**\n*   Năm 2026: (255.443.333.400) đồng\n*   Năm 2025: (177.654.222.100) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 319,
+            "source_label": "Tăng các khoản phải thu",
+            "raw_text": "*   **Tăng các khoản phải thu:**\n*   Năm 2026: (255.443.333.400) đồng\n*   Năm 2025: (177.654.222.100) đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": -255443333400,
+            "previous": -177654222100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.47445875e6501e",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.d748dd817523c6",
+      "canonical_name": "Tăng hàng tồn kho",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "4. Thay đổi các khoản mục hoạt động",
+      "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -133691357800,
+        "previous": 42345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tăng hàng tồn kho"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 322,
+            "source_label": "Tăng hàng tồn kho",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -133691357800,
+            "previous": 42345678900,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.2e919879e635da",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.d748dd817523c6",
+      "canonical_name": "Tăng hàng tồn kho",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -133691357800,
+        "previous": 42345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng hàng tồn kho:**\n*   Năm 2026: (133.691.357.800) đồng\n*   Năm 2025: 42.345.678.900 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 322,
+            "source_label": "Tăng hàng tồn kho",
+            "raw_text": "*   **Tăng hàng tồn kho:**\n*   Năm 2026: (133.691.357.800) đồng\n*   Năm 2025: 42.345.678.900 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": -133691357800,
+            "previous": 42345678900,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.2e919879e635da",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_INVENTORIES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.b909973412ddb0",
+      "canonical_name": "Tăng các khoản phải trả",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "parent_label": "4. Thay đổi các khoản mục hoạt động",
+      "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 498765432100,
+        "previous": 321234567800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tăng các khoản phải trả"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 325,
+            "source_label": "Tăng các khoản phải trả",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 498765432100,
+            "previous": 321234567800,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.444ce75ab686ec",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.b909973412ddb0",
+      "canonical_name": "Tăng các khoản phải trả",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "operating",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 498765432100,
+        "previous": 321234567800,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tăng các khoản phải trả:**\n*   Năm 2026: 498.765.432.100 đồng\n*   Năm 2025: 321.234.567.800 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 325,
+            "source_label": "Tăng các khoản phải trả",
+            "raw_text": "*   **Tăng các khoản phải trả:**\n*   Năm 2026: 498.765.432.100 đồng\n*   Năm 2025: 321.234.567.800 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 498765432100,
+            "previous": 321234567800,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "operating",
+            "parent_label": "4. Thay đổi các khoản mục hoạt động",
+            "hierarchy_path": "4. Thay đổi các khoản mục hoạt động",
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.444ce75ab686ec",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.5e7061d7b27036",
+      "canonical_name": "Tiền chi mua sắm tài sản cố định",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "investing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -456789012300,
+        "previous": -312345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tiền chi mua sắm tài sản cố định"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 338,
+            "source_label": "Tiền chi mua sắm tài sản cố định",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -456789012300,
+            "previous": -312345678900,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.a72a909f88f5ce",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.5e7061d7b27036",
+      "canonical_name": "Tiền chi mua sắm tài sản cố định",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "investing",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -456789012300,
+        "previous": -312345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền chi mua sắm tài sản cố định:**\n*   Năm 2026: (456.789.012.300) đồng\n*   Năm 2025: (312.345.678.900) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 338,
+            "source_label": "Tiền chi mua sắm tài sản cố định",
+            "raw_text": "*   **Tiền chi mua sắm tài sản cố định:**\n*   Năm 2026: (456.789.012.300) đồng\n*   Năm 2025: (312.345.678.900) đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": -456789012300,
+            "previous": -312345678900,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "investing",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.a72a909f88f5ce",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PURCHASE_PPE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.8fae405d04a6b9",
+      "canonical_name": "Năm 2026",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "investing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -456789012300,
+        "previous": -312345678900,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Năm 2026"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 339,
+            "source_label": "Năm 2026",
+            "pattern": "CASHFLOW_RAW_CURRENT_PREVIOUS_CHILD",
+            "current": -456789012300,
+            "previous": -312345678900,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.c1d54f0c07ff86",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.c63f67dd1b253c",
+      "canonical_name": "Tiền thu từ thanh lý tài sản dài hạn",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "investing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 123456789000,
+        "previous": 98765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tiền thu từ thanh lý tài sản dài hạn"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 341,
+            "source_label": "Tiền thu từ thanh lý tài sản dài hạn",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 123456789000,
+            "previous": 98765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.cd7b4e641fe083",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.c63f67dd1b253c",
+      "canonical_name": "Tiền thu từ thanh lý tài sản dài hạn",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "investing",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 123456789000,
+        "previous": 98765432100,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền thu từ thanh lý tài sản dài hạn:**\n*   Năm 2026: 123.456.789.000 đồng\n*   Năm 2025: 98.765.432.100 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 341,
+            "source_label": "Tiền thu từ thanh lý tài sản dài hạn",
+            "raw_text": "*   **Tiền thu từ thanh lý tài sản dài hạn:**\n*   Năm 2026: 123.456.789.000 đồng\n*   Năm 2025: 98.765.432.100 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 123456789000,
+            "previous": 98765432100,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "investing",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.cd7b4e641fe083",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.INVESTING.PROCEEDS_PPE",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.ee5cdc2cc48c57",
+      "canonical_name": "Tiền thu từ các khoản vay",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "financing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 654321098700,
+        "previous": 543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Tiền thu từ các khoản vay"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 350,
+            "source_label": "Tiền thu từ các khoản vay",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": 654321098700,
+            "previous": 543210987600,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.bd3ae5e1e99500",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.ee5cdc2cc48c57",
+      "canonical_name": "Tiền thu từ các khoản vay",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "financing",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 654321098700,
+        "previous": 543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Tiền thu từ các khoản vay:**\n*   Năm 2026: 654.321.098.700 đồng\n*   Năm 2025: 543.210.987.600 đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 350,
+            "source_label": "Tiền thu từ các khoản vay",
+            "raw_text": "*   **Tiền thu từ các khoản vay:**\n*   Năm 2026: 654.321.098.700 đồng\n*   Năm 2025: 543.210.987.600 đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": 654321098700,
+            "previous": 543210987600,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "financing",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.bd3ae5e1e99500",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.BORROWINGS_RECEIVED",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.70c41557cedd8e",
+      "canonical_name": "Năm 2026",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "financing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 654321098700,
+        "previous": 543210987600,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Năm 2026"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 351,
+            "source_label": "Năm 2026",
+            "pattern": "CASHFLOW_RAW_CURRENT_PREVIOUS_CHILD",
+            "current": 654321098700,
+            "previous": 543210987600,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.8eb98b8de047f9",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.f8f014c48bff53",
+      "canonical_name": "Cổ tức đã trả",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "financing",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -156789012300,
+        "previous": -123456789000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Cổ tức đã trả"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 356,
+            "source_label": "Cổ tức đã trả",
+            "pattern": "CASHFLOW_RAW_CHILDREN",
+            "current": -156789012300,
+            "previous": -123456789000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.7222032d603c68",
+        "duplicate_group_size": 2,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.f8f014c48bff53",
+      "canonical_name": "Cổ tức đã trả",
+      "kind": "source_observation",
+      "semantic_role": "supplemental_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "financing",
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": -156789012300,
+        "previous": -123456789000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "*   **Cổ tức đã trả:**\n*   Năm 2026: (156.789.012.300) đồng\n*   Năm 2025: (123.456.789.000) đồng"
+      },
+      "extraction_meta": {
+        "source_preservation": true,
+        "mapping_status": "mapped",
+        "mapping_method": "source_evidence_link",
+        "occurrences": [
+          {
+            "source_line": 356,
+            "source_label": "Cổ tức đã trả",
+            "raw_text": "*   **Cổ tức đã trả:**\n*   Năm 2026: (156.789.012.300) đồng\n*   Năm 2025: (123.456.789.000) đồng",
+            "pattern": "CF_YEAR_VALUE_CHILDREN",
+            "current": -156789012300,
+            "previous": -123456789000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "section": "financing",
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_confidence": 1.0,
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+        "source_semantic_link": {
+          "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+          "relation": "source_evidence_for",
+          "method": "source_line_and_values",
+          "confidence": 1.0
+        },
+        "duplicate_group_id": "SRCGRP.7222032d603c68",
+        "duplicate_group_size": 2,
+        "preferred_observation": false,
+        "reconciliation_rank": 1,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "mapped",
+        "mapped_node_id": "CASHFLOW.ENTERPRISE.FINANCING.DIVIDENDS_PAID",
+        "method": "source_evidence_link",
+        "confidence": 1.0
+      }
+    },
+    {
+      "node_id": "SOURCE.CASHFLOW.910f139d3a511b",
+      "canonical_name": "Năm 2026",
+      "kind": "source_observation",
+      "semantic_role": "recovered_source_row",
+      "sector": "enterprise",
+      "method": "indirect",
+      "section": "reconciliation",
+      "parent_label": null,
+      "hierarchy_path": null,
+      "form_code": null,
+      "statement_code": null,
+      "note_ref": null,
+      "value": {
+        "current": 1382439913500,
+        "previous": 1089014558000,
+        "note": null,
+        "unit": "vnd",
+        "raw_text": "Năm 2026"
+      },
+      "extraction_meta": {
+        "source_recovery": true,
+        "occurrences": [
+          {
+            "source_line": 364,
+            "source_label": "Năm 2026",
+            "pattern": "CASHFLOW_RAW_CURRENT_PREVIOUS_CHILD",
+            "current": 1382439913500,
+            "previous": 1089014558000,
+            "code": null,
+            "statement_code": null,
+            "note": null,
+            "note_ref": null,
+            "parent_label": null,
+            "hierarchy_path": null,
+            "occurrence_rank": 1
+          }
+        ],
+        "mapping_status": "source_only",
+        "mapping_method": "source_preservation",
+        "source_only_reason": "no_unique_semantic_evidence_link",
+        "duplicate_group_id": "SRCGRP.e85fb085b3d456",
+        "duplicate_group_size": 1,
+        "preferred_observation": true,
+        "reconciliation_rank": 0,
+        "reconciliation_policy": "structural_identity_non_destructive_v16"
+      },
+      "mapping": {
+        "status": "source_only",
+        "method": "source_preservation",
+        "reason": "no_unique_semantic_evidence_link"
+      }
+    }
+  ],
+  "conflicts": [
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.PROVISIONS",
+      "type": "multiple_values"
+    },
+    {
+      "node_id": "CASHFLOW.ENTERPRISE.INDIRECT.CHANGE_RECEIVABLES",
+      "type": "multiple_values"
+    }
+  ],
+  "mapping_summary": {
+    "rows_total": 20,
+    "mapped": 20,
+    "unmapped": 0,
+    "valued_nodes": 18,
+    "mapping_rate": 1.0
+  },
+  "diagnostics": {
+    "unmapped_rows": [],
+    "formula_checks": [
+      {
+        "name": "net_change_in_cash",
+        "period": "current",
+        "status": "pass",
+        "reported": 1382439913500,
+        "expected": 1382439913500,
+        "difference": 0
+      },
+      {
+        "name": "net_change_in_cash",
+        "period": "previous",
+        "status": "pass",
+        "reported": 1089014558000,
+        "expected": 1089014558000,
+        "difference": 0
+      },
+      {
+        "name": "cash_ending",
+        "period": "current",
+        "status": "skipped_missing_operand"
+      },
+      {
+        "name": "cash_ending",
+        "period": "previous",
+        "status": "skipped_missing_operand"
+      }
+    ],
+    "formula_summary": {
+      "evaluated": 2,
+      "passed": 2,
+      "failed": 0,
+      "pass_rate": 1.0
+    },
+    "validation_status": "ok",
+    "source_observation_layer": {
+      "enabled": true,
+      "statement": "CASHFLOW",
+      "added_nodes": 11,
+      "policy": "schema_additive_preserve_structural_rows"
+    },
+    "source_statement_recovery": {
+      "statement": "CASHFLOW",
+      "rows_recovered": 26,
+      "added_nodes": 17,
+      "filled_existing_nodes": 0,
+      "conflicts": 0,
+      "representation_equivalent_matches": 9,
+      "sign_equivalent_matches": 0,
+      "structural_ambiguities": 0,
+      "period_scope_ambiguities": 0,
+      "same_label_recovery": true,
+      "policy": "source_scope_structural_identity_repair_v22_4_1"
+    },
+    "form_code_period_recovery": {
+      "policy": "unique_form_code_period_hydration_v24",
+      "sector": "enterprise",
+      "method": "indirect",
+      "evidence_rows": 0,
+      "filled_nodes": 0,
+      "filled_periods": 0,
+      "equivalent_matches": 0,
+      "conflicts": 0,
+      "conflict_details": [],
+      "ambiguous_codes": [],
+      "unmatched_codes": []
+    },
+    "period_evidence": [],
+    "source_observation_reconciliation": {
+      "statement": "CASHFLOW",
+      "policy": "structural_identity_non_destructive_v16",
+      "input_source_nodes": 28,
+      "output_source_nodes": 28,
+      "duplicate_groups": 11,
+      "removed_duplicate_nodes": 0,
+      "conflicting_groups": 0,
+      "preferred_completed_nodes": 0,
+      "semantic_nodes_filled": 0,
+      "preserves_all_source_observations": true,
+      "source_mapping": {
+        "policy": "source_evidence_link_v1",
+        "source_nodes": 28,
+        "linked_source_nodes": 22,
+        "source_only_nodes": 6,
+        "ambiguous_source_nodes": 0
+      }
+    },
+    "source_observation_mapping": {
+      "policy": "source_evidence_link_v1",
+      "source_nodes": 28,
+      "linked_source_nodes": 22,
+      "source_only_nodes": 6,
+      "ambiguous_source_nodes": 0
+    }
+  },
+  "reconciled_source_view": [
+    {
+      "group_id": "SRCGRP.7c283d699695d6",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "nam 2026",
+      "identity_context": null,
+      "display_label": "Năm 2026",
+      "preferred_node_id": "SOURCE.CASHFLOW.16f371a92071f1",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.16f371a92071f1"
+      ],
+      "member_count": 1,
+      "current": 1420854088400,
+      "previous": 932210889000,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "1420854088400": 1
+      },
+      "previous_votes": {
+        "932210889000": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.e05cfc8f6cfa41",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "dieu chinh cho cac khoan",
+      "identity_context": null,
+      "display_label": "Điều chỉnh cho các khoản",
+      "preferred_node_id": "SOURCE.CASHFLOW.e6e59ad269a0a9",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.e6e59ad269a0a9"
+      ],
+      "member_count": 1,
+      "current": 321098765400,
+      "previous": 298765432100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "321098765400": 1
+      },
+      "previous_votes": {
+        "298765432100": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.1d18b3939b8852",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "khau hao tai san co dinh va bat dong san dau tu",
+      "identity_context": null,
+      "display_label": "Khấu hao tài sản cố định và bất động sản đầu tư",
+      "preferred_node_id": "SOURCE.CASHFLOW.5577fb8cc2a02b",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.5577fb8cc2a02b",
+        "SOURCE.CASHFLOW.5577fb8cc2a02b"
+      ],
+      "member_count": 2,
+      "current": 321098765400,
+      "previous": 298765432100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "321098765400": 2
+      },
+      "previous_votes": {
+        "298765432100": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.503281118513b0",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "tang giam cac khoan du phong",
+      "identity_context": null,
+      "display_label": "Tăng/giảm các khoản dự phòng",
+      "preferred_node_id": "SOURCE.CASHFLOW.d58e52734cfc35",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.d58e52734cfc35",
+        "SOURCE.CASHFLOW.d58e52734cfc35"
+      ],
+      "member_count": 2,
+      "current": 45678901200,
+      "previous": 38901234500,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "45678901200": 2
+      },
+      "previous_votes": {
+        "38901234500": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.0ae5309f17ede7",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "lai chenh lech ty gia chua thuc hien",
+      "identity_context": null,
+      "display_label": "Lãi chênh lệch tỷ giá chưa thực hiện",
+      "preferred_node_id": "SOURCE.CASHFLOW.bda3b993f60666",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.bda3b993f60666",
+        "SOURCE.CASHFLOW.bda3b993f60666"
+      ],
+      "member_count": 2,
+      "current": -12345678900,
+      "previous": -8765432100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-12345678900": 2
+      },
+      "previous_votes": {
+        "-8765432100": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.1e9eb95d337774",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "loi nhuan tu hoat dong truoc thay doi von luu dong",
+      "identity_context": null,
+      "display_label": "Lợi nhuận từ hoạt động trước thay đổi vốn lưu động",
+      "preferred_node_id": "SOURCE.CASHFLOW.1f4506001c03d3",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.1f4506001c03d3",
+        "SOURCE.CASHFLOW.1f4506001c03d3"
+      ],
+      "member_count": 2,
+      "current": 1775286076100,
+      "previous": 1261112123500,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "1775286076100": 2
+      },
+      "previous_votes": {
+        "1261112123500": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.23871655902345",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "thay doi cac khoan muc hoat dong",
+      "identity_context": null,
+      "display_label": "Thay đổi các khoản mục hoạt động",
+      "preferred_node_id": "SOURCE.CASHFLOW.4621acc02f941f",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.4621acc02f941f"
+      ],
+      "member_count": 1,
+      "current": -255443333400,
+      "previous": -177654222100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-255443333400": 1
+      },
+      "previous_votes": {
+        "-177654222100": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.47445875e6501e",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "tang cac khoan phai thu",
+      "identity_context": null,
+      "display_label": "Tăng các khoản phải thu",
+      "preferred_node_id": "SOURCE.CASHFLOW.a621a5010a6051",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.a621a5010a6051",
+        "SOURCE.CASHFLOW.a621a5010a6051"
+      ],
+      "member_count": 2,
+      "current": -255443333400,
+      "previous": -177654222100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-255443333400": 2
+      },
+      "previous_votes": {
+        "-177654222100": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.2e919879e635da",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "tang hang ton kho",
+      "identity_context": null,
+      "display_label": "Tăng hàng tồn kho",
+      "preferred_node_id": "SOURCE.CASHFLOW.d748dd817523c6",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.d748dd817523c6",
+        "SOURCE.CASHFLOW.d748dd817523c6"
+      ],
+      "member_count": 2,
+      "current": -133691357800,
+      "previous": 42345678900,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-133691357800": 2
+      },
+      "previous_votes": {
+        "42345678900": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.444ce75ab686ec",
+      "statement": "CASHFLOW",
+      "section": "operating",
+      "normalized_label": "tang cac khoan phai tra",
+      "identity_context": null,
+      "display_label": "Tăng các khoản phải trả",
+      "preferred_node_id": "SOURCE.CASHFLOW.b909973412ddb0",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.b909973412ddb0",
+        "SOURCE.CASHFLOW.b909973412ddb0"
+      ],
+      "member_count": 2,
+      "current": 498765432100,
+      "previous": 321234567800,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "498765432100": 2
+      },
+      "previous_votes": {
+        "321234567800": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.a72a909f88f5ce",
+      "statement": "CASHFLOW",
+      "section": "investing",
+      "normalized_label": "tien chi mua sam tai san co dinh",
+      "identity_context": null,
+      "display_label": "Tiền chi mua sắm tài sản cố định",
+      "preferred_node_id": "SOURCE.CASHFLOW.5e7061d7b27036",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.5e7061d7b27036",
+        "SOURCE.CASHFLOW.5e7061d7b27036"
+      ],
+      "member_count": 2,
+      "current": -456789012300,
+      "previous": -312345678900,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-456789012300": 2
+      },
+      "previous_votes": {
+        "-312345678900": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.c1d54f0c07ff86",
+      "statement": "CASHFLOW",
+      "section": "investing",
+      "normalized_label": "nam 2026",
+      "identity_context": null,
+      "display_label": "Năm 2026",
+      "preferred_node_id": "SOURCE.CASHFLOW.8fae405d04a6b9",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.8fae405d04a6b9"
+      ],
+      "member_count": 1,
+      "current": -456789012300,
+      "previous": -312345678900,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-456789012300": 1
+      },
+      "previous_votes": {
+        "-312345678900": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.cd7b4e641fe083",
+      "statement": "CASHFLOW",
+      "section": "investing",
+      "normalized_label": "tien thu tu thanh ly tai san dai han",
+      "identity_context": null,
+      "display_label": "Tiền thu từ thanh lý tài sản dài hạn",
+      "preferred_node_id": "SOURCE.CASHFLOW.c63f67dd1b253c",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.c63f67dd1b253c",
+        "SOURCE.CASHFLOW.c63f67dd1b253c"
+      ],
+      "member_count": 2,
+      "current": 123456789000,
+      "previous": 98765432100,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "123456789000": 2
+      },
+      "previous_votes": {
+        "98765432100": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.bd3ae5e1e99500",
+      "statement": "CASHFLOW",
+      "section": "financing",
+      "normalized_label": "tien thu tu cac khoan vay",
+      "identity_context": null,
+      "display_label": "Tiền thu từ các khoản vay",
+      "preferred_node_id": "SOURCE.CASHFLOW.ee5cdc2cc48c57",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.ee5cdc2cc48c57",
+        "SOURCE.CASHFLOW.ee5cdc2cc48c57"
+      ],
+      "member_count": 2,
+      "current": 654321098700,
+      "previous": 543210987600,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "654321098700": 2
+      },
+      "previous_votes": {
+        "543210987600": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.8eb98b8de047f9",
+      "statement": "CASHFLOW",
+      "section": "financing",
+      "normalized_label": "nam 2026",
+      "identity_context": null,
+      "display_label": "Năm 2026",
+      "preferred_node_id": "SOURCE.CASHFLOW.70c41557cedd8e",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.70c41557cedd8e"
+      ],
+      "member_count": 1,
+      "current": 654321098700,
+      "previous": 543210987600,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "654321098700": 1
+      },
+      "previous_votes": {
+        "543210987600": 1
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.7222032d603c68",
+      "statement": "CASHFLOW",
+      "section": "financing",
+      "normalized_label": "co tuc da tra",
+      "identity_context": null,
+      "display_label": "Cổ tức đã trả",
+      "preferred_node_id": "SOURCE.CASHFLOW.f8f014c48bff53",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.f8f014c48bff53",
+        "SOURCE.CASHFLOW.f8f014c48bff53"
+      ],
+      "member_count": 2,
+      "current": -156789012300,
+      "previous": -123456789000,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "-156789012300": 2
+      },
+      "previous_votes": {
+        "-123456789000": 2
+      },
+      "conflict": false
+    },
+    {
+      "group_id": "SRCGRP.e85fb085b3d456",
+      "statement": "CASHFLOW",
+      "section": "reconciliation",
+      "normalized_label": "nam 2026",
+      "identity_context": null,
+      "display_label": "Năm 2026",
+      "preferred_node_id": "SOURCE.CASHFLOW.910f139d3a511b",
+      "member_node_ids": [
+        "SOURCE.CASHFLOW.910f139d3a511b"
+      ],
+      "member_count": 1,
+      "current": 1382439913500,
+      "previous": 1089014558000,
+      "current_state": "unanimous",
+      "previous_state": "unanimous",
+      "current_votes": {
+        "1382439913500": 1
+      },
+      "previous_votes": {
+        "1089014558000": 1
+      },
+      "conflict": false
+    }
+  ],
+  "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+  "provenance": {
+    "source_name": "synthetic_high_coverage_statement.md",
+    "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+    "current_year": 2026,
+    "previous_year": 2025,
+    "year_resolution": {
+      "current_year": 2026,
+      "previous_year": 2025,
+      "method": "statement_end_date",
+      "explicit_current_year": false,
+      "explicit_previous_year": false,
+      "filename_years": [],
+      "candidate_scores": {
+        "2025": 76,
+        "2026": 746,
+        "2027": 2
+      },
+      "period_type": "annual",
+      "current_end_date": "2026-12-31",
+      "previous_end_date": "2025-12-31",
+      "current_start_date": "2026-01-01",
+      "previous_start_date": "2025-01-01",
+      "calendar_end_year": 2026,
+      "fiscal_year_label": 2026,
+      "fiscal_year_label_source": "statement_end_year",
+      "confidence": "high",
+      "conflict": false,
+      "conflict_reasons": [],
+      "date_evidence": [
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 20,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 381,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 717,
+          "text": "- **Kỳ hiện tại:** năm tài chính mô phỏng kết thúc ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 47,
+          "text": "Tại ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 392,
+          "text": "Vốn góp mô phỏng tại ngày 31 tháng 12 năm 2026 là 3.456.789.012.300 đồng.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 446,
+          "text": "- Giá trị ghi sổ mô phỏng: 689.321.456.700 đồng tại ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 447,
+          "text": "- Giá trị so sánh mô phỏng: 543.210.987.600 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "opening",
+          "weight": 30.0,
+          "line": 210,
+          "text": "*   421a. Lợi nhuận lũy kế đến đầu kỳ: 128.765.432.100 đồng (31/12/2026), 95.432.109.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 52,
+          "text": "*   **31/12/2026** (VND)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 188,
+          "text": "*   311. 1. Phải trả người bán ngắn hạn: 345.678.901.200 đồng (31/12/2026), 298.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 189,
+          "text": "*   312. 2. Người mua trả tiền trước ngắn hạn: 456.789.012.300 đồng (31/12/2026), 321.234.567.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 190,
+          "text": "*   313. 3. Thuế và các khoản phải nộp Nhà nước: 123.456.789.400 đồng (31/12/2026), 98.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 191,
+          "text": "*   314. 4. Phải trả người lao động: 234.567.890.500 đồng (31/12/2026), 210.123.456.700 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 192,
+          "text": "*   315. 5. Chi phí phải trả ngắn hạn: 345.678.901.600 đồng (31/12/2026), 300.987.654.300 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 193,
+          "text": "*   318. 6. Doanh thu chưa thực hiện ngắn hạn: 123.456.789.700 đồng (31/12/2026), 100.222.333.400 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 194,
+          "text": "*   319. 7. Phải trả ngắn hạn khác: 234.567.890.800 đồng (31/12/2026), 190.111.222.500 đồng (01/01/2026)",
+          "administrative": false
+        }
+      ]
+    }
+  }
+}

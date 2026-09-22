@@ -1,0 +1,21 @@
+{
+  "schema_version": "financial_parser_run_metadata_v1",
+  "input": "F:\\Indexium\\Flatten\\examples\\synthetic_high_coverage_statement.md",
+  "output": "F:\\Indexium\\Flatten\\examples\\output",
+  "current_year": null,
+  "previous_year": null,
+  "period_resolution": "per_report_inferred_or_cli_override",
+  "input_policy": "markdown_source_only",
+  "source_reports": 1,
+  "same_label_recovery": true,
+  "schema_profile": "schema_v1_7",
+  "income_statement_schema": "F:\\Indexium\\Flatten\\resources\\schemas\\income_statement_schema.json",
+  "income_statement_aliases": "F:\\Indexium\\Flatten\\resources\\schemas\\overlays\\income_statement_aliases_v1_3_4.json",
+  "financial_position_schema": "F:\\Indexium\\Flatten\\resources\\schemas\\overlays\\financial_position_schema_v1_7_0.json",
+  "financial_position_aliases": "F:\\Indexium\\Flatten\\resources\\schemas\\overlays\\financial_position_aliases_v1_8_0.json",
+  "cash_flow_schema": "F:\\Indexium\\Flatten\\resources\\schemas\\overlays\\cash_flow_schema_v1_2_0.json",
+  "cash_flow_aliases": "F:\\Indexium\\Flatten\\resources\\schemas\\overlays\\cash_flow_aliases_v1_3_0.json",
+  "preserve_decimal_branch_rows": true,
+  "row_scan_mode": "off",
+  "flat_code_label_periods": true
+}

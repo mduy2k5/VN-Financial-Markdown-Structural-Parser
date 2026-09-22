@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 from .guide import UniversalGuide
-from .models import FieldObservation, StructuralNode
+from .models import FieldObservation, PrimitivePeriod, StatementContext, StructuralNode
 from .primitives import extract_periods, extract_values, whole_text_period
 from .textnorm import fold
 
@@ -34,6 +34,73 @@ def _period_value_pairs(periods, values):
         if len(explicit) >= len(values):
             periods = explicit[-len(values):]
     return list(zip(periods[:len(values)], values[:len(periods)]))
+
+
+def _is_previous_nested_period(period, context: StatementContext | None) -> bool:
+    """Nhận diện child kỳ trước dưới ``Số tiền``.
+
+    ``Số tiền`` trong một số B01 do LLM serialize là giá trị kỳ hiện tại của
+    nhãn cha, còn child ``Năm YYYY`` bên dưới là kỳ so sánh. Không được coi mọi
+    child theo năm là kỳ trước: chỉ nhận role rõ ràng hoặc năm đúng bằng năm
+    báo cáo trừ một.
+    """
+
+    raw = fold(period.raw_period or "")
+    if period.role == "previous" or any(
+        marker in raw for marker in ("nam truoc", "dau nam", "so dau nam")
+    ):
+        return True
+
+    report_year = getattr(context, "report_year", None)
+    if not report_year:
+        return False
+    years = [int(x) for x in re.findall(r"\b20\d{2}\b", period.raw_period or "")]
+    return any(year == report_year - 1 for year in years)
+
+
+def _nested_current_amount_periods(
+    anchor: StructuralNode,
+    amount_node: StructuralNode,
+    nodes: list[StructuralNode],
+    context: StatementContext | None,
+):
+    """Gộp ``Số tiền`` hiện tại với child ``Năm YYYY`` kỳ trước.
+
+    Chỉ áp dụng cho quan hệ cây trực tiếp ``anchor -> Số tiền -> Năm YYYY``.
+    Trả về cặp period/value và các node period đã tiêu thụ; ``None`` nghĩa là
+    layout không đủ chắc chắn và caller phải giữ logic cũ.
+    """
+
+    if amount_node.parent_index != anchor.node_index or len(amount_node.values) != 1:
+        return None
+
+    previous_children = []
+    for child_idx in amount_node.children:
+        child = nodes[child_idx]
+        if child.pattern_id != "SP_PERIOD_VALUE_ATTRIBUTE":
+            continue
+        if not child.periods or not child.values:
+            continue
+        period = child.periods[0]
+        if _is_previous_nested_period(period, context):
+            previous_children.append((child, period, child.values[0]))
+
+    # Nhiều child kỳ hoặc thiếu context đều là layout mơ hồ; không suy đoán.
+    if len(previous_children) != 1:
+        return None
+
+    child, previous_period, previous_value = previous_children[0]
+    current_label = getattr(context, "current_label", None) or "Năm nay"
+    current_period = PrimitivePeriod(
+        raw_period=current_label,
+        normalized=fold(current_label),
+        role="current",
+        line_no=amount_node.values[0].line_no,
+    )
+    return (
+        [(current_period, amount_node.values[0]), (previous_period, previous_value)],
+        {child.node_index},
+    )
 
 
 def _parse_pipe_inline(node: StructuralNode, guide: UniversalGuide):
@@ -523,6 +590,7 @@ def collect_observation(
     guide: UniversalGuide,
     *,
     semantic_anchor_indices: set[int] | None = None,
+    context: StatementContext | None = None,
 ):
     """Thu thập payload giá trị gắn với một anchor semantic.
 
@@ -599,8 +667,11 @@ def collect_observation(
         semantic_anchor_indices=semantic_anchor_indices - {anchor.node_index},
         max_depth=6,
     )
+    consumed_nested_period_nodes = set()
 
     for d in bounded:
+        if d.node_index in consumed_nested_period_nodes:
+            continue
         if local_summary_found and d.pattern_id != "SP_NAMED_ATTRIBUTE":
             continue
         if d.pattern_id == "SP_NAMED_ATTRIBUTE" and d.lhs:
@@ -611,7 +682,19 @@ def collect_observation(
             elif key in CODE_KEYS:
                 code = code or (d.rhs.strip() if d.rhs else None)
             elif key == "so tien" and d.values:
-                values.extend(d.values)
+                nested = _nested_current_amount_periods(
+                    anchor,
+                    d,
+                    nodes,
+                    context,
+                )
+                if nested:
+                    nested_period_values, consumed = nested
+                    period_values.extend(nested_period_values)
+                    consumed_nested_period_nodes.update(consumed)
+                    evidence.append("current_amount_with_nested_previous_period")
+                else:
+                    values.extend(d.values)
             continue
 
         if d.pattern_id == "SP_PERIOD_VALUE_ATTRIBUTE":

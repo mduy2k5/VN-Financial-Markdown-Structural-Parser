@@ -37,9 +37,35 @@ BANK_RULES = (
 )
 
 
+INSURANCE_RULES = (
+    TopicRule("cash", ("tien va cac khoan tuong duong tien", "tien va tuong duong tien"), ("ASSET.CASH_EQUIV",)),
+    TopicRule("receivables", ("cac khoan phai thu", "phai thu hoat dong bao hiem"), ("ASSET.RECEIVABLES",)),
+    TopicRule("inventory", ("hang ton kho",), ("ASSET.INVENTORY",)),
+    TopicRule("fixed_assets", ("tai san co dinh huu hinh", "tai san co dinh vo hinh", "tai san co dinh"), ("ASSET.FIXED_ASSETS",)),
+    TopicRule("investment_property", ("bat dong san dau tu",), ("ASSET.INVESTMENT_PROPERTY",)),
+    TopicRule("financial_investments", ("cac khoan dau tu tai chinh", "chung khoan kinh doanh", "dau tu nam giu den ngay dao han"), ("ASSET.FIN_INV",)),
+    TopicRule("insurance_reserves", ("du phong nghiep vu bao hiem",), ("LIABILITY.PROVISIONS",)),
+    TopicRule("borrowings", ("vay", "giao dich mua ban lai trai phieu"), ("LIABILITY.BORROWINGS",)),
+    TopicRule("equity", ("von chu so huu",), ("EQUITY",)),
+    TopicRule("premium_revenue", ("doanh thu phi bao hiem",), ("INCOME.INSURANCE.TOTAL_PREMIUM_REVENUE", "INCOME.INSURANCE.DIRECT_PREMIUM_REVENUE")),
+    TopicRule("ceded_premium", ("tong phi nhuong tai bao hiem",), ("INCOME.INSURANCE.REINSURANCE_CEDED_PREMIUM",)),
+    TopicRule("direct_insurance_cost", ("chi phi truc tiep lien quan den hoat dong kinh doanh bao hiem",), ("INCOME.INSURANCE.TOTAL_DIRECT_INSURANCE_EXPENSE",)),
+    TopicRule("claims", ("chi boi thuong bao hiem goc",), ("INCOME.INSURANCE.DIRECT_CLAIMS_EXPENSE",)),
+    TopicRule("financial_income", ("hoat dong tai chinh",), ("INCOME.INSURANCE.FINANCIAL_REVENUE", "INCOME.INSURANCE.FINANCIAL_EXPENSE")),
+    TopicRule("selling_expense", ("chi phi ban hang",), ("INCOME.INSURANCE.SELLING_EXPENSE",)),
+    TopicRule("general_admin_expense", ("chi phi quan ly doanh nghiep",), ("INCOME.INSURANCE.GENERAL_ADMIN_EXPENSE",)),
+    TopicRule("other_profit", ("loi nhuan khac",), ("INCOME.INSURANCE.OTHER_PROFIT",)),
+    TopicRule("tax", ("thue va cac khoan phai nop nha nuoc", "thue thu nhap doanh nghiep hoan lai"), ("LIABILITY.TAX_PAYABLE", "INCOME.INSURANCE.CURRENT_TAX_EXPENSE", "INCOME.INSURANCE.DEFERRED_TAX_EXPENSE")),
+    TopicRule("eps", ("lai tren co phieu",), ("INCOME.INSURANCE.BASIC_EPS",)),
+    TopicRule("off_balance", ("ngoai bang", "cam ket"), ("OFF_BALANCE",)),
+)
+
+
 def rules_for_sector(sector: str):
     if sector == "bank":
         return BANK_RULES
+    if sector == "insurance":
+        return INSURANCE_RULES
     return ENTERPRISE_RULES
 
 

@@ -28,6 +28,7 @@ ROW_FIELDS = [
     "row_label",
     "row_label_normalized",
     "row_role",
+    "hierarchy_path",
     "row_code",
     "row_note_ref",
     "row_source_line",
@@ -40,6 +41,8 @@ ROW_FIELDS = [
     "value_count",
     "values",
     "raw_cells",
+    "source_context",
+    "metadata",
     "linked_targets",
 ]
 
@@ -98,6 +101,7 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
             block_rows = block.get("rows") or []
             for row_index, row in enumerate(block_rows, start=1):
                 values = _as_list(row.get("values"))
+                row_metadata = row.get("metadata") or {}
                 current = _first_by_role(values, "current") or {}
                 previous = _first_by_role(values, "previous") or {}
 
@@ -136,6 +140,7 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                     "row_label": row.get("label_raw"),
                     "row_label_normalized": row.get("label_normalized"),
                     "row_role": row.get("row_role"),
+                    "hierarchy_path": _as_list(row.get("hierarchy_path")),
                     "row_code": row.get("code"),
                     "row_note_ref": row.get("note_ref"),
                     "row_source_line": row.get("source_line"),
@@ -148,6 +153,8 @@ def flatten_note_rows(note_ir: dict) -> list[dict]:
                     "value_count": len(values),
                     "values": _as_list(values),
                     "raw_cells": _as_list(row.get("raw_cells")),
+                    "source_context": row_metadata.get("source_context") or {},
+                    "metadata": row_metadata,
                     "linked_targets": linked_targets,
                 })
     return rows
@@ -161,7 +168,7 @@ def write_rows_csv(path: str | Path, rows: list[dict]) -> Path:
         writer.writeheader()
         for row in rows:
             csv_row = dict(row)
-            for field in ("pages", "headers", "dimensions", "values", "raw_cells", "linked_targets"):
+            for field in ("pages", "headers", "dimensions", "values", "raw_cells", "source_context", "hierarchy_path", "metadata", "linked_targets"):
                 if isinstance(csv_row.get(field), (list, dict)):
                     csv_row[field] = _json(csv_row[field])
             writer.writerow(csv_row)

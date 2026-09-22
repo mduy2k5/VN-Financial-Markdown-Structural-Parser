@@ -10,7 +10,7 @@ except ImportError:
     from common import detect_document_unit, detect_statement_unit
     from common.report_period import resolve_report_years
 
-from .block_classifier import extract_blocks
+from .block_classifier import extract_blocks, extract_blocks_v2
 from .diagnostics import build_diagnostics
 from .linker import link_notes_to_primary
 from .note_ir import NoteDocument
@@ -20,6 +20,8 @@ from .sector_profile import classify_topic
 from .reconciliation import reconcile_notes
 from .unit_normalization import canonical_unit
 from .dimension_inference import infer_movement_role
+from .alias_catalog import annotate_note_sections
+from .source_context import annotate_source_context
 
 
 class NotesPipeline:
@@ -29,10 +31,23 @@ class NotesPipeline:
     source. Notes được parse thành IR riêng, sau đó mới link với primary.
     """
 
-    def __init__(self, *, current_year: int | None = None, previous_year: int | None = None):
+    def __init__(
+        self,
+        *,
+        current_year: int | None = None,
+        previous_year: int | None = None,
+        parser_mode: str = "legacy",
+        alias_profile: str = "auto",
+        alias_path: str | Path | None = None,
+    ):
         """Lưu ngữ cảnh kỳ cho một phiên parse Notes."""
+        if parser_mode not in {"legacy", "v2"}:
+            raise ValueError("parser_mode must be 'legacy' or 'v2'")
         self.current_year = current_year
         self.previous_year = previous_year
+        self.parser_mode = parser_mode
+        self.alias_profile = alias_profile
+        self.alias_path = alias_path
 
     def parse_text(
         self,
@@ -80,8 +95,16 @@ class NotesPipeline:
 
         if not scope.found:
             doc.diagnostics = build_diagnostics(doc, text, scope)
+            doc.diagnostics["schema_alias"] = annotate_note_sections(
+                [],
+                sector=sector,
+                profile=self.alias_profile,
+                path=self.alias_path,
+            )
             result = doc.to_dict()
             result["period"] = period
+            result["parser_mode"] = self.parser_mode
+            result["alias_profile"] = self.alias_profile
             return result
 
         sections = sectionize_notes(text, scope)
@@ -100,7 +123,8 @@ class NotesPipeline:
             section.unit_raw = getattr(unit_ctx, "source", None)
             section.unit_canonical = canonical_unit(section.unit)
             section.sector_topic = classify_topic(section.title_raw, sector)
-            section.blocks = extract_blocks(
+            extractor = extract_blocks_v2 if self.parser_mode == "v2" else extract_blocks
+            section.blocks = extractor(
                 section_text,
                 section.source_start_line,
                 section.ref,
@@ -120,12 +144,29 @@ class NotesPipeline:
                         if block.semantic_shape == "movement" and not value.movement_role:
                             value.movement_role = movement_role
 
+        alias_diagnostics = annotate_note_sections(
+            sections,
+            sector=sector,
+            profile=self.alias_profile,
+            path=self.alias_path,
+        )
+        source_context_diagnostics = annotate_source_context(
+            sections,
+            text,
+            current_year=current_year,
+            previous_year=previous_year,
+        )
+
         doc.sections = sections
         link_notes_to_primary(doc, primary=primary)
         reconcile_notes(doc, primary=primary)
         doc.diagnostics = build_diagnostics(doc, text, scope)
+        doc.diagnostics["schema_alias"] = alias_diagnostics
+        doc.diagnostics["source_context"] = source_context_diagnostics
         result = doc.to_dict()
         result["period"] = period
+        result["parser_mode"] = self.parser_mode
+        result["alias_profile"] = self.alias_profile
         return result
 
     def parse_file(
@@ -160,6 +201,9 @@ def parse_notes(
     primary: Optional[dict] = None,
     current_year: int | None = None,
     previous_year: int | None = None,
+    parser_mode: str = "legacy",
+    alias_profile: str = "auto",
+    alias_path: str | Path | None = None,
 ) -> dict:
     """API tiện ích để parse Notes trong một lời gọi.
 
@@ -167,7 +211,13 @@ def parse_notes(
     ``NotesPipeline`` rồi trả về Notes IR; nó không ghi file và không đọc output
     của lần chạy trước.
     """
-    return NotesPipeline(current_year=current_year, previous_year=previous_year).parse_text(
+    return NotesPipeline(
+        current_year=current_year,
+        previous_year=previous_year,
+        parser_mode=parser_mode,
+        alias_profile=alias_profile,
+        alias_path=alias_path,
+    ).parse_text(
         text,
         source_name=source_name,
         sector=sector,

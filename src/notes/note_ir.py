@@ -24,9 +24,16 @@ class NoteValue:
     unit_canonical: Optional[str] = None
     source_line: Optional[int] = None
     source_column: Optional[int] = None
+    source_context: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        data = asdict(self)
+        # Giữ output legacy ổn định: context chỉ xuất hiện khi parser v2 có
+        # bằng chứng cây nguồn để ghi lại. Notes v2 vẫn có thể truy nguyên
+        # từng giá trị mà không làm phình schema của nhánh legacy.
+        if not data.get("source_context"):
+            data.pop("source_context", None)
+        return data
 
 
 @dataclass

@@ -12,10 +12,13 @@ HEADING_RE = re.compile(r"^\s*(#{1,6})\s+")
 BULLET_RE = re.compile(r"^(\s*)(\\?\*|-|\+|•)\s+")
 NUMBERING_RE = re.compile(
     r"^\s*(?:"
-    r"\(?\d+(?:\.\d+)*\)?[.)-]?"
-    r"|[IVXLC]+[.)]"
-    r"|[A-Za-z][.)]"
-    r")\s+",
+    # Một số mẫu pháp định/OCR viết liền số thứ tự với nhãn, ví dụ
+    # ``1.Tiền`` hoặc ``2.Tài sản``.  Chỉ cho phép bỏ tiền tố khi có dấu
+    # phân cách để không biến mã chỉ tiêu như ``01.1`` thành nhãn khác.
+    r"\(?\d+(?:\.\d+)*\)?[.)-](?=\s|[^\d])"
+    r"|[IVXLC]+[.)](?=\s|[^\d])"
+    r"|[A-Za-z][.)](?=\s|[^\d])"
+    r")\s*",
     re.I,
 )
 

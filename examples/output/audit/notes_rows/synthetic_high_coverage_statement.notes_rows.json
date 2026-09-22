@@ -1,0 +1,110 @@
+[
+  {
+    "source_name": "synthetic_high_coverage_statement.md",
+    "sector": "enterprise",
+    "note_id_raw": "24",
+    "note_id_normalized": "24",
+    "note_title": "CAM KẾT VÀ NGHĨA VỤ TIỀM TÀNG",
+    "note_title_normalized": "cam ket va nghia vu tiem tang",
+    "section_start_line": 643,
+    "section_end_line": 654,
+    "pages": [
+      12
+    ],
+    "sector_topic": null,
+    "block_id": "NOTE:24@L643:bullet_single_1",
+    "block_form": "bullet_list",
+    "semantic_shape": "breakdown",
+    "block_start_line": 648,
+    "block_end_line": 649,
+    "headers": [],
+    "dimensions": [],
+    "row_index": 1,
+    "row_label": "Cam kết đầu tư mô phỏng",
+    "row_label_normalized": "cam ket dau tu mo phong",
+    "row_role": "detail",
+    "row_code": null,
+    "row_note_ref": null,
+    "row_source_line": 648,
+    "row_unit": "đồng",
+    "row_unit_canonical": "vnd",
+    "current_raw": null,
+    "current_normalized": null,
+    "previous_raw": null,
+    "previous_normalized": null,
+    "value_count": 1,
+    "values": [
+      {
+        "raw": "640.123.450.700",
+        "normalized": 640123450700,
+        "period_label": null,
+        "period_role": null,
+        "movement_role": null,
+        "measure": null,
+        "unit": "đồng",
+        "unit_canonical": "vnd",
+        "source_line": 648,
+        "source_column": null
+      }
+    ],
+    "raw_cells": [
+      "Cam kết đầu tư mô phỏng",
+      "640.123.450.700"
+    ],
+    "linked_targets": []
+  },
+  {
+    "source_name": "synthetic_high_coverage_statement.md",
+    "sector": "enterprise",
+    "note_id_raw": "24",
+    "note_id_normalized": "24",
+    "note_title": "CAM KẾT VÀ NGHĨA VỤ TIỀM TÀNG",
+    "note_title_normalized": "cam ket va nghia vu tiem tang",
+    "section_start_line": 643,
+    "section_end_line": 654,
+    "pages": [
+      12
+    ],
+    "sector_topic": null,
+    "block_id": "NOTE:24@L643:bullet_single_1",
+    "block_form": "bullet_list",
+    "semantic_shape": "breakdown",
+    "block_start_line": 648,
+    "block_end_line": 649,
+    "headers": [],
+    "dimensions": [],
+    "row_index": 2,
+    "row_label": "Cam kết thuê tài sản mô phỏng",
+    "row_label_normalized": "cam ket thue tai san mo phong",
+    "row_role": "detail",
+    "row_code": null,
+    "row_note_ref": null,
+    "row_source_line": 649,
+    "row_unit": "đồng",
+    "row_unit_canonical": "vnd",
+    "current_raw": null,
+    "current_normalized": null,
+    "previous_raw": null,
+    "previous_normalized": null,
+    "value_count": 1,
+    "values": [
+      {
+        "raw": "84.567.890.100",
+        "normalized": 84567890100,
+        "period_label": null,
+        "period_role": null,
+        "movement_role": null,
+        "measure": null,
+        "unit": "đồng",
+        "unit_canonical": "vnd",
+        "source_line": 649,
+        "source_column": null
+      }
+    ],
+    "raw_cells": [
+      "Cam kết thuê tài sản mô phỏng",
+      "84.567.890.100"
+    ],
+    "linked_targets": []
+  }
+]

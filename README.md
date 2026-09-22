@@ -156,6 +156,34 @@ Bullet được đọc như cây: thụt đầu dòng tạo parent và child, me
 node gần nhất. Parser chỉ ghép các cụm cột khi section, cấu trúc và số slot
 phù hợp.
 
+Với thuyết minh ngân hàng, `--notes-alias-profile auto` bật catalog
+`bank_v1` trong [`resources/schemas/notes_aliases_bank_v1.json`](resources/schemas/notes_aliases_bank_v1.json).
+Với doanh nghiệp, cùng tùy chọn bật `enterprise_v1` trong
+[`resources/schemas/notes_aliases_enterprise_v1.json`](resources/schemas/notes_aliases_enterprise_v1.json),
+được xây từ mẫu B09/DN cùng các biến thể quan sát được ở bộ báo cáo doanh
+nghiệp. Catalog doanh nghiệp khớp theo cả mã mục và tiêu đề vì B09 dùng lại
+các số 1, 2, ... ở nhiều nhóm; tiêu đề tiếp theo được coi là phần tiếp của
+cùng mục.
+
+Với công ty chứng khoán, tùy chọn auto bật profile securities_v1 trong
+[resources/schemas/notes_aliases_securities_v1.json](resources/schemas/notes_aliases_securities_v1.json).
+Profile này dựa trên mẫu BCTC-CK và xử lý cả kiểu đánh số BSI (5–36) lẫn CTS
+(3.x–12). Các mục lặp được đối chiếu bằng cả mã và tiêu đề; bảng nhiều cột
+vẫn giữ nguyên ở raw_matrix.
+
+Với công ty bảo hiểm, tùy chọn auto bật profile insurance_v1 trong
+[resources/schemas/notes_aliases_insurance_v1.json](resources/schemas/notes_aliases_insurance_v1.json).
+Profile dùng chung cho báo cáo kết hợp bảo hiểm nhân thọ và phi nhân thọ,
+đồng thời bao phủ một số nhóm chỉ tiêu có hình thức giống doanh nghiệp như
+thuế, vốn chủ sở hữu, tài sản cố định, chi phí quản lý và bên liên quan. Hai
+mẫu nguồn được đối chiếu là BCTC-BHNT và BCTC-BHPNT; các bảng nhiều cột vẫn
+được giữ nguyên ở raw_matrix.
+
+Alias chỉ là metadata khớp exact trong đúng section. Dòng không có alias vẫn
+được giữ ở `raw_tree`; bảng nhiều cột giữ `headers`, `raw_cells`, thứ tự giá
+trị, kỳ và `source_column`. Có thể rollback lớp alias bằng
+`--notes-alias-profile none`; parser Notes và B01/B02/B03 không bị thay đổi.
+
 ## Cơ chế xử lý chính
 
 ### Same-label recovery
@@ -169,11 +197,22 @@ Trạng thái được ghi trong `debug.stats.same_label_recovery`,
 
 ### Schema profile
 
-`schema_v1_7` là overlay có version trên schema mặc định. Overlay hiện bao gồm
-các bổ sung BSI cho B01/B03 và alias có version cho B01/B02/B03. Các file overlay
-nằm trong `resources/schemas/overlays/` và được materialize khi runtime chạy.
+`schema_v1_11` là overlay có version trên schema mặc định. Overlay bổ sung các
+nhánh B01 còn thiếu (đặc biệt các dòng phải trả nội bộ ngắn/dài hạn và dự phòng
+rủi ro khác của ngân hàng), alias B01 cho biến thể dấu `(*)`/cách viết theo
+mẫu, các dòng B02 chứng khoán bị thiếu, nhóm B03 trực tiếp và đầy đủ các dòng
+B03 gián tiếp của công ty chứng khoán, đồng thời hoàn thiện alias B03 trực tiếp
+và gián tiếp của ngân hàng. Các công thức B03 gián tiếp cũ được giữ nguyên
+trong overlay mới. `schema_v1_10`, `schema_v1_9`, `schema_v1_7` và `baseline`
+vẫn có thể chọn để rollback. Các file overlay nằm trong
+`resources/schemas/overlays/` và được materialize khi runtime chạy.
 
 Runtime chọn profile bằng tùy chọn `--schema-profile`.
+
+Notes chạy bằng pipeline riêng, không mở rộng schema của B01/B02/B03. Có thể
+chọn `--notes-parser-mode v2` để giữ cây cha-con, kỳ, measure và các giá trị
+movement đầy đủ; mặc định `legacy` để bảo toàn hành vi hiện tại và có thể
+rollback ngay bằng cách bỏ tùy chọn.
 
 ### Fast row-block scan
 
@@ -255,7 +294,10 @@ Ví dụ rút gọn:
 ```
 
 Output production tập trung vào dữ liệu đã map, các observation chưa map,
-provenance và trạng thái chất lượng của từng statement.
+provenance và trạng thái chất lượng của từng statement. Notes bổ sung
+`rows[].source.raw_cells`, `rows[].metadata.parser_metadata` và
+`raw_blocks` để các dòng không có alias hoặc phần văn bản không có số không bị
+mất khỏi output.
 
 ## Đọc code
 
@@ -286,6 +328,9 @@ Flatten/
 ├── docs/
 │   ├── README.md                # Chỉ mục tài liệu
 │   ├── codebase-phase-map-vi.md # Luồng production theo phase
+│   ├── notes-bank-alias-policy-vi.md # Chính sách alias Notes ngân hàng
+│   ├── notes-enterprise-alias-policy-vi.md # Chính sách alias Notes doanh nghiệp
+│   ├── notes-securities-alias-policy-vi.md # Chính sách alias Notes công ty chứng khoán
 │   └── data-publication-policy-vi.md # Thông tin sử dụng dữ liệu
 ├── examples/                    # Input/output synthetic để minh họa
 │   ├── synthetic_high_coverage_statement.md

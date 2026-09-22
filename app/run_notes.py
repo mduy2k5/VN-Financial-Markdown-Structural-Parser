@@ -44,6 +44,22 @@ def main():
         default=True,
         help="Also preserve full Generic Note IR JSON under <output>/ir/.",
     )
+    ap.add_argument(
+        "--parser-mode",
+        choices=["legacy", "v2"],
+        default="legacy",
+        help="Notes parser mode; v2 preserves numeric leaves and full value context.",
+    )
+    ap.add_argument(
+        "--alias-profile",
+        choices=["auto", "none", "bank_v1", "enterprise_v1", "securities_v1", "insurance_v1"],
+        default="auto",
+        help=(
+            "Optional Notes alias catalog; auto enables bank_v1 for bank and "
+            "enterprise_v1 for enterprise reports, securities_v1 for "
+            "securities reports and insurance_v1 for insurance reports."
+        ),
+    )
     args = ap.parse_args()
 
     inp = Path(args.input)
@@ -84,6 +100,8 @@ def main():
         pipe = NotesPipeline(
             current_year=year_resolution["current_year"],
             previous_year=year_resolution["previous_year"],
+            parser_mode=args.parser_mode,
+            alias_profile=args.alias_profile,
         )
         scanner = None
         sector = args.sector
@@ -119,6 +137,7 @@ def main():
             primary=primary,
         )
         d = result.get("diagnostics") or {}
+        alias_diagnostics = d.get("schema_alias") or {}
 
         ir_file = None
         if args.write_ir and d.get("notes_found"):
@@ -135,6 +154,12 @@ def main():
             "previous_year": year_resolution["previous_year"],
             "year_resolution": year_resolution,
             "sector": sector,
+            "parser_mode": args.parser_mode,
+            "alias_profile": args.alias_profile,
+            "alias_matched_sections": alias_diagnostics.get("matched_sections", 0),
+            "alias_mapped_rows": alias_diagnostics.get("mapped_rows", 0),
+            "alias_unmapped_rows": alias_diagnostics.get("unmapped_rows", 0),
+            "multi_column_blocks": alias_diagnostics.get("multi_column_blocks", 0),
             "notes_found": bool(d.get("notes_found")),
             "sections": d.get("section_count", 0),
             "tables": d.get("table_count", 0),

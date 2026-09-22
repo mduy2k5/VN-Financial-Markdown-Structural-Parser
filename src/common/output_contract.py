@@ -508,10 +508,48 @@ def _note_row(row: dict[str, Any], index: int) -> dict[str, Any]:
             "row_note_ref": row.get("row_note_ref"),
             "semantic_shape": row.get("semantic_shape"),
             "headers": _json_value(row.get("headers") or []),
+            "hierarchy_path": _json_value(row.get("hierarchy_path") or []),
+            "parser_metadata": _json_value(row.get("metadata") or {}),
             "value_count": row.get("value_count") or len(row.get("values") or []),
         },
         "links": _json_value(row.get("linked_targets") or []),
     }
+
+
+def _note_raw_blocks(note_ir: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Keep non-tabular source blocks that have no row representation.
+
+    Numeric rows are already exported with raw cells and source columns.  A
+    paragraph/narrative block has no such row, so it is retained here instead
+    of disappearing from the production Notes view when no alias exists.
+    """
+
+    result: list[dict[str, Any]] = []
+    for section in (note_ir or {}).get("sections") or []:
+        if not isinstance(section, dict):
+            continue
+        for block in section.get("blocks") or []:
+            if not isinstance(block, dict):
+                continue
+            text = block.get("text")
+            if text is None:
+                continue
+            result.append({
+                "section": {
+                    "id": section.get("note_id_normalized") or section.get("note_id_raw"),
+                    "title": section.get("title_raw"),
+                },
+                "id": block.get("block_id"),
+                "form": block.get("form"),
+                "semantic_shape": block.get("semantic_shape"),
+                "source": {
+                    "start_line": block.get("source_start_line"),
+                    "end_line": block.get("source_end_line"),
+                },
+                "text": text,
+                "metadata": _json_value(block.get("metadata") or {}),
+            })
+    return result
 
 
 def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | None) -> dict[str, Any]:
@@ -528,6 +566,7 @@ def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | Non
             "schema": {"id": None, "version": None},
             "sections": [],
             "rows": [],
+            "raw_blocks": [],
             "links": [],
             "summary": {"section_count": 0, "row_count": 0, "link_count": 0},
         }
@@ -570,6 +609,7 @@ def clean_notes(note_ir: dict[str, Any] | None, rows: list[dict[str, Any]] | Non
         },
         "sections": sections,
         "rows": native_rows,
+        "raw_blocks": _note_raw_blocks(note_ir),
         "links": links,
         "summary": {
             "section_count": len(sections),

@@ -106,6 +106,7 @@ def parse_markdown_tables(
     *,
     current_year: int | None = None,
     previous_year: int | None = None,
+    align_implicit_category: bool = False,
 ) -> list[NoteBlock]:
     if current_year is None or previous_year is None:
         period = resolve_report_years(
@@ -134,21 +135,47 @@ def parse_markdown_tables(
             if _is_data_row(cells):
                 data_start=ridx; break
             header_rows.append(cells); data_start=ridx+1
+        implicit_category_labels = []
+        # Một số Markdown được sinh ra thiếu ô đầu tiên ở dòng header:
+        # ``Ngày 31/12/2025 | Ngày 31/12/2024`` trong khi dòng dữ liệu lại
+        # có dạng ``Nhãn | giá trị hiện tại | giá trị trước``. Chỉ bật căn
+        # chỉnh này cho Notes v2 để không thay đổi hành vi legacy.
+        if align_implicit_category and header_rows and len(header_rows[0]) == width - 1:
+            first_header_role = _infer_period_role(
+                header_rows[0][0],
+                current_year=current_year,
+                previous_year=previous_year,
+            )
+            if first_header_role or _infer_measure(header_rows[0][0]):
+                filtered_headers = [header_rows[0]]
+                for row in header_rows[1:]:
+                    if row and row[0].strip() and all(not cell.strip() for cell in row[1:]):
+                        implicit_category_labels.append(_strip_md(row[0]))
+                        continue
+                    filtered_headers.append(row)
+                header_rows = [[''] + row for row in filtered_headers]
         headers=_compose_headers(header_rows,width)
         block_no += 1
         block=NoteBlock(block_id=f'{block_prefix}:table_{block_no}', form='table', semantic_shape='unknown',
             source_start_line=base_line+i, source_end_line=base_line+max(i+1,j-1), headers_raw=headers,
             headers_normalized=[fold_text(x) for x in headers], rows=[],
-            metadata={'parser':'markdown_pipe_table_v23_1','raw_header_rows':header_rows})
+            metadata={
+                'parser': 'markdown_pipe_table_v23_1',
+                'raw_header_rows': header_rows,
+                **({'implicit_category_labels': implicit_category_labels} if implicit_category_labels else {}),
+            })
         for local_idx,cells in raw_rows[data_start:]:
             if not _is_data_row(cells): continue
             label=_strip_md(cells[0]); values=[]
+            table_context = list(implicit_category_labels) if align_implicit_category else []
             for cidx, raw in enumerate(cells[1:], start=1):
                 hdr=headers[cidx] if cidx < len(headers) else ''
                 values.append(NoteValue(raw=raw, normalized=parse_number(raw), period_label=hdr or None,
-                    period_role=_infer_period_role(hdr, current_year=current_year, previous_year=previous_year), measure=_infer_measure(hdr), source_line=base_line+local_idx, source_column=cidx))
+                    period_role=_infer_period_role(hdr, current_year=current_year, previous_year=previous_year), measure=_infer_measure(hdr), source_line=base_line+local_idx, source_column=cidx,
+                    source_context=table_context + ([hdr] if align_implicit_category and hdr else [])))
             block.rows.append(NoteRow(label_raw=label,label_normalized=fold_text(label),values=values,row_role=_row_role(label, current_year=current_year, previous_year=previous_year),
-                source_line=base_line+local_idx,raw_cells=cells))
+                source_line=base_line+local_idx,raw_cells=cells,hierarchy_path=table_context,
+                metadata={'parser': 'markdown_table_v2'} if align_implicit_category else {}))
         if block.rows: out.append(block)
         i=j
     return out

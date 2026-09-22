@@ -6,6 +6,7 @@ from collections import defaultdict
 from .note_ir import NoteBlock, NoteRow, NoteValue
 from .sectionizer import fold_text
 from .table_parser import parse_number
+from .dimension_inference import infer_movement_role
 try:
     from ..common.ground_truth_quality import period_role as quality_period_role
 except ImportError:
@@ -75,6 +76,232 @@ def _row_role(label: str, *, current_year: int | None = None, previous_year: int
     return 'detail'
 
 
+_MOVEMENT_STRUCTURE_CUES = (
+    'thay doi', 'so dau nam', 'so cuoi nam', 'trich lap', 'thanh ly',
+    'nhuong ban', 'su dung du phong', 'ket chuyen', 'hoan nhap',
+    'giam du phong', 'tang du phong', 'mua trong nam', 'tang trong nam',
+    'giam trong nam',
+)
+_MOVEMENT_ACTION_CUES = tuple(x for x in _MOVEMENT_STRUCTURE_CUES if x not in {'so dau nam', 'so cuoi nam'})
+
+
+def _outer_period_marker(
+    text: str,
+    *,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+) -> tuple[str | None, str | None]:
+    """Nhận diện kỳ của một panel movement ở ngoài cây bullet.
+
+    Notes movement thường được OCR/LLM chuyển thành hai panel văn bản:
+    ``... trong năm nay như sau`` và ``... trong năm trước như sau``. Đây là
+    kỳ của toàn panel, không phải kỳ của các nhãn con ``Số đầu năm``/
+    ``Số cuối năm``.
+    """
+
+    folded = fold_text(_strip_md(text)).strip(' :')
+    if not folded:
+        return None, None
+    current = 'nam nay' in folded and (
+        'thay doi' in folded or 'nhu sau' in folded or folded in {'nam nay', 'ky nay'}
+    )
+    previous = 'nam truoc' in folded and (
+        'thay doi' in folded or 'nhu sau' in folded or folded in {'nam truoc', 'ky truoc'}
+    )
+    if current_year is not None and str(current_year) in folded and (
+        'thay doi' in folded or 'nhu sau' in folded or folded == f'nam {current_year}'
+    ):
+        return 'current', f'Năm {current_year}'
+    if previous_year is not None and str(previous_year) in folded and (
+        'thay doi' in folded or 'nhu sau' in folded or folded == f'nam {previous_year}'
+    ):
+        return 'previous', f'Năm {previous_year}'
+    if current:
+        return 'current', 'Năm nay'
+    if previous:
+        return 'previous', 'Năm trước'
+    return None, None
+
+
+def _line_period_context(
+    raw_lines: list[str],
+    *,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+) -> dict[int, tuple[str | None, str | None]]:
+    """Gán context kỳ cho từng dòng bullet theo panel văn bản gần nhất."""
+
+    context: dict[int, tuple[str | None, str | None]] = {}
+    role: str | None = None
+    label: str | None = None
+    for idx, raw in enumerate(raw_lines):
+        marker_role = marker_label = None
+        match = BULLET_RE.match(raw)
+        if match:
+            body = _strip_md(match.group('body'))
+            folded = fold_text(body).strip(' :')
+            if folded in {'nam nay', 'ky nay'}:
+                marker_role, marker_label = 'current', 'Năm nay'
+            elif folded in {'nam truoc', 'ky truoc'}:
+                marker_role, marker_label = 'previous', 'Năm trước'
+        else:
+            marker_role, marker_label = _outer_period_marker(
+                raw,
+                current_year=current_year,
+                previous_year=previous_year,
+            )
+        if marker_role:
+            role, label = marker_role, marker_label
+        context[idx] = (role, label)
+    return context
+
+
+def _movement_root_positions(toks: list[dict], children: dict[int, list[int]]) -> set[int]:
+    """Trả về các root bullet thuộc một movement structure."""
+
+    def root_of(pos: int) -> int:
+        current = pos
+        while toks[current]['parent'] is not None:
+            current = toks[current]['parent']
+        return current
+
+    roots: set[int] = set()
+    for pos, token in enumerate(toks):
+        folded = fold_text(token['body'])
+        if any(cue in folded for cue in _MOVEMENT_STRUCTURE_CUES):
+            roots.add(root_of(pos))
+    return roots
+
+
+def _parse_movement_bullets(
+    raw_lines: list[str],
+    toks: list[dict],
+    children: dict[int, list[int]],
+    base_line: int,
+    block_prefix: str,
+    *,
+    current_year: int | None = None,
+    previous_year: int | None = None,
+) -> tuple[list[NoteBlock], set[int]]:
+    """Parse movement bullets without collapsing the movement axis into period.
+
+    A movement disclosure has two independent axes:
+
+    - panel year: ``năm nay``/``năm trước``;
+    - movement role: opening, addition, disposal, usage, closing.
+
+    The generic bullet parser previously used ``Số đầu năm`` and ``Số cuối
+    năm`` as the only period markers. That paired repeated labels such as
+    ``Tổng cộng`` across unrelated movement groups and lost their parent
+    context. This parser keeps one source row per numeric bullet and carries
+    the parent path and movement role into the IR.
+    """
+
+    all_text = ' '.join(fold_text(_strip_md(x)) for x in raw_lines)
+    cue_hits = sum(1 for cue in _MOVEMENT_ACTION_CUES if cue in all_text)
+    if cue_hits < 1:
+        return [], set()
+
+    roots = _movement_root_positions(toks, children)
+    if not roots:
+        return [], set()
+
+    eligible: set[int] = set()
+
+    def root_of(pos: int) -> int:
+        current = pos
+        while toks[current]['parent'] is not None:
+            current = toks[current]['parent']
+        return current
+
+    for pos in range(len(toks)):
+        if root_of(pos) in roots:
+            eligible.add(pos)
+
+    period_context = _line_period_context(
+        raw_lines,
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+
+    def hierarchy_path(pos: int) -> list[str]:
+        path: list[str] = []
+        parent = toks[pos]['parent']
+        while parent is not None:
+            parent_match = KV_RE.match(toks[parent]['body'])
+            if parent_match:
+                parent_label = _strip_md(parent_match.group('label'))
+            else:
+                parent_label = _strip_md(toks[parent]['body']).rstrip(':').strip()
+            path.append(parent_label)
+            parent = toks[parent]['parent']
+        return list(reversed(path))
+
+    rows: list[NoteRow] = []
+    for pos in sorted(eligible):
+        token = toks[pos]
+        match = KV_RE.match(token['body'])
+        if not match:
+            continue
+        label = _strip_md(match.group('label'))
+        raw_value, unit = _split_numeric_unit(match.group('value'))
+        normalized = parse_number(raw_value)
+        if normalized is None and raw_value not in {'-', '–', '—', '−'}:
+            continue
+
+        path = hierarchy_path(pos)
+        movement_role = infer_movement_role(' > '.join(path + [label]))
+        period_role, period_label = period_context.get(token['idx'], (None, None))
+        row_role = _row_role(label, current_year=current_year, previous_year=previous_year)
+        if movement_role in {'opening', 'closing'}:
+            row_role = movement_role
+        elif movement_role:
+            row_role = 'movement'
+
+        value = NoteValue(
+            raw=raw_value,
+            normalized=normalized,
+            period_label=period_label,
+            period_role=period_role,
+            movement_role=movement_role,
+            unit=unit,
+            source_line=token['line'],
+        )
+        rows.append(NoteRow(
+            label_raw=label,
+            label_normalized=fold_text(label),
+            values=[value],
+            row_role=row_role,
+            hierarchy_path=path,
+            source_line=token['line'],
+            raw_cells=[label, raw_value],
+            metadata={
+                'movement_role': movement_role,
+                'period_context': period_label,
+            },
+        ))
+
+    if not rows:
+        return [], set()
+
+    source_lines = [toks[pos]['line'] for pos in eligible]
+    block = NoteBlock(
+        block_id=f'{block_prefix}:bullet_movement_1',
+        form='bullet_list',
+        semantic_shape='movement',
+        source_start_line=min(source_lines),
+        source_end_line=max(source_lines),
+        rows=rows,
+        metadata={
+            'parser': 'bullet_movement_hierarchy_v24_0',
+            'hierarchy_preserved': True,
+            'period_axis': 'outer_panel',
+            'movement_axis': 'parent_role',
+        },
+    )
+    return [block], eligible
+
+
 def parse_bullet_structures(
     section_text: str,
     base_line: int,
@@ -132,9 +359,23 @@ def parse_bullet_structures(
     used = set()
     block_no = 0
 
+    movement_blocks, movement_used = _parse_movement_bullets(
+        raw_lines,
+        toks,
+        children,
+        base_line,
+        block_prefix,
+        current_year=current_year,
+        previous_year=previous_year,
+    )
+    blocks.extend(movement_blocks)
+    used.update(movement_used)
+
     # A) Ghép các dòng nhãn:giá trị giữa container kỳ hiện tại/trước đây.
     period_groups = []
     for pos, t in enumerate(toks):
+        if pos in used:
+            continue
         role = _period_role(t['body'], current_year=current_year, previous_year=previous_year)
         if not role:
             continue
@@ -200,6 +441,8 @@ def parse_bullet_structures(
         vals = []
         child_positions = []
         for cp in children.get(pos, []):
+            if cp in used:
+                continue
             c = toks[cp]
             km = KV_RE.match(c['body'])
             if not km:

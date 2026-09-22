@@ -1,0 +1,2402 @@
+{
+  "schema_id": "GENERIC_NOTE_IR_V1",
+  "schema_version": "1.0.0",
+  "source_name": "synthetic_high_coverage_statement.md",
+  "sector": "enterprise",
+  "scope_start_line": 379,
+  "scope_end_line": 743,
+  "scope_confidence": 0.97,
+  "sections": [
+    {
+      "note_id_raw": "1",
+      "note_id_normalized": "1",
+      "title_raw": "THÔNG TIN CHUNG",
+      "title_normalized": "thong tin chung",
+      "source_start_line": 383,
+      "source_end_line": 393,
+      "section_instance_id": "1@L383",
+      "pages": [
+        6
+      ],
+      "unit_raw": "table_header",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:1@L383:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 383,
+          "source_end_line": 392,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 1. THÔNG TIN CHUNG\n\nCông ty Cổ phần Hạ tầng Sao Bắc Mô phỏng là một pháp nhân giả lập được tạo ra\nchỉ nhằm kiểm thử parser. Công ty giả lập hoạt động trong các lĩnh vực xây dựng\nhạ tầng, vận hành thiết bị và cung cấp dịch vụ kỹ thuật số.\n\nGiấy đăng ký mô phỏng: SYN-REG-8462-7319. Mã này không đại diện cho giấy tờ\npháp lý có thật và không được dùng để xác định một doanh nghiệp ngoài đời.\n\nVốn góp mô phỏng tại ngày 31 tháng 12 năm 2026 là 3.456.789.012.300 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "1",
+      "section_ref": "NOTE:1@L383"
+    },
+    {
+      "note_id_raw": "2",
+      "note_id_normalized": "2",
+      "title_raw": "KỲ KẾ TOÁN VÀ ĐƠN VỊ TIỀN TỆ",
+      "title_normalized": "ky ke toan va don vi tien te",
+      "source_start_line": 394,
+      "source_end_line": 399,
+      "section_instance_id": "2@L394",
+      "pages": [
+        6
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:2@L394:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 394,
+          "source_end_line": 398,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 2. KỲ KẾ TOÁN VÀ ĐƠN VỊ TIỀN TỆ\n\nKỳ kế toán mô phỏng bắt đầu từ ngày 01 tháng 01 và kết thúc vào ngày 31 tháng\n12 hằng năm. Đơn vị tiền tệ sử dụng trong file là Đồng Việt Nam; các con số chỉ\nphục vụ kiểm thử và không phản ánh giao dịch thật.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "2",
+      "section_ref": "NOTE:2@L394"
+    },
+    {
+      "note_id_raw": "3",
+      "note_id_normalized": "3",
+      "title_raw": "CHÍNH SÁCH KẾ TOÁN MÔ PHỎNG",
+      "title_normalized": "chinh sach ke toan mo phong",
+      "source_start_line": 400,
+      "source_end_line": 406,
+      "section_instance_id": "3@L400",
+      "pages": [
+        6
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:3@L400:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 400,
+          "source_end_line": 405,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 3. CHÍNH SÁCH KẾ TOÁN MÔ PHỎNG\n\nBáo cáo được trình bày theo mô hình phân loại tài sản, nợ phải trả, vốn chủ sở\nhữu, doanh thu và chi phí để kiểm thử nhận diện nhóm chỉ tiêu. Các khoản dự\nphòng được ghi trong ngoặc đơn. Dấu gạch ngang biểu thị ô không có dữ liệu mô\nphỏng, không được tự động chuyển thành số 0 nếu không có quy tắc riêng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:3@L400",
+          "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2bc02fa7adc5b8",
+          "relation": "explains",
+          "confidence": 1.0,
+          "evidence": [
+            "explicit_primary_note_reference"
+          ],
+          "statement_type": "financial_position",
+          "primary_note_reference": "3",
+          "metadata": {
+            "section_instance_count": 1,
+            "section_instance_refs": [
+              "NOTE:3@L400"
+            ]
+          }
+        }
+      ],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "3",
+      "section_ref": "NOTE:3@L400"
+    },
+    {
+      "note_id_raw": "4",
+      "note_id_normalized": "4",
+      "title_raw": "TÀI SẢN CỐ ĐỊNH",
+      "title_normalized": "tai san co dinh",
+      "source_start_line": 407,
+      "source_end_line": 411,
+      "section_instance_id": "4@L407",
+      "pages": [
+        6
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:4@L407:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 407,
+          "source_end_line": 410,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 4. TÀI SẢN CỐ ĐỊNH\n\nTài sản cố định mô phỏng được theo dõi theo nguyên giá và giá trị hao mòn lũy\nkế. Chi phí khấu hao trong file chỉ là giá trị kiểm thử được tạo ngẫu nhiên.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:4@L407",
+          "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2acbe8da471df5",
+          "relation": "explains",
+          "confidence": 1.0,
+          "evidence": [
+            "explicit_primary_note_reference"
+          ],
+          "statement_type": "financial_position",
+          "primary_note_reference": "4",
+          "metadata": {
+            "section_instance_count": 1,
+            "section_instance_refs": [
+              "NOTE:4@L407"
+            ]
+          }
+        },
+        {
+          "source_ref": "NOTE:4@L407",
+          "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "fixed_assets",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "4",
+      "section_ref": "NOTE:4@L407"
+    },
+    {
+      "note_id_raw": "5",
+      "note_id_normalized": "5",
+      "title_raw": "PHẢI THU VÀ HÀNG TỒN KHO",
+      "title_normalized": "phai thu va hang ton kho",
+      "source_start_line": 412,
+      "source_end_line": 417,
+      "section_instance_id": "5@L412",
+      "pages": [
+        6
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:5@L412:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 412,
+          "source_end_line": 416,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 5. PHẢI THU VÀ HÀNG TỒN KHO\n\nCác khoản phải thu được chia thành phải thu khách hàng, trả trước cho người bán\nvà phải thu khác. Hàng tồn kho được trình bày cùng khoản dự phòng giảm giá để\nkiểm thử quan hệ cha–con và giá trị âm.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:5@L412",
+          "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.5f7adc430767cb",
+          "relation": "explains",
+          "confidence": 1.0,
+          "evidence": [
+            "explicit_primary_note_reference"
+          ],
+          "statement_type": "financial_position",
+          "primary_note_reference": "5",
+          "metadata": {
+            "section_instance_count": 1,
+            "section_instance_refs": [
+              "NOTE:5@L412"
+            ]
+          }
+        },
+        {
+          "source_ref": "NOTE:5@L412",
+          "target_ref": "ONTOLOGY:ASSET.INVENTORY",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "inventory",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "5",
+      "section_ref": "NOTE:5@L412"
+    },
+    {
+      "note_id_raw": "6",
+      "note_id_normalized": "6",
+      "title_raw": "THÔNG TIN LOẠI TRỪ",
+      "title_normalized": "thong tin loai tru",
+      "source_start_line": 418,
+      "source_end_line": 422,
+      "section_instance_id": "6@L418",
+      "pages": [
+        6
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:6@L418:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 418,
+          "source_end_line": 421,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 6. THÔNG TIN LOẠI TRỪ\n\nFile này không chứa chữ ký, con dấu, địa chỉ thật, thông tin liên hệ, tài khoản,\nsố định danh cá nhân, số đăng ký doanh nghiệp thật hoặc metadata kho nguồn.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:6@L418",
+          "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.63916e3c39a7a5",
+          "relation": "explains",
+          "confidence": 1.0,
+          "evidence": [
+            "explicit_primary_note_reference"
+          ],
+          "statement_type": "financial_position",
+          "primary_note_reference": "6",
+          "metadata": {
+            "section_instance_count": 1,
+            "section_instance_refs": [
+              "NOTE:6@L418"
+            ]
+          }
+        }
+      ],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "6",
+      "section_ref": "NOTE:6@L418"
+    },
+    {
+      "note_id_raw": "6.1",
+      "note_id_normalized": "6.1",
+      "title_raw": "GHI CHÚ VỀ LICENSE",
+      "title_normalized": "ghi chu ve license",
+      "source_start_line": 423,
+      "source_end_line": 428,
+      "section_instance_id": "6.1@L423",
+      "pages": [
+        6,
+        7
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:6.1@L423:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 423,
+          "source_end_line": 427,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 6.1. GHI CHÚ VỀ LICENSE\n\n---\n\n# Page 7",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "6.1",
+      "section_ref": "NOTE:6.1@L423"
+    },
+    {
+      "note_id_raw": "7",
+      "note_id_normalized": "7",
+      "title_raw": "TIỀN VÀ CÁC KHOẢN TƯƠNG ĐƯƠNG TIỀN",
+      "title_normalized": "tien va cac khoan tuong duong tien",
+      "source_start_line": 429,
+      "source_end_line": 439,
+      "section_instance_id": "7@L429",
+      "pages": [
+        7
+      ],
+      "unit_raw": "table_header",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:7@L429:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 429,
+          "source_end_line": 438,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 7. TIỀN VÀ CÁC KHOẢN TƯƠNG ĐƯƠNG TIỀN\n\nTiền và các khoản tương đương tiền trong báo cáo mô phỏng bao gồm tiền mặt tại\nquỹ, tiền gửi thanh toán mô phỏng và các khoản đầu tư ngắn hạn có thời hạn thu\nhồi không quá ba tháng kể từ ngày mua. Các khoản này được trình bày theo giá trị\nghi sổ vì mục đích kiểm thử.\n\n- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.\n- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.\n- Không có hạn chế sử dụng tiền, tài khoản phong tỏa hoặc khoản tiền ủy thác thật trong file này.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:7@L429",
+          "target_ref": "ONTOLOGY:ASSET.CASH_EQUIV",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "cash",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "7",
+      "section_ref": "NOTE:7@L429"
+    },
+    {
+      "note_id_raw": "8",
+      "note_id_normalized": "8",
+      "title_raw": "ĐẦU TƯ TÀI CHÍNH NGẮN HẠN",
+      "title_normalized": "dau tu tai chinh ngan han",
+      "source_start_line": 440,
+      "source_end_line": 449,
+      "section_instance_id": "8@L440",
+      "pages": [
+        7
+      ],
+      "unit_raw": "table_header",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:8@L440:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 440,
+          "source_end_line": 448,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 8. ĐẦU TƯ TÀI CHÍNH NGẮN HẠN\n\nKhoản đầu tư tài chính ngắn hạn mô phỏng là các khoản tiền gửi có kỳ hạn được\ngiả lập để kiểm thử nhận diện nhóm tài sản và kỳ đáo hạn. Không có tên ngân hàng,\nmã hợp đồng, số tài khoản hoặc chứng từ thật.\n\n- Giá trị ghi sổ mô phỏng: 689.321.456.700 đồng tại ngày 31/12/2026.\n- Giá trị so sánh mô phỏng: 543.210.987.600 đồng tại ngày 01/01/2026.\n- Lãi suất, ngày đáo hạn và bên phát hành không được xem là dữ liệu thực tế.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "8",
+      "section_ref": "NOTE:8@L440"
+    },
+    {
+      "note_id_raw": "9",
+      "note_id_normalized": "9",
+      "title_raw": "PHẢI THU NGẮN HẠN",
+      "title_normalized": "phai thu ngan han",
+      "source_start_line": 450,
+      "source_end_line": 466,
+      "section_instance_id": "9@L450",
+      "pages": [
+        7,
+        8
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:9@L450:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 450,
+          "source_end_line": 465,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 9. PHẢI THU NGẮN HẠN\n\nPhải thu ngắn hạn được chia thành phải thu khách hàng, trả trước cho người bán\nvà phải thu khác. Việc phân nhóm chỉ nhằm kiểm thử quan hệ cha–con trong dữ liệu.\n\n- Phải thu khách hàng mô phỏng: 1.012.345.678.900 đồng và 845.678.901.230 đồng.\n- Trả trước cho người bán mô phỏng: 234.567.890.120 đồng và 198.765.432.100 đồng.\n- Phải thu khác mô phỏng: 345.678.901.230 đồng và 256.901.345.670 đồng.\n- Dự phòng phải thu khó đòi mô phỏng: (135.803.457.950) đồng và (100.000.000.100) đồng.\n\nKhông có tên khách hàng, địa chỉ, mã số thuế, hóa đơn hoặc điều khoản thương mại\ncủa tổ chức thật nào được sử dụng.\n\n---\n\n# Page 8",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "9",
+      "section_ref": "NOTE:9@L450"
+    },
+    {
+      "note_id_raw": "10",
+      "note_id_normalized": "10",
+      "title_raw": "HÀNG TỒN KHO",
+      "title_normalized": "hang ton kho",
+      "source_start_line": 467,
+      "source_end_line": 476,
+      "section_instance_id": "10@L467",
+      "pages": [
+        8
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:10@L467:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 467,
+          "source_end_line": 475,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 10. HÀNG TỒN KHO\n\nHàng tồn kho mô phỏng được ghi nhận theo giá trị thấp hơn giữa giá gốc và giá\ntrị thuần có thể thực hiện. Các nhóm vật tư, thiết bị và sản phẩm dở dang chỉ\nlà nhãn kiểm thử.\n\n- Giá trị hàng tồn kho trước dự phòng: 1.134.567.890.120 đồng và 1.012.345.678.900 đồng.\n- Dự phòng giảm giá hàng tồn kho: (22.222.211.220) đồng và (33.691.357.800) đồng.\n- Không có mã kho, mã sản phẩm, lô hàng hoặc địa điểm lưu kho thật.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:10@L467",
+          "target_ref": "ONTOLOGY:ASSET.INVENTORY",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "inventory",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "10",
+      "section_ref": "NOTE:10@L467"
+    },
+    {
+      "note_id_raw": "11",
+      "note_id_normalized": "11",
+      "title_raw": "TÀI SẢN CỐ ĐỊNH HỮU HÌNH",
+      "title_normalized": "tai san co dinh huu hinh",
+      "source_start_line": 477,
+      "source_end_line": 486,
+      "section_instance_id": "11@L477",
+      "pages": [
+        8
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:11@L477:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 477,
+          "source_end_line": 485,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 11. TÀI SẢN CỐ ĐỊNH HỮU HÌNH\n\nTài sản cố định hữu hình mô phỏng được trình bày theo nguyên giá trừ giá trị hao\nmòn lũy kế. Khấu hao được giả lập theo phương pháp đường thẳng để tạo dữ liệu\nkiểm thử công thức và quan hệ tổng–chi tiết.\n\n- Nguyên giá mô phỏng: 2.345.678.901.200 đồng và 2.100.000.000.000 đồng.\n- Hao mòn lũy kế mô phỏng: (1.222.222.112.200) đồng và (1.254.321.098.900) đồng.\n- Giá trị còn lại mô phỏng: 1.123.456.789.000 đồng và 845.678.901.100 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:11@L477",
+          "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "fixed_assets",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "11",
+      "section_ref": "NOTE:11@L477"
+    },
+    {
+      "note_id_raw": "12",
+      "note_id_normalized": "12",
+      "title_raw": "TÀI SẢN CỐ ĐỊNH VÔ HÌNH",
+      "title_normalized": "tai san co dinh vo hinh",
+      "source_start_line": 487,
+      "source_end_line": 496,
+      "section_instance_id": "12@L487",
+      "pages": [
+        8
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:12@L487:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 487,
+          "source_end_line": 495,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 12. TÀI SẢN CỐ ĐỊNH VÔ HÌNH\n\nTài sản cố định vô hình mô phỏng gồm quyền sử dụng phần mềm và tài sản kỹ thuật\nđược tạo giả lập. Không có giấy phép, khóa bản quyền, tên nhà cung cấp hoặc mã\ntài sản thật.\n\n- Nguyên giá mô phỏng: 555.555.888.900 đồng và 444.444.999.000 đồng.\n- Hao mòn lũy kế mô phỏng: (333.333.776.700) đồng và (277.778.221.800) đồng.\n- Giá trị còn lại mô phỏng: 222.222.112.200 đồng và 166.666.777.200 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:12@L487",
+          "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "fixed_assets",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "12",
+      "section_ref": "NOTE:12@L487"
+    },
+    {
+      "note_id_raw": "13",
+      "note_id_normalized": "13",
+      "title_raw": "BẤT ĐỘNG SẢN ĐẦU TƯ VÀ CHI PHÍ XÂY DỰNG CƠ BẢN DỞ DANG",
+      "title_normalized": "bat dong san dau tu va chi phi xay dung co ban do dang",
+      "source_start_line": 497,
+      "source_end_line": 511,
+      "section_instance_id": "13@L497",
+      "pages": [
+        8,
+        9
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:13@L497:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 497,
+          "source_end_line": 510,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 13. BẤT ĐỘNG SẢN ĐẦU TƯ VÀ CHI PHÍ XÂY DỰNG CƠ BẢN DỞ DANG\n\nBất động sản đầu tư và chi phí xây dựng cơ bản dở dang trong file chỉ là các\nnhóm dữ liệu giả lập. Không có địa chỉ, giấy chứng nhận, hợp đồng xây dựng hoặc\nđịnh giá viên thật.\n\n- Bất động sản đầu tư mô phỏng: 1.234.567.890.100 đồng và 1.111.111.222.200 đồng.\n- Nguyên giá mô phỏng: 1.900.000.000.000 đồng và 1.700.000.000.000 đồng.\n- Hao mòn lũy kế mô phỏng: (665.432.109.900) đồng và (588.888.777.800) đồng.\n- Chi phí xây dựng cơ bản dở dang mô phỏng: 123.456.789.000 đồng và 98.765.432.100 đồng.\n\n---\n\n# Page 9",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:13@L497",
+          "target_ref": "ONTOLOGY:ASSET.INVESTMENT_PROPERTY",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "investment_property",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "13",
+      "section_ref": "NOTE:13@L497"
+    },
+    {
+      "note_id_raw": "14",
+      "note_id_normalized": "14",
+      "title_raw": "PHẢI TRẢ NGƯỜI BÁN VÀ CÁC KHOẢN PHẢI TRẢ NGẮN HẠN",
+      "title_normalized": "phai tra nguoi ban va cac khoan phai tra ngan han",
+      "source_start_line": 512,
+      "source_end_line": 525,
+      "section_instance_id": "14@L512",
+      "pages": [
+        9
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:14@L512:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 512,
+          "source_end_line": 524,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 14. PHẢI TRẢ NGƯỜI BÁN VÀ CÁC KHOẢN PHẢI TRẢ NGẮN HẠN\n\nCác khoản phải trả được tạo ra để kiểm thử nhiều cấp chỉ tiêu. Số liệu không\nphải là công nợ của bất kỳ nhà cung cấp, người lao động hoặc cơ quan nhà nước\nnào.\n\n- Phải trả người bán ngắn hạn: 345.678.901.200 đồng và 298.765.432.100 đồng.\n- Người mua trả tiền trước ngắn hạn: 456.789.012.300 đồng và 321.234.567.800 đồng.\n- Thuế và các khoản phải nộp Nhà nước: 123.456.789.400 đồng và 98.765.432.100 đồng.\n- Phải trả người lao động: 234.567.890.500 đồng và 210.123.456.700 đồng.\n- Chi phí phải trả ngắn hạn: 345.678.901.600 đồng và 300.987.654.300 đồng.\n- Doanh thu chưa thực hiện ngắn hạn: 123.456.789.700 đồng và 100.222.333.400 đồng.\n- Phải trả ngắn hạn khác: 234.567.890.800 đồng và 190.111.222.500 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "14",
+      "section_ref": "NOTE:14@L512"
+    },
+    {
+      "note_id_raw": "15",
+      "note_id_normalized": "15",
+      "title_raw": "VAY VÀ NỢ THUÊ TÀI CHÍNH",
+      "title_normalized": "vay va no thue tai chinh",
+      "source_start_line": 526,
+      "source_end_line": 535,
+      "section_instance_id": "15@L526",
+      "pages": [
+        9
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:15@L526:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 526,
+          "source_end_line": 534,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 15. VAY VÀ NỢ THUÊ TÀI CHÍNH\n\nCác khoản vay trong báo cáo mô phỏng chỉ thể hiện cấu trúc số liệu, không thể\nhiện chủ nợ, hợp đồng tín dụng, tài sản bảo đảm, lãi suất hay điều khoản vi phạm.\n\n- Vay và nợ thuê tài chính ngắn hạn: 876.543.210.900 đồng và 690.123.456.700 đồng.\n- Vay và nợ thuê tài chính dài hạn: 530.864.309.700 đồng và 444.445.555.500 đồng.\n- Dự phòng phải trả ngắn hạn mô phỏng: 45.678.901.100 đồng và 36.789.012.300 đồng.\n- Quỹ phúc lợi mô phỏng: 90.124.923.200 đồng và 98.556.332.500 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:15@L526",
+          "target_ref": "ONTOLOGY:LIABILITY.BORROWINGS",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "borrowings",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "15",
+      "section_ref": "NOTE:15@L526"
+    },
+    {
+      "note_id_raw": "16",
+      "note_id_normalized": "16",
+      "title_raw": "VỐN CHỦ SỞ HỮU",
+      "title_normalized": "von chu so huu",
+      "source_start_line": 536,
+      "source_end_line": 554,
+      "section_instance_id": "16@L536",
+      "pages": [
+        9,
+        10
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:16@L536:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 536,
+          "source_end_line": 553,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 16. VỐN CHỦ SỞ HỮU\n\nVốn chủ sở hữu được mô phỏng để kiểm thử các dòng tổng, dòng thành phần và\nnhánh lợi nhuận chưa phân phối.\n\n- Vốn góp của chủ sở hữu: 3.456.789.012.300 đồng và 3.012.345.678.900 đồng.\n- Cổ phần phổ thông mô phỏng: 3.456.789.012.300 đồng và 3.012.345.678.900 đồng.\n- Thặng dư vốn cổ phần: 12.345.678.900 đồng và 12.345.600.800 đồng.\n- Chênh lệch tỷ giá mô phỏng: 45.678.901.200 đồng và 38.901.234.500 đồng.\n- Quỹ đầu tư phát triển: 234.567.890.100 đồng và 166.666.777.200 đồng.\n- Lợi nhuận sau thuế chưa phân phối: 447.572.038.300 đồng và 337.293.230.900 đồng.\n\nKhông có tên cổ đông, số lượng cổ phần thực tế, mã chứng khoán thật hoặc thông\ntin đăng ký chứng khoán trong file.\n\n---\n\n# Page 10",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:16@L536",
+          "target_ref": "ONTOLOGY:EQUITY",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "equity",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "16",
+      "section_ref": "NOTE:16@L536"
+    },
+    {
+      "note_id_raw": "17",
+      "note_id_normalized": "17",
+      "title_raw": "DOANH THU",
+      "title_normalized": "doanh thu",
+      "source_start_line": 555,
+      "source_end_line": 567,
+      "section_instance_id": "17@L555",
+      "pages": [
+        10
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:17@L555:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 555,
+          "source_end_line": 566,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 17. DOANH THU\n\nDoanh thu bán hàng và cung cấp dịch vụ mô phỏng được ghi nhận để minh họa các\nnhóm doanh thu gộp, giảm trừ và doanh thu thuần.\n\n- Doanh thu bán hàng và cung cấp dịch vụ: 18.765.432.109.800 đồng và 16.543.210.987.600 đồng.\n- Các khoản giảm trừ doanh thu: (123.456.789.100) đồng và (98.765.432.100) đồng.\n- Doanh thu thuần mô phỏng: 18.641.975.320.700 đồng và 16.444.445.555.500 đồng.\n- Doanh thu hoạt động tài chính: 345.678.901.200 đồng và 287.654.321.000 đồng.\n\nCác hợp đồng, khách hàng, sản phẩm và thời điểm giao hàng đều là thông tin giả\nlập, không được dùng để suy ra hoạt động của doanh nghiệp thật.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:17@L555",
+          "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.REVENUE_GROSS",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        },
+        {
+          "source_ref": "NOTE:17@L555",
+          "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.REVENUE_NET",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "revenue",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "17",
+      "section_ref": "NOTE:17@L555"
+    },
+    {
+      "note_id_raw": "18",
+      "note_id_normalized": "18",
+      "title_raw": "CHI PHÍ VÀ LỢI NHUẬN",
+      "title_normalized": "chi phi va loi nhuan",
+      "source_start_line": 568,
+      "source_end_line": 580,
+      "section_instance_id": "18@L568",
+      "pages": [
+        10
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:18@L568:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 568,
+          "source_end_line": 579,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 18. CHI PHÍ VÀ LỢI NHUẬN\n\nCác khoản chi phí được trình bày theo nhóm để kiểm thử việc nhận diện dấu âm,\ncông thức tổng hợp và quan hệ giữa dòng cha với dòng con.\n\n- Giá vốn hàng bán: 16.432.109.876.500 đồng và 14.777.777.765.400 đồng.\n- Chi phí tài chính: (456.789.012.300) đồng và (398.765.432.100) đồng.\n- Trong đó, chi phí lãi vay: (321.234.567.800) đồng và (287.654.321.000) đồng.\n- Chi phí quản lý doanh nghiệp: (789.012.345.600) đồng và (678.901.234.500) đồng.\n- Thu nhập khác: 234.567.890.700 đồng và 145.678.901.200 đồng.\n- Chi phí khác: (123.456.789.800) đồng và (90.123.456.700) đồng.\n- Lợi nhuận khác: 111.111.100.900 đồng và 55.555.444.500 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "18",
+      "section_ref": "NOTE:18@L568"
+    },
+    {
+      "note_id_raw": "19",
+      "note_id_normalized": "19",
+      "title_raw": "THUẾ THU NHẬP DOANH NGHIỆP",
+      "title_normalized": "thue thu nhap doanh nghiep",
+      "source_start_line": 581,
+      "source_end_line": 594,
+      "section_instance_id": "19@L581",
+      "pages": [
+        10,
+        11
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:19@L581:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 581,
+          "source_end_line": 593,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 19. THUẾ THU NHẬP DOANH NGHIỆP\n\nThuế thu nhập doanh nghiệp trong báo cáo là giá trị mô phỏng. Không có mã số\nthuế, tờ khai, quyết định thanh tra hoặc hồ sơ thuế thật.\n\n- Chi phí thuế thu nhập doanh nghiệp hiện hành: (278.901.234.500) đồng và (201.234.567.800) đồng.\n- Chi phí thuế thu nhập doanh nghiệp hoãn lại: (12.345.678.900) đồng và 8.765.432.100 đồng.\n- Lợi nhuận sau thuế thu nhập doanh nghiệp: 1.154.298.532.800 đồng và 722.210.889.100 đồng.\n- Lãi cơ bản trên cổ phiếu mô phỏng: 3.456 đồng và 2.987 đồng.\n\n---\n\n# Page 11",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [
+        {
+          "source_ref": "NOTE:19@L581",
+          "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        },
+        {
+          "source_ref": "NOTE:19@L581",
+          "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+          "relation": "topic_candidate",
+          "confidence": 0.55,
+          "evidence": [
+            "sector_profile_title_match"
+          ],
+          "statement_type": null,
+          "primary_note_reference": null,
+          "metadata": {}
+        }
+      ],
+      "sector_topic": "tax",
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "19",
+      "section_ref": "NOTE:19@L581"
+    },
+    {
+      "note_id_raw": "20",
+      "note_id_normalized": "20",
+      "title_raw": "LƯU CHUYỂN TIỀN TỆ",
+      "title_normalized": "luu chuyen tien te",
+      "source_start_line": 595,
+      "source_end_line": 609,
+      "section_instance_id": "20@L595",
+      "pages": [
+        11
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:20@L595:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 595,
+          "source_end_line": 608,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 20. LƯU CHUYỂN TIỀN TỆ\n\nPhần dòng tiền mô phỏng được xây dựng theo phương pháp gián tiếp trong dữ liệu mô\nphỏng. Các dòng điều chỉnh không đại diện cho giao dịch ngân hàng hoặc giao dịch\ntiền thật.\n\n- Lợi nhuận trước thuế: 1.420.854.088.400 đồng và 932.210.889.000 đồng.\n- Khấu hao tài sản cố định và bất động sản đầu tư: 321.098.765.400 đồng và 298.765.432.100 đồng.\n- Tăng/giảm các khoản dự phòng: 45.678.901.200 đồng và 38.901.234.500 đồng.\n- Lợi nhuận từ hoạt động trước thay đổi vốn lưu động: 1.775.286.076.100 đồng và 1.261.112.123.500 đồng.\n- Lưu chuyển tiền thuần từ hoạt động kinh doanh: 1.650.349.926.900 đồng và 1.281.606.038.300 đồng.\n- Lưu chuyển tiền thuần từ hoạt động đầu tư: (333.332.223.300) đồng và (213.580.246.800) đồng.\n- Lưu chuyển tiền thuần từ hoạt động tài chính: 65.422.209.900 đồng và 20.988.766.500 đồng.\n- Tiền và tương đương tiền cuối kỳ: 2.370.094.234.730 đồng và 1.854.446.667.800 đồng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "20",
+      "section_ref": "NOTE:20@L595"
+    },
+    {
+      "note_id_raw": "21",
+      "note_id_normalized": "21",
+      "title_raw": "CÔNG CỤ TÀI CHÍNH VÀ QUẢN LÝ RỦI RO",
+      "title_normalized": "cong cu tai chinh va quan ly rui ro",
+      "source_start_line": 610,
+      "source_end_line": 622,
+      "section_instance_id": "21@L610",
+      "pages": [
+        11
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:21@L610:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 610,
+          "source_end_line": 621,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 21. CÔNG CỤ TÀI CHÍNH VÀ QUẢN LÝ RỦI RO\n\nCác nhóm rủi ro dưới đây chỉ nhằm kiểm thử phần thuyết minh và không phải đánh\ngiá rủi ro của một tổ chức cụ thể.\n\n- Rủi ro tín dụng mô phỏng: phát sinh từ phải thu và tiền gửi giả lập.\n- Rủi ro thanh khoản mô phỏng: phát sinh từ các khoản phải trả và khoản vay giả lập.\n- Rủi ro thị trường mô phỏng: phát sinh từ biến động lãi suất và tỷ giá giả lập.\n- Chính sách quản lý: theo dõi kỳ hạn, giới hạn nội bộ và khả năng thanh toán trong mô hình dữ liệu.\n\nKhông có giá trị hợp lý, xếp hạng tín dụng, hạn mức ngân hàng hoặc hồ sơ quản trị\nrủi ro thật nào được cung cấp.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "21",
+      "section_ref": "NOTE:21@L610"
+    },
+    {
+      "note_id_raw": "22",
+      "note_id_normalized": "22",
+      "title_raw": "GIÁ TRỊ HỢP LÝ",
+      "title_normalized": "gia tri hop ly",
+      "source_start_line": 623,
+      "source_end_line": 632,
+      "section_instance_id": "22@L623",
+      "pages": [
+        11,
+        12
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:22@L623:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 623,
+          "source_end_line": 631,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 22. GIÁ TRỊ HỢP LÝ\n\nDo đây là dữ liệu mô phỏng, giá trị hợp lý của các khoản mục tài chính được giả\nđịnh xấp xỉ giá trị ghi sổ. Giả định này chỉ phục vụ kiểm thử và không phải\nkết luận định giá.\n\n---\n\n# Page 12",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "22",
+      "section_ref": "NOTE:22@L623"
+    },
+    {
+      "note_id_raw": "23",
+      "note_id_normalized": "23",
+      "title_raw": "GIAO DỊCH VỚI BÊN LIÊN QUAN MÔ PHỎNG",
+      "title_normalized": "giao dich voi ben lien quan mo phong",
+      "source_start_line": 633,
+      "source_end_line": 642,
+      "section_instance_id": "23@L633",
+      "pages": [
+        12
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:23@L633:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 633,
+          "source_end_line": 641,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 23. GIAO DỊCH VỚI BÊN LIÊN QUAN MÔ PHỎNG\n\nCác bên liên quan dưới đây là tên định danh giả lập, không liên hệ với pháp nhân\nhoặc cá nhân nào ngoài đời.\n\n- Bên liên quan mô phỏng A: cung cấp dịch vụ kỹ thuật giả lập.\n- Bên liên quan mô phỏng B: nhận khoản ứng trước giả lập.\n- Không ghi nhận số dư phải thu, phải trả hoặc bảo lãnh thực tế với bên liên quan.\n- Không có giao dịch với người quản lý, thành viên hội đồng hoặc cổ đông thật.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "23",
+      "section_ref": "NOTE:23@L633"
+    },
+    {
+      "note_id_raw": "24",
+      "note_id_normalized": "24",
+      "title_raw": "CAM KẾT VÀ NGHĨA VỤ TIỀM TÀNG",
+      "title_normalized": "cam ket va nghia vu tiem tang",
+      "source_start_line": 643,
+      "source_end_line": 654,
+      "section_instance_id": "24@L643",
+      "pages": [
+        12
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:24@L643:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 643,
+          "source_end_line": 647,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 24. CAM KẾT VÀ NGHĨA VỤ TIỀM TÀNG\n\nBáo cáo mô phỏng không chứa hợp đồng thuê, bảo lãnh, kiện tụng hoặc cam kết mua\nsắm thật. Các dòng dưới đây chỉ là cờ kiểm thử nội dung:",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        },
+        {
+          "block_id": "NOTE:24@L643:bullet_single_1",
+          "form": "bullet_list",
+          "semantic_shape": "breakdown",
+          "source_start_line": 648,
+          "source_end_line": 649,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [
+            {
+              "label_raw": "Cam kết đầu tư mô phỏng",
+              "label_normalized": "cam ket dau tu mo phong",
+              "values": [
+                {
+                  "raw": "640.123.450.700",
+                  "normalized": 640123450700,
+                  "period_label": null,
+                  "period_role": null,
+                  "movement_role": null,
+                  "measure": null,
+                  "unit": "đồng",
+                  "unit_canonical": "vnd",
+                  "source_line": 648,
+                  "source_column": null
+                }
+              ],
+              "code": null,
+              "note_ref": null,
+              "row_role": "detail",
+              "hierarchy_path": [],
+              "source_line": 648,
+              "raw_cells": [
+                "Cam kết đầu tư mô phỏng",
+                "640.123.450.700"
+              ],
+              "metadata": {}
+            },
+            {
+              "label_raw": "Cam kết thuê tài sản mô phỏng",
+              "label_normalized": "cam ket thue tai san mo phong",
+              "values": [
+                {
+                  "raw": "84.567.890.100",
+                  "normalized": 84567890100,
+                  "period_label": null,
+                  "period_role": null,
+                  "movement_role": null,
+                  "measure": null,
+                  "unit": "đồng",
+                  "unit_canonical": "vnd",
+                  "source_line": 649,
+                  "source_column": null
+                }
+              ],
+              "code": null,
+              "note_ref": null,
+              "row_role": "detail",
+              "hierarchy_path": [],
+              "source_line": 649,
+              "raw_cells": [
+                "Cam kết thuê tài sản mô phỏng",
+                "84.567.890.100"
+              ],
+              "metadata": {}
+            }
+          ],
+          "text": null,
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "bullet_key_value_v23_1"
+          }
+        },
+        {
+          "block_id": "NOTE:24@L643:narrative_2",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 650,
+          "source_end_line": 653,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "- Nghĩa vụ tiềm tàng mô phỏng: không xác định phát sinh trong dữ liệu mẫu.\n\nCác con số này không tạo ra quyền, nghĩa vụ hoặc trách nhiệm pháp lý ngoài phạm\nvi license dữ liệu mô phỏng.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "24",
+      "section_ref": "NOTE:24@L643"
+    },
+    {
+      "note_id_raw": "25",
+      "note_id_normalized": "25",
+      "title_raw": "SỰ KIỆN SAU NGÀY KẾT THÚC KỲ KẾ TOÁN",
+      "title_normalized": "su kien sau ngay ket thuc ky ke toan",
+      "source_start_line": 655,
+      "source_end_line": 660,
+      "section_instance_id": "25@L655",
+      "pages": [
+        12
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:25@L655:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 655,
+          "source_end_line": 659,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 25. SỰ KIỆN SAU NGÀY KẾT THÚC KỲ KẾ TOÁN\n\nSau ngày 31/12/2026, mô hình dữ liệu giả lập không ghi nhận sự kiện điều chỉnh\nnào. Một bản cập nhật kỹ thuật giả lập được đánh dấu ngày 15/01/2027 chỉ để kiểm\nthử nhận diện ngày tháng; không phải sự kiện của doanh nghiệp.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "25",
+      "section_ref": "NOTE:25@L655"
+    },
+    {
+      "note_id_raw": "26",
+      "note_id_normalized": "26",
+      "title_raw": "THÔNG TIN BỘ PHẬN",
+      "title_normalized": "thong tin bo phan",
+      "source_start_line": 661,
+      "source_end_line": 674,
+      "section_instance_id": "26@L661",
+      "pages": [
+        12,
+        13
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:26@L661:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 661,
+          "source_end_line": 673,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 26. THÔNG TIN BỘ PHẬN\n\nThông tin bộ phận được mô phỏng theo hai nhóm hoạt động:\n\n- Hạ tầng mô phỏng: doanh thu giả lập 10.234.567.890.100 đồng.\n- Dịch vụ kỹ thuật mô phỏng: doanh thu giả lập 8.530.864.219.700 đồng.\n\nCác nhóm này không đại diện cho ngành nghề, doanh thu hoặc thị trường của tổ chức\nthật nào.\n\n---\n\n# Page 13",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "26",
+      "section_ref": "NOTE:26@L661"
+    },
+    {
+      "note_id_raw": "27",
+      "note_id_normalized": "27",
+      "title_raw": "KHẢ NĂNG HOẠT ĐỘNG LIÊN TỤC",
+      "title_normalized": "kha nang hoat dong lien tuc",
+      "source_start_line": 675,
+      "source_end_line": 681,
+      "section_instance_id": "27@L675",
+      "pages": [
+        13
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:27@L675:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 675,
+          "source_end_line": 680,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 27. KHẢ NĂNG HOẠT ĐỘNG LIÊN TỤC\n\nBan soạn thảo giả lập thiết kế bộ số liệu với giả định hoạt động liên tục trong\nphạm vi kiểm thử. Đây không phải ý kiến đảm bảo, ý kiến kiểm toán hoặc dự báo tài\nchính. Người dùng không được sử dụng file để đánh giá khả năng thanh toán của một\ndoanh nghiệp thật.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "27",
+      "section_ref": "NOTE:27@L675"
+    },
+    {
+      "note_id_raw": "28",
+      "note_id_normalized": "28",
+      "title_raw": "ĐỐI CHIẾU NỘI BỘ CỦA DỮ LIỆU MÔ PHỎNG",
+      "title_normalized": "doi chieu noi bo cua du lieu mo phong",
+      "source_start_line": 682,
+      "source_end_line": 694,
+      "section_instance_id": "28@L682",
+      "pages": [
+        13
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:28@L682:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 682,
+          "source_end_line": 693,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 28. ĐỐI CHIẾU NỘI BỘ CỦA DỮ LIỆU MÔ PHỎNG\n\nCác phép đối chiếu dưới đây được đưa vào để người dùng kiểm thử parser:\n\n- Tổng tài sản mô phỏng bằng tổng nguồn vốn mô phỏng tại cả hai kỳ.\n- Doanh thu thuần mô phỏng bằng doanh thu gộp trừ các khoản giảm trừ.\n- Lợi nhuận gộp mô phỏng bằng doanh thu thuần trừ giá vốn hàng bán.\n- Lợi nhuận khác mô phỏng bằng thu nhập khác trừ chi phí khác.\n- Dòng tiền cuối kỳ mô phỏng được liên kết với tiền đầu kỳ và biến động tiền trong kỳ.\n\nCác đối chiếu trên chỉ kiểm tra tính nhất quán của fixture, không xác nhận số liệu\nkinh tế hoặc pháp lý.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "28",
+      "section_ref": "NOTE:28@L682"
+    },
+    {
+      "note_id_raw": "29",
+      "note_id_normalized": "29",
+      "title_raw": "THÔNG TIN KỸ THUẬT CỦA MẪU",
+      "title_normalized": "thong tin ky thuat cua mau",
+      "source_start_line": 695,
+      "source_end_line": 703,
+      "section_instance_id": "29@L695",
+      "pages": [
+        13
+      ],
+      "unit_raw": "document_fallback",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:29@L695:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 695,
+          "source_end_line": 702,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 29. THÔNG TIN KỸ THUẬT CỦA MẪU\n\n- Tên file: `synthetic_high_coverage_statement.md`.\n- Trạng thái: dữ liệu mô phỏng hoàn chỉnh cho kiểm thử.\n- Mã phiên bản mô phỏng: SYN-REV-4C72-2026.\n- Phạm vi: B01, B02, B03 và thuyết minh.\n- Nguồn cảm hứng: chỉ là cấu trúc của một file có hiệu suất parser cao; không phải nguồn dữ liệu của mẫu.\n- Metadata kho nguồn, chữ ký, con dấu và thông tin nhận dạng đã được loại khỏi mẫu.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "29",
+      "section_ref": "NOTE:29@L695"
+    },
+    {
+      "note_id_raw": "30",
+      "note_id_normalized": "30",
+      "title_raw": "TUYÊN BỐ SỬ DỤNG",
+      "title_normalized": "tuyen bo su dung",
+      "source_start_line": 704,
+      "source_end_line": 743,
+      "section_instance_id": "30@L704",
+      "pages": [
+        13,
+        14
+      ],
+      "unit_raw": "statement_early_context",
+      "unit": "vnd",
+      "unit_canonical": "vnd",
+      "blocks": [
+        {
+          "block_id": "NOTE:30@L704:narrative_1",
+          "form": "paragraph",
+          "semantic_shape": "narrative",
+          "source_start_line": 704,
+          "source_end_line": 743,
+          "headers_raw": [],
+          "headers_normalized": [],
+          "rows": [],
+          "text": "## 30. TUYÊN BỐ SỬ DỤNG\n\nFile có thể được dùng để kiểm thử parser, kiểm thử schema, minh họa quan hệ cha–con,\nđánh giá mapping kỳ hiện tại/kỳ trước và trình diễn pipeline. File không được dùng\nđể thay thế báo cáo tài chính, hồ sơ thuế, hợp đồng, chứng từ kế toán, hồ sơ tín\ndụng hoặc bất kỳ tài liệu pháp lý nào.\n\n---\n\n# Page 14\n\n## Phụ lục A. Bảng thuật ngữ mô phỏng\n\n- **Kỳ hiện tại:** năm tài chính mô phỏng kết thúc ngày 31/12/2026.\n- **Kỳ trước:** kỳ so sánh mô phỏng bắt đầu ngày 01/01/2026.\n- **Dòng cha:** dòng tổng hợp hoặc nhóm chỉ tiêu cấp cao hơn.\n- **Dòng con:** dòng chi tiết thuộc một dòng cha trong cấu trúc Markdown.\n- **Giá trị âm:** số trong ngoặc đơn, được giữ là số âm khi chuẩn hóa.\n- **Không có dữ liệu:** không suy diễn thành số 0 nếu nguồn mô phỏng không ghi số.\n\n## Phụ lục B. Kiểm soát dữ liệu nhận dạng\n\nMẫu này sử dụng tên tổ chức, mã mô phỏng, số đăng ký mô phỏng và mã phiên bản\nđược tạo mới. Không có số đăng ký doanh nghiệp, mã số thuế, số tài khoản, số hợp\nđồng, số hóa đơn, chữ ký hoặc thông tin liên hệ thật. Những chuỗi có dạng mã số\nchỉ là token kiểm thử và không được dùng để xác định bất kỳ chủ thể nào.\n\n## Phụ lục C. License dữ liệu\n\nĐây là dữ liệu mô phỏng do dự án tạo ra. Người dùng được phép sao chép, chỉnh sửa,\nphân phối và dùng trong kiểm thử hoặc minh họa, với điều kiện giữ nguyên tuyên bố\nrằng dữ liệu là mô phỏng. License này không cấp quyền đối với bất kỳ dữ liệu,\nthương hiệu, báo cáo, chữ ký, hình ảnh hoặc tài liệu doanh nghiệp thật nào.\n\n**Synthetic Data License 1.0 — no real-entity representation.**\n\nĐây là dữ liệu mô phỏng do dự án tạo ra cho mục đích kiểm thử và minh họa. Người\ndùng được phép sao chép, chỉnh sửa và phân phối file trong phạm vi phù hợp với\nlicense của dữ liệu mô phỏng. License của file này không cấp quyền đối với bất\nkỳ báo cáo tài chính hoặc dữ liệu doanh nghiệp thật nào.",
+          "unit_raw": null,
+          "unit": "vnd",
+          "unit_canonical": "vnd",
+          "source_page": null,
+          "dimensions": [],
+          "metadata": {
+            "parser": "narrative_preserve_v23_1"
+          }
+        }
+      ],
+      "links": [],
+      "sector_topic": null,
+      "metadata": {
+        "heading_level": 2,
+        "sectionizer": "structural_heading_v23_1",
+        "heading_kind": "numbered",
+        "heading_style": "markdown_heading",
+        "indent": 0
+      },
+      "logical_note_id": "30",
+      "section_ref": "NOTE:30@L704"
+    }
+  ],
+  "links": [
+    {
+      "source_ref": "NOTE:3@L400",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2bc02fa7adc5b8",
+      "relation": "explains",
+      "confidence": 1.0,
+      "evidence": [
+        "explicit_primary_note_reference"
+      ],
+      "statement_type": "financial_position",
+      "primary_note_reference": "3",
+      "metadata": {
+        "section_instance_count": 1,
+        "section_instance_refs": [
+          "NOTE:3@L400"
+        ]
+      }
+    },
+    {
+      "source_ref": "NOTE:4@L407",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2acbe8da471df5",
+      "relation": "explains",
+      "confidence": 1.0,
+      "evidence": [
+        "explicit_primary_note_reference"
+      ],
+      "statement_type": "financial_position",
+      "primary_note_reference": "4",
+      "metadata": {
+        "section_instance_count": 1,
+        "section_instance_refs": [
+          "NOTE:4@L407"
+        ]
+      }
+    },
+    {
+      "source_ref": "NOTE:5@L412",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.5f7adc430767cb",
+      "relation": "explains",
+      "confidence": 1.0,
+      "evidence": [
+        "explicit_primary_note_reference"
+      ],
+      "statement_type": "financial_position",
+      "primary_note_reference": "5",
+      "metadata": {
+        "section_instance_count": 1,
+        "section_instance_refs": [
+          "NOTE:5@L412"
+        ]
+      }
+    },
+    {
+      "source_ref": "NOTE:6@L418",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.63916e3c39a7a5",
+      "relation": "explains",
+      "confidence": 1.0,
+      "evidence": [
+        "explicit_primary_note_reference"
+      ],
+      "statement_type": "financial_position",
+      "primary_note_reference": "6",
+      "metadata": {
+        "section_instance_count": 1,
+        "section_instance_refs": [
+          "NOTE:6@L418"
+        ]
+      }
+    },
+    {
+      "source_ref": "NOTE:4@L407",
+      "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:5@L412",
+      "target_ref": "ONTOLOGY:ASSET.INVENTORY",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:7@L429",
+      "target_ref": "ONTOLOGY:ASSET.CASH_EQUIV",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:10@L467",
+      "target_ref": "ONTOLOGY:ASSET.INVENTORY",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:11@L477",
+      "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:12@L487",
+      "target_ref": "ONTOLOGY:ASSET.FIXED_ASSETS",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:13@L497",
+      "target_ref": "ONTOLOGY:ASSET.INVESTMENT_PROPERTY",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:15@L526",
+      "target_ref": "ONTOLOGY:LIABILITY.BORROWINGS",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:16@L536",
+      "target_ref": "ONTOLOGY:EQUITY",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:17@L555",
+      "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.REVENUE_GROSS",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:17@L555",
+      "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.REVENUE_NET",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:19@L581",
+      "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.CURRENT_TAX_EXPENSE",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:19@L581",
+      "target_ref": "ONTOLOGY:INCOME.ENTERPRISE.DEFERRED_TAX_EXPENSE",
+      "relation": "topic_candidate",
+      "confidence": 0.55,
+      "evidence": [
+        "sector_profile_title_match"
+      ],
+      "statement_type": null,
+      "primary_note_reference": null,
+      "metadata": {}
+    }
+  ],
+  "reconciliation": [
+    {
+      "source_ref": "NOTE:3@L400",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2bc02fa7adc5b8",
+      "status": "no_note_total",
+      "period": "current",
+      "primary_value": 1234567890120,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:3@L400",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2bc02fa7adc5b8",
+      "status": "no_note_total",
+      "period": "previous",
+      "primary_value": 987654321230,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:4@L407",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2acbe8da471df5",
+      "status": "no_note_total",
+      "period": "current",
+      "primary_value": 689321456700,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:4@L407",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.2acbe8da471df5",
+      "status": "no_note_total",
+      "period": "previous",
+      "primary_value": 543210987600,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:5@L412",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.5f7adc430767cb",
+      "status": "no_note_total",
+      "period": "current",
+      "primary_value": 1012345678900,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:5@L412",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.5f7adc430767cb",
+      "status": "no_note_total",
+      "period": "previous",
+      "primary_value": 845678901230,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:6@L418",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.63916e3c39a7a5",
+      "status": "no_note_total",
+      "period": "current",
+      "primary_value": 1112345678900,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    },
+    {
+      "source_ref": "NOTE:6@L418",
+      "target_ref": "financial_position:SOURCE.FINANCIAL_POSITION.63916e3c39a7a5",
+      "status": "no_note_total",
+      "period": "previous",
+      "primary_value": 978654321100,
+      "note_value": null,
+      "difference": null,
+      "unit_status": "unknown",
+      "evidence": [
+        "explicit_link_but_no_simple_total"
+      ],
+      "metadata": {}
+    }
+  ],
+  "diagnostics": {
+    "notes_found": true,
+    "scope": {
+      "found": true,
+      "start_line": 379,
+      "end_line": 743,
+      "confidence": 0.97,
+      "evidence": [
+        "normalized_notes_title:+10",
+        "markdown_bold_title:+1.5",
+        "normalized_title_line:379",
+        "project_statement_scanner:corroborated"
+      ],
+      "sticky": true
+    },
+    "section_count": 31,
+    "logical_note_id_count": 31,
+    "repeated_logical_note_sections": 0,
+    "section_ref_collision_count": 0,
+    "block_count": 33,
+    "block_id_collision_count": 0,
+    "table_count": 0,
+    "row_count": 2,
+    "block_forms": {
+      "paragraph": 32,
+      "bullet_list": 1
+    },
+    "semantic_shapes": {
+      "narrative": 32,
+      "breakdown": 1
+    },
+    "link_count": 17,
+    "high_confidence_links": 4,
+    "reconciliation": {
+      "no_note_total": 8
+    },
+    "primary_heading_decoys_inside_notes": [],
+    "false_primary_capture_guard": "sticky_notes_scope",
+    "numeric_scaling_policy": "never_scale_notes_values"
+  },
+  "period": {
+    "current_year": 2026,
+    "previous_year": 2025,
+    "method": "explicit_function_arguments",
+    "explicit_current_year": true,
+    "explicit_previous_year": true,
+    "filename_years": [],
+    "candidate_scores": {},
+    "period_type": "annual",
+    "current_end_date": null,
+    "previous_end_date": null,
+    "current_start_date": null,
+    "previous_start_date": null,
+    "calendar_end_year": 2026,
+    "fiscal_year_label": 2026,
+    "fiscal_year_label_source": "explicit_function_arguments",
+    "confidence": "explicit",
+    "conflict": false,
+    "conflict_reasons": [],
+    "date_evidence": []
+  },
+  "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+  "provenance": {
+    "source_name": "synthetic_high_coverage_statement.md",
+    "source_sha256": "b2b4b67ea02e0ba9dbc29a03df7e6f51a111d0e2cd8772cc8ec2596a29ce61eb",
+    "current_year": 2026,
+    "previous_year": 2025,
+    "year_resolution": {
+      "current_year": 2026,
+      "previous_year": 2025,
+      "method": "statement_end_date",
+      "explicit_current_year": false,
+      "explicit_previous_year": false,
+      "filename_years": [],
+      "candidate_scores": {
+        "2025": 76,
+        "2026": 746,
+        "2027": 2
+      },
+      "period_type": "annual",
+      "current_end_date": "2026-12-31",
+      "previous_end_date": "2025-12-31",
+      "current_start_date": "2026-01-01",
+      "previous_start_date": "2025-01-01",
+      "calendar_end_year": 2026,
+      "fiscal_year_label": 2026,
+      "fiscal_year_label_source": "statement_end_year",
+      "confidence": "high",
+      "conflict": false,
+      "conflict_reasons": [],
+      "date_evidence": [
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 20,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 381,
+          "text": "Cho năm tài chính kết thúc ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 164.0,
+          "line": 717,
+          "text": "- **Kỳ hiện tại:** năm tài chính mô phỏng kết thúc ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 47,
+          "text": "Tại ngày 31 tháng 12 năm 2026",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 392,
+          "text": "Vốn góp mô phỏng tại ngày 31 tháng 12 năm 2026 là 3.456.789.012.300 đồng.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 64.0,
+          "line": 446,
+          "text": "- Giá trị ghi sổ mô phỏng: 689.321.456.700 đồng tại ngày 31/12/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 436,
+          "text": "- Tiền mặt mô phỏng: 712.345.678.910 đồng tại ngày 31/12/2026 và 612.345.678.910 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 437,
+          "text": "- Tiền gửi thanh toán mô phỏng: 522.222.211.210 đồng tại ngày 31/12/2026 và 375.308.642.320 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-01-01",
+          "role": "opening",
+          "weight": 55.0,
+          "line": 447,
+          "text": "- Giá trị so sánh mô phỏng: 543.210.987.600 đồng tại ngày 01/01/2026.",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "opening",
+          "weight": 30.0,
+          "line": 210,
+          "text": "*   421a. Lợi nhuận lũy kế đến đầu kỳ: 128.765.432.100 đồng (31/12/2026), 95.432.109.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 52,
+          "text": "*   **31/12/2026** (VND)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 188,
+          "text": "*   311. 1. Phải trả người bán ngắn hạn: 345.678.901.200 đồng (31/12/2026), 298.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 189,
+          "text": "*   312. 2. Người mua trả tiền trước ngắn hạn: 456.789.012.300 đồng (31/12/2026), 321.234.567.800 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 190,
+          "text": "*   313. 3. Thuế và các khoản phải nộp Nhà nước: 123.456.789.400 đồng (31/12/2026), 98.765.432.100 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 191,
+          "text": "*   314. 4. Phải trả người lao động: 234.567.890.500 đồng (31/12/2026), 210.123.456.700 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 192,
+          "text": "*   315. 5. Chi phí phải trả ngắn hạn: 345.678.901.600 đồng (31/12/2026), 300.987.654.300 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 193,
+          "text": "*   318. 6. Doanh thu chưa thực hiện ngắn hạn: 123.456.789.700 đồng (31/12/2026), 100.222.333.400 đồng (01/01/2026)",
+          "administrative": false
+        },
+        {
+          "date": "2026-12-31",
+          "role": "end",
+          "weight": 24.0,
+          "line": 194,
+          "text": "*   319. 7. Phải trả ngắn hạn khác: 234.567.890.800 đồng (31/12/2026), 190.111.222.500 đồng (01/01/2026)",
+          "administrative": false
+        }
+      ]
+    }
+  }
+}

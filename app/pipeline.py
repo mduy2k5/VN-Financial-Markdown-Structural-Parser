@@ -109,6 +109,33 @@ SCHEMA_PROFILES = {
         "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_3_0.json",
         "preserve_decimal_branch_rows": True,
     },
+    "schema_v1_9": {
+        "income_statement_schema": SCHEMA_OVERLAYS / "income_statement_schema_v1_6_0.json",
+        "income_statement_aliases": SCHEMA_OVERLAYS / "income_statement_aliases_v1_3_5.json",
+        "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_9_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_9_0.json",
+        "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_3_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_4_0.json",
+        "preserve_decimal_branch_rows": True,
+    },
+    "schema_v1_10": {
+        "income_statement_schema": SCHEMA_OVERLAYS / "income_statement_schema_v1_7_0.json",
+        "income_statement_aliases": SCHEMA_OVERLAYS / "income_statement_aliases_v1_3_6.json",
+        "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_9_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_9_0.json",
+        "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_4_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_5_0.json",
+        "preserve_decimal_branch_rows": True,
+    },
+    "schema_v1_11": {
+        "income_statement_schema": SCHEMA_OVERLAYS / "income_statement_schema_v1_7_0.json",
+        "income_statement_aliases": SCHEMA_OVERLAYS / "income_statement_aliases_v1_3_6.json",
+        "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_10_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_10_0.json",
+        "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_4_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_5_0.json",
+        "preserve_decimal_branch_rows": True,
+    },
 }
 REPORT_ARTIFACT_SUFFIXES = (
     ".income.canonical.json",
@@ -720,6 +747,9 @@ def process_one(
     *,
     fp_parser: Optional[FinancialPositionSourceParser] = None,
     enable_notes: bool = True,
+    notes_parser_mode: str = "legacy",
+    notes_alias_profile: str = "auto",
+    notes_alias_path: Optional[Path] = None,
     year_resolution: Optional[dict[str, Any]] = None,
     financial_position_schema_path: Optional[Path] = None,
     financial_position_aliases_path: Optional[Path] = None,
@@ -887,6 +917,9 @@ def process_one(
         notes_ir = NotesPipeline(
             current_year=current_year,
             previous_year=previous_year,
+            parser_mode=notes_parser_mode,
+            alias_profile=notes_alias_profile,
+            alias_path=notes_alias_path,
         ).parse_text(
             source_text,
             source_name=md_path.name,
@@ -1051,6 +1084,27 @@ def process_one(
         "notes_tables": ((notes_ir or {}).get("diagnostics") or {}).get("table_count", 0),
         "notes_rows": ((notes_ir or {}).get("diagnostics") or {}).get("row_count", 0),
         "notes_exported_rows": notes_rows_export.get("row_count", 0) if enable_notes else 0,
+        "notes_parser_mode": notes_parser_mode if enable_notes else None,
+        "notes_alias_profile": (
+            ((notes_ir or {}).get("diagnostics") or {}).get("schema_alias", {}).get("profile")
+            if enable_notes else None
+        ),
+        "notes_alias_matched_sections": (
+            ((notes_ir or {}).get("diagnostics") or {}).get("schema_alias", {}).get("matched_sections", 0)
+            if enable_notes else 0
+        ),
+        "notes_alias_mapped_rows": (
+            ((notes_ir or {}).get("diagnostics") or {}).get("schema_alias", {}).get("mapped_rows", 0)
+            if enable_notes else 0
+        ),
+        "notes_alias_unmapped_rows": (
+            ((notes_ir or {}).get("diagnostics") or {}).get("schema_alias", {}).get("unmapped_rows", 0)
+            if enable_notes else 0
+        ),
+        "notes_multi_column_blocks": (
+            ((notes_ir or {}).get("diagnostics") or {}).get("schema_alias", {}).get("multi_column_blocks", 0)
+            if enable_notes else 0
+        ),
         "notes_rows_csv": (
             f"notes_rows/{notes_rows_export.get('csv_file')}"
             if audit_dir is not None and enable_notes and notes_rows_export.get("csv_file") else None
@@ -1110,6 +1164,27 @@ def main():
         help="Enable/disable v22.5 additive Notes IR extraction. Primary statements remain authoritative.",
     )
     ap.add_argument(
+        "--notes-parser-mode",
+        choices=["legacy", "v2"],
+        default="legacy",
+        help=(
+            "Notes-only parser mode. v2 preserves every numeric bullet leaf, "
+            "hierarchy and non-period movement value. legacy is the rollback-safe default."
+        ),
+    )
+    ap.add_argument(
+        "--notes-alias-profile",
+        choices=["auto", "none", "bank_v1", "enterprise_v1", "securities_v1", "insurance_v1"],
+        default="auto",
+        help=(
+            "Optional Notes-only alias catalog. auto enables bank_v1 for bank "
+            "and enterprise_v1 for enterprise reports, securities_v1 for "
+            "securities reports, insurance_v1 for insurance reports; none is "
+            "the rollback path and keeps raw-tree "
+            "storage."
+        ),
+    )
+    ap.add_argument(
         "--audit",
         action="store_true",
         help="Also write rich parser/evaluation artifacts under <output>/audit/.",
@@ -1127,10 +1202,11 @@ def main():
     ap.add_argument(
         "--schema-profile",
         choices=sorted(SCHEMA_PROFILES),
-        default="schema_v1_7",
+        default="schema_v1_11",
         help=(
-            "Schema bundle to use. schema_v1_7 enables the reversible BSI "
-            "schema additions; use --schema-profile baseline to roll back."
+            "Schema bundle to use. schema_v1_11 enables the latest reversible "
+            "B01-B03 schema additions; schema_v1_10, schema_v1_9, schema_v1_7 and baseline remain available "
+            "for rollback."
         ),
     )
     ap.add_argument(
@@ -1205,6 +1281,8 @@ def main():
                 "preserve_decimal_branch_rows": schema_profile["preserve_decimal_branch_rows"],
                 "row_scan_mode": args.row_scan_mode,
                 "flat_code_label_periods": args.flat_code_label_periods,
+                "notes_parser_mode": args.notes_parser_mode,
+                "notes_alias_profile": args.notes_alias_profile,
             },
         )
 
@@ -1226,6 +1304,8 @@ def main():
                 args.sector,
                 fp_parser=fp_parser,
                 enable_notes=args.notes,
+                notes_parser_mode=args.notes_parser_mode,
+                notes_alias_profile=args.notes_alias_profile,
                 year_resolution=year_resolution,
                 income_schema_path=schema_profile["income_statement_schema"],
                 income_aliases_path=schema_profile["income_statement_aliases"],
@@ -1291,6 +1371,8 @@ def main():
             "previous_year": args.previous_year,
             "sector": args.sector,
             "notes_enabled": args.notes,
+            "notes_parser_mode": args.notes_parser_mode,
+            "notes_alias_profile": args.notes_alias_profile,
             "schema_profile": args.schema_profile,
             "row_scan_mode": args.row_scan_mode,
             "flat_code_label_periods": args.flat_code_label_periods,
@@ -1320,7 +1402,9 @@ def main():
             "income_source_recovered_rows","cashflow_source_recovered_rows","cashflow_source_recovery_filled_nodes",
             "financial_position_canonical_file",
             "comparison_file","canonical_file","cashflow_canonical_file",
-            "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_rows_csv","notes_links","notes_ir_file","error"
+            "notes_status","notes_sections","notes_tables","notes_rows","notes_exported_rows","notes_parser_mode",
+            "notes_alias_profile","notes_alias_matched_sections","notes_alias_mapped_rows","notes_alias_unmapped_rows",
+            "notes_multi_column_blocks","notes_rows_csv","notes_links","notes_ir_file","error"
         ]
         with (audit_dir / "comparison_summary.csv").open("w", encoding="utf-8-sig", newline="") as f:
             w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")

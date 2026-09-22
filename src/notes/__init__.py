@@ -12,6 +12,7 @@ from .scanner import detect_notes_scope
 from .sectionizer import sectionize_notes
 from .linker import link_notes_to_primary
 from .reconciliation import reconcile_notes
+from .alias_catalog import annotate_note_sections, load_alias_catalog
 
 __all__ = [
     "NoteDocument",
@@ -27,6 +28,8 @@ __all__ = [
     "sectionize_notes",
     "link_notes_to_primary",
     "reconcile_notes",
+    "annotate_note_sections",
+    "load_alias_catalog",
 ]
 
 from .row_exporter import flatten_note_rows, export_note_rows, write_aggregate_rows

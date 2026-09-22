@@ -7,7 +7,7 @@
     "name": "vn_financial_report_output",
     "version": "2.0.0"
   },
-  "generated_at": "2026-09-21T06:41:42.142896+00:00",
+  "generated_at": "2026-09-21T09:59:29.541706+00:00",
   "input": {
     "name": "synthetic_high_coverage_statement.md",
     "policy": "markdown_source_only"
@@ -18,7 +18,8 @@
     "sector": "auto",
     "notes_enabled": true,
     "schema_profile": "schema_v1_7",
-    "row_scan_mode": "off"
+    "row_scan_mode": "off",
+    "flat_code_label_periods": true
   },
   "report_count": 1,
   "error_count": 0,
@@ -40,5 +41,9 @@
       },
       "notes_status": "parsed"
     }
-  ]
+  ],
+  "audit": {
+    "enabled": true,
+    "directory": "audit"
+  }
 }
