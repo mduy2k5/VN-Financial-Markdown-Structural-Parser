@@ -57,6 +57,8 @@ def _set_statement_unit(canonical: dict, unit: Optional[str]) -> dict:
 
 def summarize_canonical(
     canonical: dict,
+    *,
+    structural_stats: Optional[dict[str, Any]] = None,
 ) -> dict:
     """Tính metrics production từ canonical B01.
 
@@ -65,6 +67,7 @@ def summarize_canonical(
     dict metrics, không sửa canonical và không đọc source hay output cũ.
     """
     nodes = canonical.get("nodes") or []
+    structural_stats = structural_stats or {}
     valued = []
     current = []
     previous = []
@@ -93,6 +96,20 @@ def summarize_canonical(
         if source_nodes
         else None
     )
+    semantic_input_rows = int(
+        structural_stats.get("true_actionable_financial_label_candidates") or 0
+    )
+    semantic_mapped_rows = int(
+        structural_stats.get("matched_financial_labels") or 0
+    )
+    semantic_unmapped_rows = max(semantic_input_rows - semantic_mapped_rows, 0)
+    semantic_mapping_rate = structural_stats.get(
+        "true_actionable_semantic_label_coverage"
+    )
+    if semantic_mapping_rate is None and semantic_input_rows:
+        semantic_mapping_rate = round(
+            semantic_mapped_rows / semantic_input_rows, 6
+        )
     if not valued_n:
         status = "no_financial_position_values"
     elif semantic_conflicts:
@@ -110,14 +127,25 @@ def summarize_canonical(
             "previous_value_nodes": len(previous),
             "current_coverage": round(len(current) / valued_n, 6) if valued_n else 0.0,
             "previous_coverage": round(len(previous) / valued_n, 6) if valued_n else 0.0,
-            # B01 không thu thập row mapping theo cùng pipeline B02/B03.
-            # Metric này đo riêng tỷ lệ evidence nguồn đã nối được vào schema,
-            # không đưa vào quality gate mapping_rate chung để tránh thay đổi
-            # eligibility production ngoài phạm vi yêu cầu.
-            "source_mapping_input_rows": source_nodes,
-            "source_mapping_mapped_rows": linked_source_nodes,
-            "source_mapping_unmapped_rows": source_only_nodes,
-            "source_mapping_rate": source_mapping_rate,
+        },
+        "semantic_mapping": {
+            # Đây là mapping rate chính của B01: chỉ đếm nhãn tài chính nghiệp
+            # vụ mà structural parser nhận diện, không đếm nhãn kỳ/thuộc tính,
+            # dòng nhiễu hoặc source recovery bổ sung.
+            "input_rows": semantic_input_rows,
+            "mapped_rows": semantic_mapped_rows,
+            "unmapped_rows": semantic_unmapped_rows,
+            "mapping_rate": semantic_mapping_rate,
+            "basis": "true_actionable_semantic_label_coverage",
+        },
+        "source_evidence_link": {
+            # Chẩn đoán provenance riêng; không dùng làm mapping rate B01 vì
+            # source recovery chủ yếu chứa các dòng ngoài schema/chưa có node.
+            "input_rows": source_nodes,
+            "mapped_rows": linked_source_nodes,
+            "unmapped_rows": source_only_nodes,
+            "mapping_rate": source_mapping_rate,
+            "basis": "source_observation_link",
         },
         "parser": {
             "statement_profile": "financial_position",
@@ -297,7 +325,7 @@ class FinancialPositionSourceParser:
             year_resolution=period,
         )
 
-        metrics = summarize_canonical(canonical)
+        metrics = summarize_canonical(canonical, structural_stats=raw_stats)
         parser_metrics = dict(metrics.get("parser") or {})
         parser_metrics.update({
             "source_name": source_name,

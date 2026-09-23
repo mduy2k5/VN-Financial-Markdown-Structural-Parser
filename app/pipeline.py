@@ -136,7 +136,17 @@ SCHEMA_PROFILES = {
         "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_5_0.json",
         "preserve_decimal_branch_rows": True,
     },
+    "schema_v1_12": {
+        "income_statement_schema": SCHEMA_OVERLAYS / "income_statement_schema_v1_7_0.json",
+        "income_statement_aliases": SCHEMA_OVERLAYS / "income_statement_aliases_v1_3_6.json",
+        "financial_position_schema": SCHEMA_OVERLAYS / "financial_position_schema_v1_11_0.json",
+        "financial_position_aliases": SCHEMA_OVERLAYS / "financial_position_aliases_v1_11_0.json",
+        "cash_flow_schema": SCHEMA_OVERLAYS / "cash_flow_schema_v1_4_0.json",
+        "cash_flow_aliases": SCHEMA_OVERLAYS / "cash_flow_aliases_v1_5_0.json",
+        "preserve_decimal_branch_rows": True,
+    },
 }
+DEFAULT_SCHEMA_PROFILE = "schema_v1_12"
 REPORT_ARTIFACT_SUFFIXES = (
     ".income.canonical.json",
     ".cashflow.canonical.json",
@@ -1202,11 +1212,10 @@ def main():
     ap.add_argument(
         "--schema-profile",
         choices=sorted(SCHEMA_PROFILES),
-        default="schema_v1_11",
+        default=DEFAULT_SCHEMA_PROFILE,
         help=(
-            "Schema bundle to use. schema_v1_11 enables the latest reversible "
-            "B01-B03 schema additions; schema_v1_10, schema_v1_9, schema_v1_7 and baseline remain available "
-            "for rollback."
+            "Schema bundle to use. schema_v1_12 is the default and includes the latest "
+            "reversible B01 schema additions; use --schema-profile schema_v1_11 to roll back."
         ),
     )
     ap.add_argument(

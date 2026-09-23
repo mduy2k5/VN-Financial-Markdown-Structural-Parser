@@ -342,7 +342,8 @@
         ],
         "aliases": [
           "TIỀN GỬI TẠI CÁC TCTD KHÁC",
-          "TIỀN GỬI CÁC TỔ CHỨC TÍN DỤNG KHÁC"
+          "TIỀN GỬI CÁC TỔ CHỨC TÍN DỤNG KHÁC",
+          "Tiền gửi tại các tổ chức tín dụng (“TCTD”) khác"
         ],
         "parent_context": [
           "Tiền gửi và cho vay các tổ chức tín dụng khác"
@@ -1426,7 +1427,8 @@
         ],
         "aliases": [
           "NGUYÊN GIÁ BẤT ĐỘNG SẢN ĐẦU TƯ",
-          "NGUYÊN GIÁ"
+          "NGUYÊN GIÁ",
+          "Nguyên giá BĐSĐT"
         ],
         "parent_context": [
           "BẤT ĐỘNG SẢN ĐẦU TƯ",

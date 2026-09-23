@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from difflib import SequenceMatcher
+from decimal import Decimal, InvalidOperation
 import re
 
 from .document import ancestors
@@ -73,6 +74,142 @@ def _base_match(text: str, spec, allow_fuzzy: bool):
                 if not best or score > best[0]:
                     best = (score, x, "fuzzy")
         return best
+
+    return None
+
+
+def _has_value_descendant(node: StructuralNode, nodes: list[StructuralNode]) -> bool:
+    pending = list(node.children)
+    while pending:
+        child_index = pending.pop()
+        child = nodes[child_index]
+        if child.values:
+            return True
+        pending.extend(child.children)
+    return False
+
+
+def _subtotal_owner_for_node(
+    node: StructuralNode,
+    nodes: list[StructuralNode],
+    catalog: SemanticCatalog,
+):
+    """Find a schema group whose value is exactly the sum of its source children.
+
+    Some flattened statements label a subtotal with the same text as its first
+    detail row. Only reassign that subtotal to the schema parent when the group
+    explicitly opts in, all value-bearing direct children resolve to distinct
+    schema children, their period columns match, and every column sums exactly.
+    """
+
+    if not node.values or not node.children:
+        return None
+
+    source_label = normalize_label(node.label_text or node.text)
+    if not source_label:
+        return None
+
+    for owner in catalog.nodes.values():
+        if not (owner.structural or {}).get("subtotal_owner_reassignment"):
+            continue
+
+        child_specs = [
+            spec for spec in catalog.nodes.values()
+            if spec.parent_id == owner.node_id and spec.kind != "group"
+        ]
+        if len(child_specs) < 2:
+            continue
+
+        payload_children = []
+        mapped_child_ids = set()
+        has_repeated_child_label = False
+        invalid = False
+        for child_index in node.children:
+            child = nodes[child_index]
+            if not child.values:
+                if _has_value_descendant(child, nodes):
+                    invalid = True
+                    break
+                continue
+            if _has_value_descendant(child, nodes):
+                invalid = True
+                break
+
+            child_label = normalize_label(child.label_text or child.text)
+            matches = [
+                spec for spec in child_specs
+                if _base_match(child_label, spec, allow_fuzzy=False)
+            ]
+            if len(matches) != 1 or matches[0].node_id in mapped_child_ids:
+                invalid = True
+                break
+            mapped_child_ids.add(matches[0].node_id)
+            payload_children.append(child)
+            if child_label == source_label:
+                has_repeated_child_label = True
+
+        if invalid or len(payload_children) < 2 or not has_repeated_child_label:
+            continue
+        if len(mapped_child_ids) != len(payload_children):
+            continue
+
+        parent_periods = tuple(
+            normalize_label(period.normalized or period.raw_period)
+            for period in node.periods
+        )
+        if not parent_periods or len(parent_periods) != len(node.values):
+            continue
+
+        child_value_columns = []
+        for child in payload_children:
+            periods = tuple(
+                normalize_label(period.normalized or period.raw_period)
+                for period in child.periods
+            )
+            if periods != parent_periods or len(child.values) != len(node.values):
+                invalid = True
+                break
+            child_value_columns.append(child.values)
+        if invalid:
+            continue
+
+        all_values = [*node.values]
+        for values in child_value_columns:
+            all_values.extend(values)
+        units = {normalize_label(value.unit or "") for value in all_values}
+        units.discard("")
+        if len(units) > 1:
+            continue
+
+        try:
+            parent_numbers = [
+                Decimal(str(value.normalized_candidate))
+                if value.normalized_candidate is not None and not value.is_dash
+                else None
+                for value in node.values
+            ]
+            child_numbers = [
+                [
+                    Decimal(str(value.normalized_candidate))
+                    if value.normalized_candidate is not None and not value.is_dash
+                    else None
+                    for value in values
+                ]
+                for values in child_value_columns
+            ]
+        except (InvalidOperation, ValueError):
+            continue
+
+        if any(value is None for value in parent_numbers) or any(
+            value is None for column in child_numbers for value in column
+        ):
+            continue
+        if all(
+            sum(column[period_index] for column in child_numbers)
+            == parent_numbers[period_index]
+            for period_index in range(len(parent_numbers))
+        ):
+            return owner
 
     return None
 
@@ -223,15 +360,31 @@ def match_candidates(
     tree_texts, prior = _nearest_semantic_ancestor_texts(
         node, nodes, prior_selected
     )
+    subtotal_owner = (
+        _subtotal_owner_for_node(node, nodes, catalog)
+        if same_label_recovery
+        else None
+    )
 
     for spec in catalog.nodes.values():
-        base = None
+        structural_subtotal_match = bool(
+            subtotal_owner and spec.node_id == subtotal_owner.node_id
+        )
+        if structural_subtotal_match:
+            base = (0.99, text, "structural_subtotal_owner_reassignment")
+        elif subtotal_owner and spec.parent_id == subtotal_owner.node_id:
+            # The source row is the verified sum of its children; do not
+            # assign that aggregate to the child whose label happens to match.
+            continue
+        else:
+            base = None
         matched_source_text = text
-        for label_option in label_options:
-            base = _base_match(label_option, spec, allow_fuzzy)
-            if base:
-                matched_source_text = label_option
-                break
+        if not structural_subtotal_match:
+            for label_option in label_options:
+                base = _base_match(label_option, spec, allow_fuzzy)
+                if base:
+                    matched_source_text = label_option
+                    break
         if not base:
             continue
 
@@ -248,11 +401,39 @@ def match_candidates(
             "quy cua to chuc tin dung": "bank",
         }.get(normalized_source)
         if sector_guard and detected_sector and detected_sector != sector_guard:
-            continue
+            # Bản schema 1.11 xác nhận hai nhãn vay ngắn/dài hạn cũng là
+            # chỉ tiêu chuẩn ở công ty chứng khoán và bảo hiểm. Chỉ mở rộng
+            # đúng hai trường hợp này trong profile mới để schema_v1_11 cũ
+            # vẫn là điểm rollback nguyên trạng.
+            borrowing_sector_extension = (
+                catalog.schema.get("schema_version") == "1.11.0"
+                and normalized_source in {"vay ngan han", "vay dai han"}
+                and detected_sector in {"securities", "insurance"}
+            )
+            if not borrowing_sector_extension:
+                continue
+            # Một số Markdown của CTCK lặp cùng nhãn cho hai mã chỉ tiêu
+            # khác nhau (ví dụ 311 và 312 đều thành "Vay ngắn hạn"). Khi hai
+            # dòng có cùng cha và đều mang giá trị, không thể gán chắc chắn
+            # chúng vào cùng một node canonical; giữ cả hai ở trạng thái chưa
+            # map để tránh gộp/mất một bộ giá trị khi consolidate.
+            duplicate_value_siblings = any(
+                other.node_index != node.node_index
+                and other.parent_index == node.parent_index
+                and bool(other.values)
+                and normalize_label(other.label_text or other.text)
+                == normalized_source
+                for other in nodes
+            )
+            if duplicate_value_siblings:
+                continue
 
         alias_score, matched_alias, method = base
         context_score = 0.0
         evidence = []
+        if structural_subtotal_match:
+            context_score = 0.60
+            evidence.append("subtotal_owner_value_sum_matches_children")
 
         source_score, source_evidence = _source_context_score(
             spec,
